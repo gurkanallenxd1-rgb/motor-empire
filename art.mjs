@@ -1,227 +1,313 @@
-import { drawBike, gradient, oval, polygon, stroke } from './bikes.mjs';
+import { categoryOf, spriteUrl } from './bikes.mjs';
 
-const WIDTH = 1040;
-const HEIGHT = 610;
-const bayPositions = [[3.3, 6.4], [8.3, 6.4]];
-const project = (x, y, z = 0) => [525 + (x - y) * 43, 175 + (x + y) * 19 - z * 33];
+const WIDTH = 1536;
+const HEIGHT = 1024;
+const BAYS = [[588, 618], [1016, 740]];
+const SPRITE_WIDTH = 402;
+const MAX_ZOOM = 2.5;
+const MOBILE_FIT = 1.20;
+const DESKTOP_FIT = .955;
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-function buildWorkshop(canvas) {
-  const ctx = canvas.getContext('2d');
-  const face = (coords, fill) => polygon(ctx, coords.map(point => project(...point)), fill);
-  const line = (coords, color, width) => stroke(ctx, coords.map(point => project(...point)), color, width);
-  function box(x, y, z, w, d, h, colors) {
-    face([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]], colors[0]);
-    face([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]], colors[1]);
-    face([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]], colors[2]);
-  }
-  function shadow(x, y, width, height) {
-    const [sx, sy] = project(x,y);
-    const paint = ctx.createRadialGradient(sx,sy,0,sx,sy,width);
-    paint.addColorStop(0,'#101010aa');
-    paint.addColorStop(1,'#11111100');
-    oval(ctx,sx,sy,width,height,0,paint);
-  }
-  function wallText(text, x, z, size, color) {
-    const [px,py] = project(x,.28,z);
-    ctx.save();
-    ctx.transform(1,19/43,0,1,px,py);
-    ctx.fillStyle = color;
-    ctx.font = `850 ${size}px system-ui`;
-    ctx.fillText(text,0,0);
-    ctx.restore();
-  }
-
-  ctx.fillStyle = gradient(ctx,0,HEIGHT,'#181c1f','#26292b','#15191b');
-  ctx.fillRect(0,0,WIDTH,HEIGHT);
-  for (let i = -500; i < 1100; i += 38) stroke(ctx,[[i,610],[i+960,150]],'#dddddd08');
-  for (let i = -500; i < 1500; i += 48) stroke(ctx,[[i,140],[i+970,610]],'#dddddd08');
-  shadow(5.6,5.2,465,205);
-  box(-.16,-.16,-.62,11.32,10.32,.62,['#3b4142','#232a2c','#666861']);
-  for (let x = 0; x < 11; x += 1) {
-    for (let y = 0; y < 10; y += 1) {
-      const value = 80 + (x * 11 + y * 7) % 12;
-      face([[x,y],[x+.988,y],[x+.988,y+.988],[x,y+.988]], `rgb(${value+3},${value+2},${value-2})`);
-    }
-  }
-  let seed = 481;
-  const random = () => {
-    seed = (Math.imul(seed,1664525) + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  for (let i = 0; i < 1900; i += 1) {
-    const [x,y] = project(random()*11,random()*10,.005);
-    ctx.fillStyle = i % 2 ? '#e8d1a61d' : '#12141731';
-    ctx.fillRect(x,y,1+random()*3,1);
-  }
-  box(0,0,0,11,.22,3.85,['#525355','#343a3c','#8b8980']);
-  box(0,.22,0,.22,9.78,3.85,['#313638','#3e4547','#797c73']);
-  for (let h = .18; h < 3.8; h += .33) {
-    line([[.23,.3,h],[.23,9.97,h]],'#252b2d66');
-    line([[.23,.225,h],[10.98,.225,h]],'#22272877');
-    for (let x = .6 + (Math.round(h*3)%2)*.4; x < 10.8; x += .8) {
-      line([[x,.227,h],[x,.227,h+.32]], '#272a2a65');
-    }
-  }
-  box(.24,.24,.83,10.76,.035,.19,['#98472c','#743927','#b67a54']);
-  box(.24,.24,.83,.035,9.75,.19,['#783823','#86412a','#ab704b']);
-
-  box(5.6,.26,0,4.58,.15,3.2,['#13191c','#303537','#6f7069']);
-  box(5.74,.42,.04,4.28,.07,2.94,['#3d4343','#25282a','#626866']);
-  for (let z = .17; z <= 2.95; z += .14) {
-    line([[5.76,.51,z],[10,.51,z]],'#171e20',2);
-    line([[5.77,.51,z+.055],[10,.51,z+.055]],'#78817c55');
-  }
-  box(6.63,.53,3.09,2.35,.12,.12,['#ffdc9f','#8c6243','#eee0b1']);
-
-  box(.68,.26,2.4,4.2,.1,.94,['#222627','#171c1f','#7a7868']);
-  wallText('MOTOR EMPIRE',.9,2.72,19,'#ffbe87');
-  box(1.3,.42,2.27,2.6,.15,.09,['#ffd5a1','#be793c','#fff0cf']);
-  for (const [x,y,rx,ry] of [[3.05,2.3,176,79],[7.8,4.4,244,91]]) {
-    const [px,py] = project(x,y);
-    const glow = ctx.createRadialGradient(px,py,0,px,py,rx);
-    glow.addColorStop(0,'#ffc78542');
-    glow.addColorStop(1,'#ffcd8d00');
-    oval(ctx,px,py,rx,ry,.35,glow);
-  }
-
-  const cabinet = ['#944c35','#63392f','#b37b5c'];
-  const steel = ['#41494b','#293238','#777c76'];
-  box(.76,1.03,0,3.76,.89,1.04,steel);
-  box(.63,.98,1.04,4.02,1,.15,['#585044','#4e4436','#a18e73']);
-  box(1.02,.38,1.25,3.85,.12,.89,['#2f3536','#444746','#767168']);
-  for (let y = .56; y < 2; y += .18) {
-    for (let x = 1.12; x < 4.8; x += .22) line([[x,.515,y],[x+.024,.515,y]],'#838278',1.35);
-  }
-  for (let x = 1.2; x < 4.7; x += .38) {
-    line([[x,.53,1.91],[x+.07,.53,1.53]],'#a3a69b',2);
-    line([[x-.04,.53,1.93],[x+.05,.53,1.95]],'#bdc1b8',3);
-  }
-  box(.5,3.03,0,.91,1.55,1.46,cabinet);
-  for (let z = .18; z < 1.44; z += .23) {
-    box(1.415,3.09,z,.045,1.4,.19,['#793e2d','#b06243','#a27054']);
-    line([[1.48,3.39,z+.11],[1.48,4.24,z+.11]],'#d5bfaa',2.2);
-  }
-  for (const [x,y,color] of [[3.23,1.41,'#aa733b'],[3.55,1.45,'#6b8059'],[.76,3.41,'#c2a45d'],[.84,3.78,'#809b98']]) {
-    const z = y > 3 ? 1.46 : 1.19;
-    box(x,y,z,.23,.26,.43,[color,'#454940',color]);
-    box(x+.07,y+.08,z+.43,.1,.1,.09,['#24282a','#24282a','#555958']);
-  }
-  shadow(1.4,7.1,77,30);
-  const [cx,cy] = project(1.26,7.1,.43);
-  oval(ctx,cx,cy,33,18,-.45,gradient(ctx,cy-20,cy+18,'#c67650','#8f4131','#502921'));
-  oval(ctx,cx+16,cy-5,16,13,.5,'#af6346');
-  box(.98,6.9,.63,.62,.55,.38,steel);
-  stroke(ctx,[[cx-24,cy-2],[cx-43,cy+8],[cx-29,cy+24],[cx-11,cy+15]],'#252a2b',4);
-
-  for (const [x,y,count] of [[10.35,2,4],[1.25,8.7,3]]) {
-    shadow(x,y,46,22);
-    for (let i=0;i<count;i+=1) {
-      const [tx,ty] = project(x,y,.18+i*.26);
-      oval(ctx,tx,ty+5,27,15,.2,'#14191a');
-      oval(ctx,tx,ty,27,13,.2,'#383d3e');
-      oval(ctx,tx,ty,14,6,.2,'#1b2021');
-      stroke(ctx,[[tx-23,ty+4],[tx-13,ty+9],[tx+6,ty+10]],'#626662',1);
-    }
-  }
-  for (const [x,y] of bayPositions) {
-    shadow(x+.23,y+.34,115,51);
-    box(x-.94,y-1.77,0,1.88,3.54,.19,['#434449','#272b2d','#976b4a']);
-    box(x-.82,y-1.65,.19,1.64,3.3,.15,['#6f4233','#4e3329','#9e583c']);
-    box(x-.75,y-1.61,.34,1.5,3.22,.035,['#373b3c','#373b3c','#3e4547']);
-    for (let d = -1.5; d < 1.55; d += .17) {
-      line([[x-.72,y+d,.39],[x-.58,y+d+.07,.39]],'#aeb0a778',1);
-      line([[x+.58,y+d,.39],[x+.72,y+d+.07,.39]],'#aeb0a778',1);
-    }
-    for (let d = -1.51; d < 1.55; d += .24) {
-      line([[x+.825,y+d,.21],[x+.825,y+d+.11,.32]],'#ddab66',3);
-    }
-    face([[x-.68,y+1.61,.34],[x-.68,y+2.18],[x+.68,y+2.18],[x+.68,y+1.61,.34]], '#43494a');
-  }
-  for (let x = 2; x < 10; x += .28) line([[x,9.69,.01],[x+.13,9.69,.01]],'#c7975966',2);
-}
-
-export function createGarageRenderer(canvas) {
+export function createGarageRenderer(scene, openBike) {
+  const canvas = scene.querySelector('canvas');
   const context = canvas.getContext('2d', { alpha: false });
-  const background = document.createElement('canvas');
-  background.width = WIDTH;
-  background.height = HEIGHT;
-  buildWorkshop(background);
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const hotspots = [...scene.querySelectorAll('.bike-target')];
+  const zoomIn = document.getElementById('zoom-in');
+  const zoomOut = document.getElementById('zoom-out');
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const sprites = new Map();
+  const pointers = new Map();
+  let workshop;
   let bikes = [];
   let transitions = [];
   let frame = 0;
   let lastPaint = 0;
+  let visible = true;
+  let width = 0;
+  let height = 0;
+  let zoom = 1;
+  let fit = DESKTOP_FIT;
+  let minZoom = 1;
+  let centerX = WIDTH / 2;
+  let centerY = HEIGHT / 2;
+  let gesture = false;
+  let blockClickUntil = 0;
+
+  function loadImage(url, ready, fail) {
+    const image = new Image();
+    image.onload = () => { ready(image); invalidate(); };
+    image.onerror = fail;
+    image.src = url;
+  }
+
+  loadImage(new URL('./assets/workshop.webp', import.meta.url).href, image => {
+    workshop = image;
+    scene.dataset.ready = 'true';
+  }, () => { scene.querySelector('.scene-status').textContent = 'Atölye görseli yüklenemedi.'; });
+
+  function scale() {
+    return Math.min(width / WIDTH, height / HEIGHT) * fit * zoom;
+  }
+
+  function updateControls() {
+    zoomIn.disabled = zoom >= MAX_ZOOM;
+    zoomOut.disabled = zoom <= minZoom;
+    scene.dataset.zoomed = String(fit * zoom > 1);
+    document.querySelector('.zoom-value').textContent = `%${Math.round(zoom * 100)}`;
+  }
+
+  function constrain() {
+    const s = scale();
+    if (!s) return;
+    const halfW = Math.min(WIDTH / 2, width / (2 * s));
+    const halfH = Math.min(HEIGHT / 2, height / (2 * s));
+    centerX = clamp(centerX, halfW, WIDTH - halfW);
+    centerY = clamp(centerY, halfH, HEIGHT - halfH);
+  }
+
+  function setZoom(value, anchorX = width / 2, anchorY = height / 2) {
+    const before = scale();
+    if (!before) return;
+    zoom = clamp(value, minZoom, MAX_ZOOM);
+    const after = scale();
+    centerX += (anchorX - width / 2) * (1 / before - 1 / after);
+    centerY += (anchorY - height / 2) * (1 / before - 1 / after);
+    constrain();
+    updateControls();
+    invalidate();
+  }
+
+  function resize() {
+    const bounds = canvas.getBoundingClientRect();
+    width = bounds.width;
+    height = bounds.height;
+    if (!width || !height) return;
+    fit = matchMedia('(max-width: 520px)').matches ? MOBILE_FIT : DESKTOP_FIT;
+    minZoom = DESKTOP_FIT / fit;
+    zoom = clamp(zoom, minZoom, MAX_ZOOM);
+    updateControls();
+    const pixelRatio = Math.min(devicePixelRatio || 1, 3, Math.sqrt(2_400_000 / (width * height)));
+    const pixelsWide = Math.round(width * pixelRatio);
+    const pixelsHigh = Math.round(height * pixelRatio);
+    if (canvas.width !== pixelsWide || canvas.height !== pixelsHigh) {
+      canvas.width = pixelsWide;
+      canvas.height = pixelsHigh;
+    }
+    constrain();
+    invalidate();
+  }
+
+  function invalidate() {
+    if (!frame && visible && !document.hidden) frame = requestAnimationFrame(render);
+  }
 
   function render(now) {
     frame = 0;
-    transitions = transitions.filter(item => now - item.start < 720);
-    context.drawImage(background,0,0);
+    if (!width || !height) return;
+    const s = scale();
+    const ox = width / 2 - centerX * s;
+    const oy = height / 2 - centerY * s;
+    const ratioX = canvas.width / width;
+    const ratioY = canvas.height / height;
+    context.setTransform(1,0,0,1,0,0);
+    context.fillStyle = '#171a1c';
+    context.fillRect(0,0,canvas.width,canvas.height);
+    context.setTransform(s * ratioX,0,0,s * ratioY,ox * ratioX,oy * ratioY);
+    if (workshop) context.drawImage(workshop,0,0,WIDTH,HEIGHT);
+
+    transitions = transitions.filter(item => now - item.start < 740 && !reducedMotion.matches);
     const moving = new Set(transitions.map(item => item.bike.id));
     const objects = [
       ...bikes.filter(bike => !moving.has(bike.id)).map(bike => ({bike})),
       ...transitions,
-    ].sort((a,b) => a.bike.slot-b.bike.slot);
-
+    ].sort((a,b) => a.bike.slot - b.bike.slot);
     for (const {bike,action,start} of objects) {
-      const [px,py] = project(...bayPositions[bike.slot],.37);
-      const progress = action ? Math.max(0,(now-start)/720) : 0;
-      const distance = action === 'buy' ? (1-progress)**3 : progress**2;
-      const travelling = action === 'buy' || action === 'sell';
-      const x = px + (travelling ? distance*174 : 0);
-      const y = py + (travelling ? distance*78 : 0);
-      context.save();
-      if (travelling) context.globalAlpha = 1-distance*.98;
-      oval(context,x+10,y+1,96,15,-.28,'#11171982');
-      drawBike(context,x,y-18,1.36,bike);
-      if (bike.stage === 'repairing') drawMechanic(context,x,y,now,!reducedMotion.matches);
-      context.restore();
+      const [px,py] = BAYS[bike.slot];
+      const progress = clamp((now - start) / 740, 0, 1);
+      const distance = action === 'buy' ? (1 - progress) ** 2 : action === 'sell' ? progress ** 2 : 0;
+      const x = px - distance * 310;
+      const y = py + distance * 136;
+      const sprite = sprites.get(categoryOf(bike));
+      if (sprite && workshop) {
+        context.save();
+        context.globalAlpha = 1 - distance;
+        drawBike(context,sprite,x,y);
+        if (bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
+        context.restore();
+      }
+      const hotspot = hotspots[bike.slot];
+      if (action !== 'sell') {
+        hotspot.style.setProperty('--target-x', `${ox + x * s}px`);
+        hotspot.style.setProperty('--target-y', `${oy + (y - 160) * s}px`);
+        hotspot.style.setProperty('--target-width', `${Math.max(44, SPRITE_WIDTH * s)}px`);
+        hotspot.style.setProperty('--target-height', `${Math.max(44, 340 * s)}px`);
+      }
     }
-    if (!reducedMotion.matches && !document.hidden && (transitions.length || bikes.some(bike => bike.stage === 'repairing'))) {
+
+    if (!reducedMotion.matches && (transitions.length || bikes.some(bike => bike.stage === 'repairing'))) {
       frame = requestAnimationFrame(tick);
     }
   }
 
   function tick(now) {
-    if (now-lastPaint >= 32) {
-      lastPaint = now;
-      render(now);
-    } else {
+    if (now - lastPaint < 32) {
       frame = requestAnimationFrame(tick);
+      return;
     }
+    lastPaint = now;
+    render(now);
   }
 
-  function refresh() {
-    cancelAnimationFrame(frame);
-    if (reducedMotion.matches) transitions = [];
-    render(performance.now());
+  function track(event) {
+    const box = canvas.getBoundingClientRect();
+    return { x: event.clientX - box.left, y: event.clientY - box.top };
   }
-  document.addEventListener('visibilitychange', refresh);
-  reducedMotion.addEventListener('change', refresh);
+
+  function pair() {
+    const [a,b] = pointers.values();
+    return { x: (a.x+b.x)/2, y: (a.y+b.y)/2, distance: Math.hypot(a.x-b.x,a.y-b.y) };
+  }
+
+  scene.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointers.set(event.pointerId, track(event));
+    if (pointers.size > 1) gesture = true;
+  });
+  scene.addEventListener('pointermove', event => {
+    const previous = pointers.get(event.pointerId);
+    if (!previous) return;
+    const next = track(event);
+    const pinch = pointers.size === 2;
+    const before = pinch ? pair() : null;
+    if (!gesture && Math.hypot(next.x-previous.x,next.y-previous.y) < 5) return;
+    pointers.set(event.pointerId,next);
+    gesture = true;
+    if (pinch) {
+      const after = pair();
+      if (before.distance > 4) setZoom(zoom * after.distance / before.distance, before.x, before.y);
+      shift(after.x-before.x, after.y-before.y);
+    } else if (pointers.size === 1) {
+      shift(next.x-previous.x,next.y-previous.y);
+    }
+    if (!scene.hasPointerCapture(event.pointerId)) scene.setPointerCapture(event.pointerId);
+  });
+
+  function shift(dx,dy) {
+    const s = scale();
+    if (!s || fit * zoom <= 1) return;
+    centerX -= dx / s;
+    centerY -= dy / s;
+    constrain();
+    invalidate();
+  }
+
+  function finishPointer(event) {
+    if (event.type === 'lostpointercapture' && event.target !== scene) return;
+    if (!pointers.delete(event.pointerId)) return;
+    if (gesture) blockClickUntil = performance.now() + 350;
+    if (!pointers.size) gesture = false;
+  }
+  for (const type of ['pointerup','pointercancel','lostpointercapture','pointerleave']) {
+    scene.addEventListener(type, finishPointer);
+  }
+  hotspots.forEach((button, slot) => button.addEventListener('click', event => {
+    if (event.detail && performance.now() < blockClickUntil) return;
+    const bike = bikes.find(item => item.slot === slot);
+    if (bike) openBike(bike);
+  }));
+  zoomIn.addEventListener('click', () => setZoom(zoom * 1.25));
+  zoomOut.addEventListener('click', () => setZoom(zoom / 1.25));
+  document.getElementById('zoom-reset').addEventListener('click', () => {
+    centerX = WIDTH / 2;
+    centerY = HEIGHT / 2;
+    setZoom(1);
+  });
+  new ResizeObserver(resize).observe(canvas);
+  window.addEventListener('resize', resize);
+  new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    syncVisibility();
+  }).observe(scene);
+  document.addEventListener('visibilitychange', syncVisibility);
+  reducedMotion.addEventListener('change', invalidate);
+
+  function syncVisibility() {
+    if (!visible || document.hidden) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    }
+    invalidate();
+  }
+
+  resize();
+  updateControls();
   return (garage, action, animationBike) => {
     bikes = garage;
+    document.querySelector('.camera-hint').textContent = bikes.length ? 'Motosiklete dokun' : 'İki parmakla yakınlaştır';
     transitions = transitions.filter(item => item.action === 'sell'
       || garage.some(bike => bike.id === item.bike.id && bike.stage === item.bike.stage));
     if (animationBike && !reducedMotion.matches) {
       transitions = [...transitions.filter(item => item.bike.id !== animationBike.id),
         {bike:animationBike,action,start:performance.now()}];
     }
-    refresh();
+    for (const bike of garage) {
+      const category = categoryOf(bike);
+      if (!sprites.has(category)) {
+        sprites.set(category, null);
+        loadImage(spriteUrl(category), image => sprites.set(category,image),
+          () => sprites.delete(category));
+      }
+    }
+    hotspots.forEach((button, slot) => {
+      const bike = bikes.find(item => item.slot === slot);
+      button.hidden = !bike;
+      if (bike) button.setAttribute('aria-label', `${bike.name} yakın plan`);
+    });
+    invalidate();
   };
 }
 
-function drawMechanic(ctx, x, y, now, animate) {
-  const phase = animate ? Math.sin(now/125) : 0;
-  const mx = x+24;
-  const my = y+14;
-  oval(ctx,mx-2,my+14,22,7,-.2,'#11171980');
-  stroke(ctx,[[mx-4,my-9],[mx-11,my+5],[mx-23,my+11]],'#233239',8);
-  stroke(ctx,[[mx,my-7],[mx+7,my+3],[mx+17,my+8]],'#283b42',8);
-  oval(ctx,mx,my-15,11,15,.39,gradient(ctx,my-34,my,'#6c8a83','#354948'));
-  oval(ctx,mx-4,my-32,7,8,.25,'#c4956d');
-  oval(ctx,mx-5,my-36,8,4,.25,'#4c5553');
-  stroke(ctx,[[mx-5,my-22],[mx-18,my-13+phase*3],[mx-33,my-23+phase*5]],'#ab886a',5);
-  stroke(ctx,[[mx-33,my-23+phase*5],[mx-42,my-29+phase*5]],'#d1d9d4',3);
-  if (animate && phase > .67) {
-    for (let i=0;i<4;i+=1) stroke(ctx,[[mx-41,my-25],[mx-50-i*4,my-35+i*4]],'#ffbf73',1.7);
+function drawBike(ctx,image,x,y) {
+  const h = SPRITE_WIDTH * image.naturalHeight / image.naturalWidth;
+  ctx.translate(x,y);
+  ctx.rotate(-.19);
+  // Compress the radial gradient to a soft contact shadow along the lift.
+  ctx.save();
+  ctx.scale(173,23);
+  const contact = ctx.createRadialGradient(0,0,0,0,0,1);
+  contact.addColorStop(0,'#06080bcf');
+  contact.addColorStop(.55,'#06080b88');
+  contact.addColorStop(1,'#06080b00');
+  ctx.fillStyle = contact;
+  ctx.fillRect(-1,-1,2,2);
+  ctx.restore();
+  ctx.drawImage(image,-SPRITE_WIDTH/2,-h*.91,SPRITE_WIDTH,h);
+  ctx.rotate(.19);
+  ctx.translate(-x,-y);
+}
+
+function drawRepair(ctx,x,y,now,animate) {
+  const phase = animate ? Math.sin(now / 104) : 0;
+  const px = x + 46;
+  const py = y - 46;
+  if (phase > .3) {
+    const light = ctx.createRadialGradient(px,py,2,px,py,45);
+    light.addColorStop(0,'#fff2d9');
+    light.addColorStop(.2,'#ffba66dd');
+    light.addColorStop(1,'#f9823200');
+    ctx.fillStyle = light;
+    ctx.fillRect(px-45,py-45,90,90);
+    ctx.strokeStyle = '#ffe09d';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for (let i=0;i<6;i+=1) {
+      const angle = i*.63 + phase*.4;
+      ctx.moveTo(px + Math.cos(angle)*10,py + Math.sin(angle)*10);
+      ctx.lineTo(px + Math.cos(angle)*(28+i*3),py + Math.sin(angle)*(28+i*3));
+    }
+    ctx.stroke();
   }
+  ctx.fillStyle = '#ffc387';
+  ctx.fillRect(px-3,py+22,6,7);
 }
