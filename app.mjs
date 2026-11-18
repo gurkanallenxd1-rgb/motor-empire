@@ -1,9 +1,9 @@
 import { CAPACITY, INSPECTION_FEE, PARTS, loadGame, newGame, perform, repairQuote, saveGame } from './game.mjs';
 import { createGarageRenderer } from './art.mjs';
-import { categoryLabel, categoryOf, drawListing } from './bikes.mjs';
+import { categoryLabel, categoryOf, spriteUrl } from './bikes.mjs';
 
 const byId = id => document.getElementById(id);
-const drawGarage = createGarageRenderer(byId('garage-art'));
+const drawGarage = createGarageRenderer(byId('garage-scene'), openBike);
 const numeric = new Intl.NumberFormat('tr-TR');
 const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
@@ -18,6 +18,7 @@ let saveAvailable = true;
 function notice(message, error = false) {
   byId('notice').textContent = message;
   byId('notice').dataset.error = error;
+  byId('notice').dataset.active = Boolean(message);
 }
 
 function updateSave() {
@@ -94,13 +95,22 @@ function garageCard(slot) {
   return card;
 }
 
+function openBike(bike) {
+  const category = categoryOf(bike);
+  byId('detail-image').src = spriteUrl(category);
+  byId('detail-image').alt = categoryLabel[category];
+  byId('detail-name').textContent = bike.name;
+  byId('detail-class').textContent = categoryLabel[category];
+  byId('detail-spec').textContent = `${bike.year} · ${numeric.format(bike.km)} km · ${stages[bike.stage]}`;
+  byId('bike-detail').showModal();
+}
+
 function marketCard(listing) {
   const card = element('article', '', 'card listing');
-  const image = document.createElement('canvas');
-  image.width = 270;
-  image.height = 132;
-  image.setAttribute('aria-hidden', 'true');
-  drawListing(image, listing);
+  const image = document.createElement('img');
+  image.src = spriteUrl(categoryOf(listing));
+  image.alt = '';
+  image.decoding = 'async';
   const details = element('div', '', 'listing-details');
   details.append(element('span', categoryLabel[categoryOf(listing)], 'category'), element('h3', listing.name),
     element('p', `${listing.year} · ${numeric.format(listing.km)} km`, 'spec'),

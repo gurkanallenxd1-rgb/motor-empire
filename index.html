@@ -12,7 +12,7 @@
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.2</span>
+      <span class="version">SÜRÜM 0.3</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
@@ -28,9 +28,17 @@
     <div class="dashboard">
       <section class="workshop" aria-labelledby="garage-title">
         <header class="section-head"><div><p class="eyebrow">ATÖLYE</p><h2 id="garage-title">Garajım</h2></div><a href="#market-title" class="jump">İlanlara git ↓</a></header>
-        <div class="scene">
-          <canvas id="garage-art" width="1040" height="610" aria-hidden="true"></canvas>
-          <span class="scene-label">ATÖLYE KAMERASI</span>
+        <div class="scene" id="garage-scene">
+          <canvas id="garage-art" width="1536" height="1024" aria-hidden="true"></canvas>
+          <p class="scene-status" role="status">Atölye yükleniyor…</p>
+          <button type="button" class="bike-target" hidden></button>
+          <button type="button" class="bike-target" hidden></button>
+        </div>
+        <div class="camera-bar" role="group" aria-label="Garaj kamerası">
+          <span class="camera-hint">Motosiklete dokun</span>
+          <button type="button" id="zoom-out" aria-label="Uzaklaştır">−</button>
+          <button type="button" id="zoom-reset" aria-label="Kamerayı ortala"><span class="zoom-value">%100</span></button>
+          <button type="button" id="zoom-in" aria-label="Yakınlaştır">+</button>
         </div>
         <div id="garage" class="garage"></div>
       </section>
@@ -45,5 +53,14 @@
       <div id="sales"></div>
     </section>
   </main>
+  <dialog id="bike-detail" aria-labelledby="detail-name">
+    <form method="dialog"><button type="submit" aria-label="Yakın planı kapat">×</button></form>
+    <img id="detail-image" alt="">
+    <div class="detail-info">
+      <p id="detail-class" class="eyebrow"></p>
+      <h2 id="detail-name"></h2>
+      <p id="detail-spec" class="spec"></p>
+    </div>
+  </dialog>
 </body>
 </html>
