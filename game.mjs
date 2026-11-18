@@ -17,6 +17,8 @@ const catalog = [
   { name: 'Suzuki GN 125', year: 2015, km: 24900, price: 25400, value: 32800, color: '#d0a86a', faults: ['akü', 'lastik'] },
   { name: 'TVS Apache RTR 160', year: 2019, km: 22800, price: 33800, value: 44800, color: '#a0a7df', faults: ['zincir', 'debriyaj', 'fren'] },
   { name: 'Mondial Drift L', year: 2018, km: 19200, price: 21700, value: 29100, color: '#79b8a7', faults: ['fren', 'akü'] },
+  { name: 'Honda CBR 125R', year: 2017, km: 26900, price: 35400, value: 47000, color: '#f47b38', faults: ['zincir', 'lastik'] },
+  { name: 'Yamaha Delight 125', year: 2019, km: 17200, price: 31200, value: 39400, color: '#8fc6bd', faults: ['akü', 'fren'] },
 ];
 
 function market(day) {

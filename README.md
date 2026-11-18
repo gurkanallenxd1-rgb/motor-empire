@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.1
+# MOTOR EMPIRE v0.2
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -21,3 +21,7 @@ python3 -m http.server 8000
 Tarayıcıda http://localhost:8000/ adresini aç.
 
 GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a branch** altında yayımlamak istediğin dalı ve `/ (root)` dizinini seç. Uygulama dosyaları proje alt adreslerinde çalışacak şekilde bağıl yollar kullanır.
+
+## Grafikler ve kayıtlar
+
+Atölye ve dört motosiklet sınıfı yerel Canvas çizimleri kullanır. Atölye dokuları bir kez hazırlanır. Hareket azaltma tercihi etkinse garaj hareketleri ve düğme animasyonları durur. v0.1 kayıt anahtarı ve veri biçimi v0.2 ile uyumludur.

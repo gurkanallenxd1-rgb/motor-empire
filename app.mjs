@@ -1,7 +1,9 @@
 import { CAPACITY, INSPECTION_FEE, PARTS, loadGame, newGame, perform, repairQuote, saveGame } from './game.mjs';
-import { drawBike, drawGarage } from './art.mjs';
+import { createGarageRenderer } from './art.mjs';
+import { categoryLabel, categoryOf, drawListing } from './bikes.mjs';
 
 const byId = id => document.getElementById(id);
+const drawGarage = createGarageRenderer(byId('garage-art'));
 const numeric = new Intl.NumberFormat('tr-TR');
 const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
@@ -95,12 +97,12 @@ function garageCard(slot) {
 function marketCard(listing) {
   const card = element('article', '', 'card listing');
   const image = document.createElement('canvas');
-  image.width = 156;
-  image.height = 100;
+  image.width = 270;
+  image.height = 132;
   image.setAttribute('aria-hidden', 'true');
-  drawBike(image.getContext('2d'), 77, 72, .86, listing.color);
-  const details = element('div', '');
-  details.append(element('h3', listing.name),
+  drawListing(image, listing);
+  const details = element('div', '', 'listing-details');
+  details.append(element('span', categoryLabel[categoryOf(listing)], 'category'), element('h3', listing.name),
     element('p', `${listing.year} · ${numeric.format(listing.km)} km`, 'spec'),
     element('p', money(listing.price), 'price'));
   const reason = state.garage.length >= CAPACITY ? 'Garaj dolu' : state.cash < listing.price ? 'Yetersiz bakiye' : '';
@@ -110,7 +112,7 @@ function marketCard(listing) {
   return card;
 }
 
-function render() {
+function render(action, animationBike) {
   byId('cash').textContent = money(state.cash);
   byId('day').textContent = String(state.day).padStart(2, '0');
   byId('capacity').textContent = `${state.garage.length} / ${CAPACITY}`;
@@ -118,6 +120,7 @@ function render() {
   byId('profit').textContent = signed(profit);
   byId('profit').className = profit < 0 ? 'negative' : profit > 0 ? 'positive' : '';
   byId('market-count').textContent = `${state.listings.length} İLAN`;
+  byId('garage').dataset.occupied = state.garage.length > 0;
   byId('garage').replaceChildren(...Array.from({ length: CAPACITY }, (_, slot) => garageCard(slot)));
   byId('market').replaceChildren(...state.listings.map(marketCard));
 
@@ -131,7 +134,7 @@ function render() {
     return row;
   });
   byId('sales').replaceChildren(...(sales.length ? sales : [element('p', 'Henüz satış yapılmadı.', 'muted')]));
-  drawGarage(byId('garage-art'), state.garage);
+  drawGarage(state.garage, action, animationBike);
   updateSave();
 }
 
@@ -147,6 +150,8 @@ document.querySelector('main').addEventListener('click', event => {
     return;
   }
 
+  const animationBike = action === 'buy' ? result.state.garage.find(bike => bike.id === id)
+    : action === 'sell' ? state.garage.find(bike => bike.id === id) : undefined;
   state = result.state;
   if (saveAvailable) {
     try {
@@ -156,7 +161,7 @@ document.querySelector('main').addEventListener('click', event => {
     }
   }
   const warning = saveAvailable ? '' : ' İlerleme kaydedilemedi.';
-  render();
+  render(action, animationBike);
   notice(result.message + warning, !saveAvailable);
 });
 
