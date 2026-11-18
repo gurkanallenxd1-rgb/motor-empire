@@ -12,25 +12,25 @@
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.1</span>
+      <span class="version">SÜRÜM 0.2</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
   <main class="shell">
     <div class="intro"><div><p class="eyebrow">İŞLETME PANELİ</p><h1>Garaj Yönetimi</h1></div><button id="advance" class="primary" data-action="advance">Günü ilerlet <span aria-hidden="true">→</span></button></div>
     <section class="stats" aria-label="İşletme özeti">
-      <div><span>NAKİT KASA</span><strong id="cash">75.000 TL</strong></div>
-      <div><span>OYUN GÜNÜ</span><strong id="day">01</strong></div>
-      <div><span>GARAJ KAPASİTESİ</span><strong id="capacity">0 / 2</strong></div>
-      <div><span>NET SATIŞ KÂRI</span><strong id="profit">0 TL</strong></div>
+      <div class="stat-cash"><span>NAKİT KASA</span><strong id="cash">75.000 TL</strong></div>
+      <div class="stat-day"><span>OYUN GÜNÜ</span><strong id="day">01</strong></div>
+      <div class="stat-capacity"><span>GARAJ KAPASİTESİ</span><strong id="capacity">0 / 2</strong></div>
+      <div class="stat-profit"><span>NET SATIŞ KÂRI</span><strong id="profit">0 TL</strong></div>
     </section>
     <p id="notice" class="notice" role="status"></p>
     <div class="dashboard">
       <section class="workshop" aria-labelledby="garage-title">
         <header class="section-head"><div><p class="eyebrow">ATÖLYE</p><h2 id="garage-title">Garajım</h2></div><a href="#market-title" class="jump">İlanlara git ↓</a></header>
         <div class="scene">
-          <canvas id="garage-art" width="760" height="400" aria-hidden="true"></canvas>
-          <span class="scene-label">● &nbsp; GARAJ GÖRÜNÜMÜ</span>
+          <canvas id="garage-art" width="1040" height="610" aria-hidden="true"></canvas>
+          <span class="scene-label">ATÖLYE KAMERASI</span>
         </div>
         <div id="garage" class="garage"></div>
       </section>
