@@ -20,6 +20,8 @@ export function createGarageRenderer(scene, openBike) {
   const pointers = new Map();
   let workshop;
   let bikes = [];
+  let bayOffset = 0;
+  let branchId;
   let transitions = [];
   let frame = 0;
   let lastPaint = 0;
@@ -123,7 +125,7 @@ export function createGarageRenderer(scene, openBike) {
       ...transitions,
     ].sort((a,b) => a.bike.slot - b.bike.slot);
     for (const {bike,action,start} of objects) {
-      const [px,py] = BAYS[bike.slot];
+      const [px,py] = BAYS[bike.slot - bayOffset];
       const progress = clamp((now - start) / 740, 0, 1);
       const distance = action === 'buy' ? (1 - progress) ** 2 : action === 'sell' ? progress ** 2 : 0;
       const x = px - distance * 310;
@@ -136,7 +138,7 @@ export function createGarageRenderer(scene, openBike) {
         if (bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
         context.restore();
       }
-      const hotspot = hotspots[bike.slot];
+      const hotspot = hotspots[bike.slot - bayOffset];
       if (action !== 'sell') {
         hotspot.style.setProperty('--target-x', `${ox + x * s}px`);
         hotspot.style.setProperty('--target-y', `${oy + (y - 160) * s}px`);
@@ -213,7 +215,7 @@ export function createGarageRenderer(scene, openBike) {
   }
   hotspots.forEach((button, slot) => button.addEventListener('click', event => {
     if (event.detail && performance.now() < blockClickUntil) return;
-    const bike = bikes.find(item => item.slot === slot);
+    const bike = bikes.find(item => item.slot - bayOffset === slot);
     if (bike) openBike(bike);
   }));
   zoomIn.addEventListener('click', () => setZoom(zoom * 1.25));
@@ -242,7 +244,12 @@ export function createGarageRenderer(scene, openBike) {
 
   resize();
   updateControls();
-  return (garage, action, animationBike) => {
+  return (garage, action, animationBike, offset, officeId) => {
+    if (branchId !== officeId || bayOffset !== offset) {
+      branchId = officeId;
+      bayOffset = offset;
+      transitions = [];
+    }
     bikes = garage;
     document.querySelector('.camera-hint').textContent = bikes.length ? 'Motosiklete dokun' : 'İki parmakla yakınlaştır';
     transitions = transitions.filter(item => item.action === 'sell'
@@ -260,7 +267,7 @@ export function createGarageRenderer(scene, openBike) {
       }
     }
     hotspots.forEach((button, slot) => {
-      const bike = bikes.find(item => item.slot === slot);
+      const bike = bikes.find(item => item.slot - bayOffset === slot);
       button.hidden = !bike;
       if (bike) button.setAttribute('aria-label', `${bike.name} yakın plan`);
     });

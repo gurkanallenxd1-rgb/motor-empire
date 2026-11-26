@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.3
+# MOTOR EMPIRE v0.4
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -6,7 +6,7 @@ iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyu
 
 1. 75.000 TL ile ikinci el pazarından motosiklet al. Garaj iki motosiklet alır.
 2. 450 TL karşılığında ekspertiz yaptır. Arızalı parçalar, fiyatları ve işçilik saatleri garajda görünür.
-3. Parça bedelini ödeyip tamiri başlat. Her tamir için bir oyun gününe en fazla sekiz saat işçilik sığar. Teslim gününe ulaşmak için **Günü ilerlet** düğmesini kullan.
+3. Parça bedelini ödeyip tamiri başlat. Her şubenin tamir sırası günde sekiz saat işler. İşe alınan her usta bu şubeye sekiz saat daha ekler. Teslim gününe ulaşmak için **Günü ilerlet** düğmesini kullan.
 4. Tamiri biten motosikleti satışa çıkar ve üç müşteri teklifinden birini kabul et. Satış geçmişi, alış, ekspertiz ve tamir giderleri düşüldükten sonraki kâr veya zararı gösterir.
 5. Her yeni günde pazar ilanları ve açık müşteri teklifleri yenilenir. İlerleme tarayıcıdaki localStorage ile kaydedilir.
 
@@ -24,6 +24,17 @@ GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a
 
 ## Grafikler ve kayıtlar
 
-Atölye ve dört motosiklet sınıfı yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1 ve v0.2 kayıtları aynı anahtar ve biçimle açılır.
+Atölye ve dört motosiklet sınıfı yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.3 kayıtları ilk açılışta v0.4 biçimine aktarılır. Eski kayıt özgün yerel depolama anahtarında kalır. Aktif tamirlerin teslim günü ve satış geçmişi korunur. Yeni finans geçmişi geçişten itibaren tutulur.
 
 Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahnede iki parmakla yakınlaştırabilirsin. Mobilde varsayılan yakın kadrajdan uzaklaştırarak garajın tüm kenarlarını görebilirsin. Yakınlaştırdıktan sonra sahne içinde sürükle. Motosiklete dokunarak yakın planı aç. Yerel WebP varlıklarının üretim planı [görsel varlık belgesinde](docs/v03-varlik-plani.md) bulunur.
+
+## İşletme kuralları
+
+- Gün kapanışında her şubeye 250 TL işletme gideri ve çalışan usta başına 750 TL maaş yazılır. Kiralar aynı günün geliri olarak giderlerden önce tahsil edilir.
+- Hazır motosiklet 1, 3 veya 7 gün kiralanır. Sözleşme başındaki kondisyonla düzeltilmiş değerin günlük %0,6’sı sabitlenir. Dönüşte her gün için 85 km ve 1 kondisyon puanı işlenir. Kondisyonun alt sınırı %25’tir.
+- Garaj seviyeleri 2, 4, 6 ve 10 araç alır. Ardışık yükseltmeler 50.000, 125.000 ve 250.000 TL’dir. Büyük garajda iki liftli atölye sahnesi bölme sayfalarına ayrılır.
+- İstanbul’da her ek şube 250.000 TL’ye açılır. Şubeler aynı kasayı ve pazarı kullanır. Garaj, tamir sırası, ustalar ve giderler şube bazında tutulur.
+- İsteğe bağlı faizsiz borç için toplam bakiye sınırı 250.000 TL’dir. Zorunlu giderin nakit açığı kadar otomatik borç yazılır ve bu borç bakiyesi sınırı aşabilir. İsteğe bağlı harcamalar yeterli nakit gerektirir.
+- Günlük net, o gün kaydedilen nakit gelirlerinden giderleri çıkarır. Borç alma ve ödeme finansman hareketidir. Toplam varlık nakit, motosiklet stoku ve maliyet bedeliyle şube yatırımlarını içerir. Net varlık borcu düşer.
+
+Oyun kurallarını test etmek için `node --test game.test.mjs` çalıştır.
