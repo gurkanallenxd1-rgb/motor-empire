@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.7.1
+# MOTOR EMPIRE v0.8
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -24,7 +24,7 @@ GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a
 
 ## Grafikler ve kayıtlar
 
-Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.6 kayıtları ilk açılışta v0.7 biçimine aktarılır. Yeni kayıt `motor-empire.v4` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
+Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.7.1 kayıtları ilk açılışta v0.8 biçimine aktarılır. Yeni kayıt `motor-empire.v5` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
 
 Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahnede iki parmakla yakınlaştırabilirsin. Mobilde varsayılan yakın kadrajdan uzaklaştırarak garajın tüm kenarlarını görebilirsin. Yakınlaştırdıktan sonra sahne içinde sürükle. Motosiklete dokunarak yakın planı aç. Yerel WebP varlıklarının üretim planı [görsel varlık belgesinde](docs/v03-varlik-plani.md) bulunur.
 
@@ -37,7 +37,7 @@ Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahne
 - İsteğe bağlı faizsiz borç için toplam bakiye sınırı 250.000 TL’dir. Zorunlu giderin nakit açığı kadar otomatik borç yazılır ve bu borç bakiyesi sınırı aşabilir. İsteğe bağlı harcamalar yeterli nakit gerektirir.
 - Günlük net, o gün kaydedilen nakit gelirlerinden giderleri çıkarır. Borç alma ve ödeme finansman hareketidir. Toplam varlık nakit, motosiklet stoku ve maliyet bedeliyle şube yatırımlarını içerir. Net varlık borcu düşer.
 
-Oyun kurallarını test etmek için `node --test game.test.mjs trade.test.mjs sprite.test.mjs` çalıştır.
+Oyun kurallarını test etmek için `node --test game.test.mjs trade.test.mjs sprite.test.mjs damage.test.mjs` çalıştır.
 
 GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile tarayıcı modüllerinin tüm içe aktarma adresleri aynı `?v=` sürümünü kullanır. Yeni sürüm yayımlarken bu adresleri birlikte güncelle.
 
@@ -74,7 +74,7 @@ Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış k
 ### v0.7.1 ilan görünümü
 
 - Marka ve model araması açık, ayrıntılı filtre paneli varsayılan olarak kapalıdır. Marka filtresi model seçeneklerini sınırlar. Arama, sıralama ve tüm filtreler o gün kaydedilmiş ilanlar üzerinde çalışır.
-- İlan satırı detay penceresini açar. Doğrudan satın alma ve mevcut satıcı pazarlığı burada başlar. Tahmini kâr, piyasa değeri eksi ilan tutarı, ekspertiz bedeli ve kondisyona bağlı tahmini bakım payıdır. Kesin tamir masrafları ekspertizden sonra görünür.
+- İlan satırı detay penceresini açar. Doğrudan satın alma ve mevcut satıcı pazarlığı burada başlar. Tahmini kâr, tamir sonrası tahmini değer eksi ilan tutarı, ekspertiz bedeli ve listelenen onarım tahminidir.
 - Pazar bir sayfada en çok 10 ilan kurar. WebP yalnızca satır ekrana yaklaştığında yüklenir.
 - Kayıt biçimi değişmedi. Satış ve alış işlemleri model adı, yıl, ana renk ve varsa ikinci kaporta rengini aynı kayıtta tutar.
 - Uygulamada geliştirici denetim bağlantısını görmek için adresin sonuna `?dev=1` ekle.
@@ -84,3 +84,12 @@ Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış k
 Sekiz modelde 21 kasa veya renk paketi varyantı eklendi. Yamaha MT-07, MT-09, MT-25 ve R25, Honda CB125F ve PCX 125, Kawasaki Z900 ve KTM Duke 390. `generations.mjs` her seçimin yıl aralığını ve üretici referansını listeler. 2023 Duke 390 için üreticinin turuncu/mavi-gri ve siyah/mat gri renk aileleri iki bağımsız kaporta maskesi kullanır. Motor, teker, egzoz ve sabit malzemeler bu maskelerin dışındadır. Önceden satın alınan veya mevcut ilana kaydedilmiş renk saklanır.
 
 Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve dört kayıpsız renk maskesi atlası içerir. Kırmızı kanal ana kaportayı, yeşil kanal ikinci kaportayı seçer. Çizimler bu oyun için ImageGen ile üretildi. Üretici fotoğrafı paketlenmedi. Referans bağlantısı, çizimin bütün parçalarının ve fiziksel ölçeğinin üretici tarafından doğrulandığı anlamına gelmez. Oyun, doğrulanmış bir eşleşme yüklenene kadar temsili etiketi gösterir. Diğer 92 modelin önceki modele özel çizimleri korunur.
+
+
+## v0.8 Hasar, tamir ve ekonomi
+
+- Bakım eksikleri, mekanik sorunlar ve kaza hasarı farklı gruplarda yer alır. `damage.mjs` her arıza için maliyet, işçilik, kondisyon artışı ve varsa kalıcı değer kaybını tanımlar.
+- Tamir başlarken parça masrafı kasaya ve motosikletin maliyetine bir kez yazılır. İşçilik tamamlanınca kondisyon artar, aktif arızalar temizlenir, kalıcı geçmiş saklanır. Garaj, işlem öncesi ve sonrası kondisyonu ve değeri gösterir.
+- Temiz değer, marka ve model için katalog değerinden, model yılından ve kilometreden hesaplanır. Mevcut değer için kondisyon kaybı, aktif hasar bandı ve kalıcı geçmiş kaybının en büyüğü alınır. Şase, ağır hasar ve pert gibi aynı yapısal gruptaki geçmiş kayıtları en ağır kayıp üzerinden değerlendirilir. Farklı gruplardaki bağımsız kayıplar kalan değer üzerinden birleşir.
+- Aktif hasar indirimleri `DAMAGE_DISCOUNTS` içinde ayarlanır. Bakımsız %5–20, hafif hasarlı %10–25, orta hasarlı %20–40, ağır hasarlı %40–60 ve pert geçmişli %50–75. Satıcı aciliyeti mevcut piyasa değerinden bağımsız bir ilan fiyatı çarpanı uygular. Alıcı teklifi tahmini satış değerinden farklı olabilir.
+- Eski ilan fiyatları, pazarlık durumu, nakit ve maliyetler korunur. Önceki sürümlerde hazır, ilandaki veya kiradaki motosikletlerde kalan eski arızalar tamamlanmış kabul edilir. Bunun için geçmişe dönük kondisyon artışı veya masraf işlenmez. Devam eden ücretli işler önceki süreleriyle biter.
