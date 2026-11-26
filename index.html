@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.4.1">
-  <script type="module" src="./app.mjs?v=0.4.1"></script>
+  <link rel="stylesheet" href="./style.css?v=0.5">
+  <script type="module" src="./app.mjs?v=0.5"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.4.1</span>
+      <span class="version">SÜRÜM 0.5</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
@@ -61,6 +61,13 @@
       </section>
       <section class="market page" id="market-page" aria-labelledby="market-title" hidden>
         <header class="section-head"><div><p class="eyebrow">ALIM SATIM</p><h2 id="market-title">İkinci el pazarı</h2></div><span id="market-count" class="tag"></span></header>
+        <form class="market-filters" id="market-filters" aria-label="İlan filtreleri">
+          <label>Marka <select id="filter-brand"><option value="">Tümü</option></select></label>
+          <label>Azami fiyat (TL) <input id="filter-price" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
+          <label>Azami kilometre <input id="filter-km" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
+          <label>Azami hacim (cc) <input id="filter-cc" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
+          <button type="reset">Filtreleri temizle</button>
+        </form>
         <div id="market" class="market-list"></div>
         <p class="muted market-foot">İlanlar her oyun günü yenilenir.</p>
       </section>
@@ -104,7 +111,8 @@
   </nav>
   <dialog id="bike-detail" aria-labelledby="detail-name">
     <form method="dialog"><button type="submit" aria-label="Yakın planı kapat">×</button></form>
-    <img id="detail-image" alt="">
+    <img id="detail-image" alt="" hidden>
+    <p id="detail-image-missing" class="missing-image" hidden>Model görseli yok</p>
     <div class="detail-info">
       <p id="detail-class" class="eyebrow"></p>
       <h2 id="detail-name"></h2>

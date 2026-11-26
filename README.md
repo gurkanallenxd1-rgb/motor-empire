@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.4.1
+# MOTOR EMPIRE v0.5
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -40,3 +40,10 @@ Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahne
 Oyun kurallarını test etmek için `node --test game.test.mjs` çalıştır.
 
 GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile tarayıcı modüllerinin tüm içe aktarma adresleri aynı `?v=` sürümünü kullanır. Yeni sürüm yayımlarken bu adresleri birlikte güncelle.
+
+## Model görselleri ve ilanlar
+
+- Katalog 22 model içerir. Teknik rakamlar temsilî model nesillerine aittir. Alış ve satış tutarları oyun dengesi için belirlenir.
+- Her yeni gün 12 farklı modelden ilan oluşur. Yıl, kilometre, renk, kondisyon ve arızalar üretilir. Boya rengi ilan bilgisinde gösterilir. WebP çizimleri sabit gövde rengindedir.
+- Eski kayıt biçimi korunur. Kayıtlı motosikletlerin teknik bilgileri model adından okunur. Devam eden günün mevcut ilanları gün kapanışına kadar korunur.
+- `assets/models/` içindeki 480 × 400 şeffaf WebP dosyaları bu oyun için OpenAI ImageGen ile oluşturulan model temsilleridir. Üretici fotoğrafı veya resmî teknik referans kullanılmadı. Yıl ve donanım ayrıntıları çizimlerde değişiklik gösterebilir. Eksik dosyada “Model görseli yok” gösterilir.

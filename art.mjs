@@ -1,4 +1,4 @@
-import { categoryOf, spriteUrl } from './bikes.mjs?v=0.4.1';
+import { spriteUrl } from './bikes.mjs?v=0.5';
 
 const WIDTH = 1536;
 const HEIGHT = 1024;
@@ -130,12 +130,21 @@ export function createGarageRenderer(scene, openBike) {
       const distance = action === 'buy' ? (1 - progress) ** 2 : action === 'sell' ? progress ** 2 : 0;
       const x = px - distance * 310;
       const y = py + distance * 136;
-      const sprite = sprites.get(categoryOf(bike));
-      if (sprite && workshop) {
+      const url = spriteUrl(bike);
+      const sprite = sprites.get(url);
+      if (workshop) {
         context.save();
         context.globalAlpha = 1 - distance;
-        drawBike(context,sprite,x,y);
-        if (bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
+        if (sprite) drawBike(context,sprite,x,y);
+        else if (!url || sprite === false) {
+          context.fillStyle = '#1b1e21';
+          context.fillRect(x - 139,y - 150,278,59);
+          context.fillStyle = '#f1c99f';
+          context.textAlign = 'center';
+          context.font = '30px system-ui';
+          context.fillText('Model görseli yok',x,y - 111);
+        }
+        if (sprite && bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
         context.restore();
       }
       const hotspot = hotspots[bike.slot - bayOffset];
@@ -263,11 +272,13 @@ export function createGarageRenderer(scene, openBike) {
         {bike:animationBike,action,start:performance.now()}];
     }
     for (const bike of garage) {
-      const category = categoryOf(bike);
-      if (!sprites.has(category)) {
-        sprites.set(category, null);
-        loadImage(spriteUrl(category), image => sprites.set(category,image),
-          () => sprites.delete(category));
+      const url = spriteUrl(bike);
+      if (url && !sprites.has(url)) {
+        sprites.set(url,null);
+        loadImage(url,image => sprites.set(url,image),() => {
+          sprites.set(url,false);
+          invalidate();
+        });
       }
     }
     hotspots.forEach((button, slot) => {
@@ -282,7 +293,7 @@ export function createGarageRenderer(scene, openBike) {
 function drawBike(ctx,image,x,y) {
   const h = SPRITE_WIDTH * image.naturalHeight / image.naturalWidth;
   ctx.translate(x,y);
-  ctx.rotate(-.19);
+  ctx.rotate(-.36);
   // Compress the radial gradient to a soft contact shadow along the lift.
   ctx.save();
   ctx.scale(173,23);
@@ -294,7 +305,7 @@ function drawBike(ctx,image,x,y) {
   ctx.fillRect(-1,-1,2,2);
   ctx.restore();
   ctx.drawImage(image,-SPRITE_WIDTH/2,-h*.91,SPRITE_WIDTH,h);
-  ctx.rotate(.19);
+  ctx.rotate(.36);
   ctx.translate(-x,-y);
 }
 

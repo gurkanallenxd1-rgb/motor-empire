@@ -1,11 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  LEGACY_STORAGE_KEY, STORAGE_KEY, assets, branchCapacity, dailyTotals, loadGame,
+  LEGACY_STORAGE_KEY, STORAGE_KEY, assets, branchCapacity, dailyTotals, generateMarket, loadGame,
   newGame, perform, rentalRate, repairCapacity, saveGame,
 } from './game.mjs';
 
-function play(initial = newGame()) {
+import { catalog, filterListings, modelOf, spriteUrl } from './bikes.mjs';
+
+function legacyMarket() {
+  const listings = [
+    { name:'Honda CB 125F', year:2018, km:28400, price:26900, value:34800, faults:['zincir','akü'] },
+    { name:'Bajaj Pulsar NS 200', year:2017, km:36700, price:38500, value:50700, faults:['fren','lastik'] },
+    { name:'Yamaha YBR 125', year:2016, km:31200, price:29500, value:39200, faults:['debriyaj','fren'] },
+  ];
+  return { ...newGame(), listings:listings.map((bike,i) => ({ ...bike, id:`1-${i}` })) };
+}
+
+function play(initial = legacyMarket()) {
   let state = initial;
   return {
     get state() { return state; },
@@ -94,7 +105,7 @@ for (const days of [1,3,7]) {
 }
 
 test('capacity upgrades, highest slot and independent Istanbul branch', () => {
-  const game = play({ ...newGame(),cash:950000 });
+  const game = play({ ...legacyMarket(),cash:2200000 });
   assert.throws(() => game.act('hire',undefined,undefined,99),/Şube bulunamadı/);
   for (const capacity of [4,6,10]) {
     game.act('upgrade');
@@ -102,10 +113,10 @@ test('capacity upgrades, highest slot and independent Istanbul branch', () => {
   }
   assert.throws(() => game.act('upgrade'),/en yüksek/);
   game.act('open-branch');
-  assert.equal(game.state.cash,275000);
+  assert.equal(game.state.cash,1525000);
   assert.equal(branchCapacity(game.state.branches[1]),2);
   assert.equal(assets(game.state).equipment,675000);
-  assert.equal(assets(game.state).total,950000);
+  assert.equal(assets(game.state).total,2200000);
   for (let purchase = 0; purchase < 10; purchase += 1) {
     if (game.state.cash < 52000) game.act('borrow',undefined,50000);
     if (!game.state.listings.length) game.act('advance');
@@ -152,7 +163,7 @@ test('mandatory shortfall creates debt, financing is separate, invalid inputs le
 });
 
 test('v0.3 migration preserves legacy storage, delivery day, listings and sales', () => {
-  const baseline = newGame();
+  const baseline = legacyMarket();
   const legacy = { version:1, day:1, cash:17000, listings:baseline.listings.slice(1),
     sales:[{name:'Önceki satış',day:1,price:31500,spent:27500}],
     garage:[{...baseline.listings[0],slot:0,stage:'repairing',spent:30850,readyDay:2}] };
@@ -170,4 +181,43 @@ test('v0.3 migration preserves legacy storage, delivery day, listings and sales'
   assert.deepEqual(loadGame(storage),game.state);
   memory.set(STORAGE_KEY,JSON.stringify({...game.state,cash:-1}));
   assert.throws(() => loadGame(storage),/geçersiz/);
+});
+
+test('daily market offers twelve distinct models with changing valid attributes', () => {
+  assert.equal(catalog.length,22);
+  assert.equal(new Set(catalog.map(model => spriteUrl(model))).size,22);
+  assert.equal(spriteUrl({name:'Bilinmeyen model'}),null);
+  let seed=14;
+  const random = () => ((seed = (Math.imul(seed,1664525) + 1013904223) >>> 0) / 2 ** 32);
+  const all = new Set();
+  for (let day=1;day<=15;day+=1) {
+    const listings=generateMarket(day,random);
+    assert.equal(listings.length,12);
+    assert.equal(new Set(listings.map(bike=>bike.name)).size,12);
+    assert.ok(listings.slice(0,4).every(bike=>bike.price < 45000));
+    for (const bike of listings) {
+      const model=modelOf(bike);
+      all.add(bike.name);
+      assert.ok(bike.year>=model.firstYear&&bike.year<=model.lastYear);
+      assert.ok(bike.condition>=84&&bike.condition<=100&&bike.km>0&&bike.price>0&&bike.value>0);
+      assert.ok(bike.colorName && bike.faults.length>=1 && new Set(bike.faults).size===bike.faults.length);
+      if(model.category==='scooter') assert.ok(!bike.faults.includes('zincir'));
+    }
+  }
+  assert.equal(all.size,catalog.length);
+});
+
+test('filters combine four constraints and buying preserves generated condition', () => {
+  const listings=legacyMarket().listings;
+  const matches=filterListings(listings,{brand:'Honda',maxPrice:27000,maxKm:30000,maxCc:125});
+  assert.deepEqual(matches.map(bike=>bike.id),['1-0']);
+  assert.deepEqual(filterListings(listings,{brand:'Honda',maxPrice:26000,maxKm:null,maxCc:null}),[]);
+  const listing={...listings[0],condition:92,colorName:'Kırmızı'};
+  const game=play({...legacyMarket(),listings:[listing]});
+  game.act('buy',listing.id);
+  assert.equal(game.bike(listing.id).condition,92);
+  assert.equal(game.bike(listing.id).colorName,'Kırmızı');
+  game.act('advance');
+  assert.equal(game.state.listings.length,12);
+  assert.ok(game.state.listings.every(bike=>bike.id.startsWith('2-')));
 });

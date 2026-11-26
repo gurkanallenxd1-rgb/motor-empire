@@ -1,10 +1,10 @@
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
-  perform, rentalRate, repairCapacity, repairQuote, saveGame,
-} from './game.mjs?v=0.4.1';
-import { createGarageRenderer } from './art.mjs?v=0.4.1';
-import { categoryLabel, categoryOf, spriteUrl } from './bikes.mjs?v=0.4.1';
+  perform, rentalRate, repairCapacity, repairQuote, roadValue, saveGame,
+} from './game.mjs?v=0.5';
+import { createGarageRenderer } from './art.mjs?v=0.5';
+import { catalog, categoryLabel, filterListings, modelOf, spriteUrl } from './bikes.mjs?v=0.5';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -117,32 +117,74 @@ function garageCard(slot) {
   return card;
 }
 
+function setBikeImage(image, fallback, bike) {
+  const url = spriteUrl(bike);
+  image.hidden = !url;
+  fallback.hidden = Boolean(url);
+  image.alt = `${bike.name} model çizimi`;
+  image.onerror = () => {
+    image.hidden = true;
+    fallback.hidden = false;
+  };
+  if (url) image.src = url;
+  else image.removeAttribute('src');
+}
+
+function bikeSpecs(bike) {
+  const model = modelOf(bike);
+  const specs = [String(bike.year), `${numeric.format(bike.km)} km`, `Kondisyon %${bike.condition ?? 100}`];
+  if (model) specs.unshift(`${numeric.format(model.cc)} cc`, `${numeric.format(model.hp)} bg`);
+  if (bike.colorName) specs.push(bike.colorName);
+  return specs.join(' · ');
+}
+
 function openBike(bike) {
-  const category = categoryOf(bike);
-  byId('detail-image').src = spriteUrl(category);
-  byId('detail-image').alt = categoryLabel[category];
+  const model = modelOf(bike);
+  setBikeImage(byId('detail-image'),byId('detail-image-missing'),bike);
   byId('detail-name').textContent = bike.name;
-  byId('detail-class').textContent = categoryLabel[category];
-  byId('detail-spec').textContent = `${bike.year} · ${numeric.format(bike.km)} km · ${stages[bike.stage]}`;
+  byId('detail-class').textContent = categoryLabel[model?.category] ?? '';
+  byId('detail-spec').textContent = `${bikeSpecs(bike)} · ${stages[bike.stage]}`;
   byId('bike-detail').showModal();
 }
 
 function marketCard(listing) {
   const card = element('article', '', 'card listing');
+  const media = element('div', '', 'listing-media');
   const image = document.createElement('img');
-  image.src = spriteUrl(categoryOf(listing));
-  image.alt = '';
+  image.loading = 'lazy';
   image.decoding = 'async';
+  const fallback = element('p', 'Model görseli yok', 'missing-image');
+  setBikeImage(image,fallback,listing);
+  media.append(image,fallback);
   const details = element('div', '', 'listing-details');
-  details.append(element('span', categoryLabel[categoryOf(listing)], 'category'), element('h3', listing.name),
-    element('p', `${listing.year} · ${numeric.format(listing.km)} km`, 'spec'),
-    element('p', money(listing.price), 'price'));
+  const model = modelOf(listing);
+  details.append(element('span', categoryLabel[model?.category] ?? '', 'category'), element('h3', listing.name),
+    element('p', bikeSpecs(listing), 'spec'),
+    element('p', money(listing.price), 'price'),
+    element('p', `Tahmini satış · ${money(roadValue(listing))}`, 'spec'));
   const branch = activeBranch();
   const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu' : state.cash < listing.price ? 'Yetersiz bakiye' : '';
   const button = actionButton(reason || 'Satın al', 'buy', listing.id, Boolean(reason));
   button.setAttribute('aria-label', `${listing.name} · ${button.textContent}`);
-  card.append(image, details, button);
+  card.append(media, details, button);
   return card;
+}
+
+function renderMarket() {
+  const readLimit = id => {
+    const field = byId(id);
+    return field.value === '' ? null : field.valueAsNumber;
+  };
+  const listings = filterListings(state.listings, {
+    brand: byId('filter-brand').value,
+    maxPrice: readLimit('filter-price'),
+    maxKm: readLimit('filter-km'),
+    maxCc: readLimit('filter-cc'),
+  });
+  byId('market-count').textContent = `${listings.length} / ${state.listings.length} İLAN`;
+  byId('market').replaceChildren(...(listings.length
+    ? listings.map(marketCard)
+    : [element('p', 'Filtrelere uyan ilan bulunamadı.', 'muted')]));
 }
 
 function metric(label, value) {
@@ -249,10 +291,7 @@ function render(action, animationBike) {
       metric('Toplam şube sayısı', state.branches.length));
   }
   if (currentPage === 'garage') renderGarage(branch, action, animationBike);
-  if (currentPage === 'market') {
-    byId('market-count').textContent = `${state.listings.length} İLAN`;
-    byId('market').replaceChildren(...state.listings.map(marketCard));
-  }
+  if (currentPage === 'market') renderMarket();
   if (currentPage === 'business') renderBusiness();
   if (currentPage === 'finance') renderFinance(today, worth);
   updateSave();
@@ -326,3 +365,9 @@ byId('credit-form').addEventListener('submit', event => {
 });
 
 render();
+
+const brands = [...new Set(catalog.map(model => model.brand))].sort((a,b) => a.localeCompare(b,'tr'));
+byId('filter-brand').append(...brands.map(brand => new Option(brand,brand)));
+byId('market-filters').addEventListener('input', renderMarket);
+byId('market-filters').addEventListener('reset', () => setTimeout(renderMarket, 0));
+byId('market-filters').addEventListener('submit', event => event.preventDefault());
