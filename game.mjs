@@ -1,3 +1,5 @@
+import { catalog } from './bikes.mjs?v=0.5';
+
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
 export const STORAGE_KEY = 'motor-empire.v2';
@@ -21,21 +23,43 @@ export const PARTS = {
   akü: { name: 'Akü', cost: 1850, hours: 1 },
 };
 
-const catalog = [
-  { name: 'Honda CB 125F', year: 2018, km: 28400, price: 26900, value: 34800, color: '#ee664b', faults: ['zincir', 'akü'] },
-  { name: 'Bajaj Pulsar NS 200', year: 2017, km: 36700, price: 38500, value: 50700, color: '#a9bfce', faults: ['fren', 'lastik'] },
-  { name: 'Yamaha YBR 125', year: 2016, km: 31200, price: 29500, value: 39200, color: '#659ad8', faults: ['debriyaj', 'fren'] },
-  { name: 'Suzuki GN 125', year: 2015, km: 24900, price: 25400, value: 32800, color: '#d0a86a', faults: ['akü', 'lastik'] },
-  { name: 'TVS Apache RTR 160', year: 2019, km: 22800, price: 33800, value: 44800, color: '#a0a7df', faults: ['zincir', 'debriyaj', 'fren'] },
-  { name: 'Mondial Drift L', year: 2018, km: 19200, price: 21700, value: 29100, color: '#79b8a7', faults: ['fren', 'akü'] },
-  { name: 'Honda CBR 125R', year: 2017, km: 26900, price: 35400, value: 47000, color: '#f47b38', faults: ['zincir', 'lastik'] },
-  { name: 'Yamaha Delight 125', year: 2019, km: 17200, price: 31200, value: 39400, color: '#8fc6bd', faults: ['akü', 'fren'] },
+const colors = [
+  { name: 'Siyah', hex: '#292b2e' },
+  { name: 'Gri', hex: '#a0a6ae' },
+  { name: 'Beyaz', hex: '#eae6da' },
+  { name: 'Kırmızı', hex: '#c93838' },
+  { name: 'Mavi', hex: '#3564ba' },
+  { name: 'Yeşil', hex: '#437b4b' },
 ];
 
-function market(day) {
-  return Array.from({ length: 3 }, (_, slot) => {
-    const model = catalog[((day - 1) * 2 + slot) % catalog.length];
-    return { ...model, id: `${day}-${slot}`, price: model.price + ((day - 1) % 5) * 150 };
+function shuffle(items, random) {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+export function generateMarket(day, random = Math.random) {
+  const integer = (min,max) => min + Math.floor(random() * (max - min + 1));
+  // Keep four affordable choices for a new workshop on every refresh.
+  const ordered = shuffle(catalog,random);
+  const affordable = ordered.filter(model => model.price <= 40000).slice(0,4);
+  const selected = [...affordable,...ordered.filter(model => !affordable.includes(model)).slice(0,8)];
+  return selected.map((model,slot) => {
+    const year = integer(model.firstYear,model.lastYear);
+    const age = 2026 - year;
+    const km = integer(1500 + age * 850,5000 + age * 3700);
+    const condition = integer(84,100);
+    const color = colors[integer(0,colors.length - 1)];
+    const faults = model.category === 'scooter' ? ['fren','lastik','akü'] : Object.keys(PARTS);
+    const value = Math.round(model.value * (1 + (year - model.lastYear) * .009 - km / 500000) / 50) * 50;
+    const price = Math.round(model.price * (value / model.value) * condition / 100 * integer(92,102) / 100 / 50) * 50;
+    return {
+      id: `${day}-${slot}`, name:model.name, year, km, condition, price, value,
+      color:color.hex, colorName:color.name, faults:shuffle(faults,random).slice(0,integer(1,3)),
+    };
   });
 }
 
@@ -44,7 +68,7 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 2, day: 1, cash: 75000, debt: 0, listings: market(1), branches: [createBranch(1)], sales: [], ledger: [] };
+  return { version: 2, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [] };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
@@ -58,8 +82,8 @@ export function repairQuote(bike) {
   }), { cost: 0, hours: 0 });
 }
 
-function roadValue(bike) {
-  return Math.round(bike.value * bike.condition / 100);
+export function roadValue(bike) {
+  return Math.round(bike.value * (bike.condition ?? 100) / 100);
 }
 
 export function rentalRate(bike) {
@@ -144,7 +168,7 @@ export function perform(state, action, id, amount, branchId = 1) {
         .find(index => !branch.garage.some(item => item.slot === index));
       pay(listing.price, `${listing.name} alımı`);
       next.listings = next.listings.filter(item => item.id !== id);
-      branch.garage.push({ ...listing, slot, stage: 'unchecked', spent: listing.price, condition: 100 });
+      branch.garage.push({ ...listing, slot, stage: 'unchecked', spent: listing.price, condition: listing.condition ?? 100 });
       message = `${listing.name} · ${branch.name} garajına alındı.`;
       break;
     }
@@ -278,7 +302,7 @@ export function perform(state, action, id, amount, branchId = 1) {
         }
       }
       next.day = tomorrow;
-      next.listings = market(tomorrow);
+      next.listings = generateMarket(tomorrow);
       message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü.`;
       break;
     }
@@ -292,7 +316,9 @@ export function perform(state, action, id, amount, branchId = 1) {
 function validBike(bike) {
   return bike && typeof bike.id === 'string' && typeof bike.name === 'string'
     && Number.isSafeInteger(bike.year) && Number.isSafeInteger(bike.km) && bike.km >= 0
-    && validAmount(bike.price) && validAmount(bike.value) && bike.value >= 50 && Array.isArray(bike.faults)
+    && validAmount(bike.price) && validAmount(bike.value) && bike.value >= 50
+    && (bike.condition === undefined || (Number.isInteger(bike.condition) && bike.condition >= 25 && bike.condition <= 100))
+    && Array.isArray(bike.faults)
     && bike.faults.every(fault => Object.prototype.hasOwnProperty.call(PARTS, fault));
 }
 

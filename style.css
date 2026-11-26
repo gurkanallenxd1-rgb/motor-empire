@@ -127,14 +127,31 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
 .camera-bar button { min-width: 44px; padding: 3px 8px; background: #242827; font-variant-numeric: tabular-nums; }
 #zoom-in, #zoom-out { font-size: 20px; }
 #zoom-reset { min-width: 55px; font-size: 12px; color: var(--accent); }
-.listing img {
-  width: 100%;
+.listing-media {
+  display: grid;
+  place-items: center;
   aspect-ratio: 1.45;
-  object-fit: contain;
-  object-position: center;
   border: 1px solid #45443a;
   border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 65%, #524238, #202322 71%);
+  background: radial-gradient(ellipse at 50% 65%, #6b6055, #272925 71%);
+}
+.listing-media img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.missing-image { color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
+.market-filters {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr)) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+.market-filters label { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: var(--muted); }
+.market-filters input, .market-filters select {
+  width: 100%; min-width: 0; min-height: 44px; padding: 5px 8px;
+  color: var(--text); background: var(--card); border: 1px solid var(--line);
+  border-radius: 7px; font: inherit; font-size: 16px;
+}
+@media (max-width: 650px) {
+  .market-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 #bike-detail {
   width: min(calc(100% - 24px), 530px);
