@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.4
+# MOTOR EMPIRE v0.4.1
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -38,3 +38,5 @@ Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahne
 - Günlük net, o gün kaydedilen nakit gelirlerinden giderleri çıkarır. Borç alma ve ödeme finansman hareketidir. Toplam varlık nakit, motosiklet stoku ve maliyet bedeliyle şube yatırımlarını içerir. Net varlık borcu düşer.
 
 Oyun kurallarını test etmek için `node --test game.test.mjs` çalıştır.
+
+GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile tarayıcı modüllerinin tüm içe aktarma adresleri aynı `?v=` sürümünü kullanır. Yeni sürüm yayımlarken bu adresleri birlikte güncelle.

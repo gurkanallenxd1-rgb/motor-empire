@@ -1,4 +1,4 @@
-import { categoryOf, spriteUrl } from './bikes.mjs';
+import { categoryOf, spriteUrl } from './bikes.mjs?v=0.4.1';
 
 const WIDTH = 1536;
 const HEIGHT = 1024;
@@ -225,14 +225,18 @@ export function createGarageRenderer(scene, openBike) {
     centerY = HEIGHT / 2;
     setZoom(1);
   });
-  new ResizeObserver(resize).observe(canvas);
+  if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
   window.addEventListener('resize', resize);
-  new IntersectionObserver(([entry]) => {
-    visible = entry.isIntersecting;
-    syncVisibility();
-  }).observe(scene);
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      syncVisibility();
+      if (visible) resize();
+    }).observe(scene);
+  }
   document.addEventListener('visibilitychange', syncVisibility);
-  reducedMotion.addEventListener('change', invalidate);
+  if (reducedMotion.addEventListener) reducedMotion.addEventListener('change', invalidate);
+  else reducedMotion.addListener(invalidate);
 
   function syncVisibility() {
     if (!visible || document.hidden) {
@@ -271,7 +275,7 @@ export function createGarageRenderer(scene, openBike) {
       button.hidden = !bike;
       if (bike) button.setAttribute('aria-label', `${bike.name} yakın plan`);
     });
-    invalidate();
+    resize();
   };
 }
 
