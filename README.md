@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.5
+# MOTOR EMPIRE v0.5.1
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -47,3 +47,11 @@ GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile ta
 - Her yeni gün 12 farklı modelden ilan oluşur. Yıl, kilometre, renk, kondisyon ve arızalar üretilir. Boya rengi ilan bilgisinde gösterilir. WebP çizimleri sabit gövde rengindedir.
 - Eski kayıt biçimi korunur. Kayıtlı motosikletlerin teknik bilgileri model adından okunur. Devam eden günün mevcut ilanları gün kapanışına kadar korunur.
 - `assets/models/` içindeki 480 × 400 şeffaf WebP dosyaları bu oyun için OpenAI ImageGen ile oluşturulan model temsilleridir. Üretici fotoğrafı veya resmî teknik referans kullanılmadı. Yıl ve donanım ayrıntıları çizimlerde değişiklik gösterebilir. Eksik dosyada “Model görseli yok” gösterilir.
+
+### v0.5.1 görsel denetim taslağı
+
+[Model karşılaştırma sayfası](visual-audit.html) 22 mevcut çizimi ve yıl bazında onay durumunu gösterir. Mevcut çizimler yalnızca karşılaştırma için tutulur. Oyun, doğrulanmış eşleşme bulunmadığında açık metin gösterir. Bu taslakta onaylı dosya bulunmadığından mağaza, garaj ve yakın planda motosiklet resmi gösterilmez.
+
+Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış kasa yılı aralığı, yaratıcı, kaynak ve lisans bağlantılarını kaydet. Kullanım izni, türetme ve yeniden dağıtımı kapsamalı. `assets/verified/` içinde sağ ön üç çeyrek açıdan, ön teker sağda, aynı kadrajda en az 960 px genişliğinde şeffaf WebP oluştur. Aynı ölçülerde ayrı WebP maskesinin alfa kanalı yalnızca boyalı kaportayı kapsamalı. Siyah plastik, lastik, jant, egzoz, motor ve metal parçalar maskenin dışında kalmalı. Bir görseli onaylamadan önce far, depo, egzoz, jant, grenaj ve şasiyi tarihli kaynaklarla karşılaştır.
+
+İncelenen örnek kaynaklar arasında [2016 Yamaha MT-25](https://commons.wikimedia.org/wiki/File:2016_Yamaha_MT-25.JPG), [2022 Yamaha MT-09](https://commons.wikimedia.org/wiki/File:2022_Yamaha_MT-09.jpg) ve [Honda CBR250R](https://commons.wikimedia.org/wiki/File:Honda_CBR250R.jpeg) yer alır. Bunlar araştırma referanslarıdır. Ortak kamera ve boya maskesi doğrulanmadığı için paketlenmemiştir.

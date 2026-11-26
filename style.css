@@ -135,7 +135,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
   border-radius: 6px;
   background: radial-gradient(ellipse at 50% 65%, #6b6055, #272925 71%);
 }
-.listing-media img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.listing-media canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
 .missing-image { color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
 .market-filters {
   display: grid;
@@ -222,3 +222,15 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 880px) {
   .market-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
+
+.audit-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:10px; }
+.audit-controls { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:16px; }
+.audit-controls select, .audit-card select {
+  min-height:44px; border:1px solid var(--line); border-radius:7px; padding:4px 8px;
+  font:inherit; color:var(--text); background:var(--card);
+}
+.audit-card h2 { margin-bottom:8px; }
+.audit-card .muted { margin-top:8px; }
+.audit-card figure { margin:10px 0 0; background:#34302d; border-radius:6px; padding:8px; }
+.audit-card img, .audit-card canvas { display:block; width:100%; height:auto; }
+.audit-card figcaption { font-size:12px; color:var(--muted); }

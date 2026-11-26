@@ -30,11 +30,6 @@ const byName = new Map(catalog.map(model => [model.name,model]));
 
 export const categoryLabel = { commuter: 'Şehir motosikleti', naked: 'Naked', sport: 'Sport', scooter: 'Scooter' };
 export const modelOf = bike => byName.get(bike.name);
-export const spriteUrl = bike => {
-  const model = modelOf(bike);
-  return model ? new URL(`./assets/models/${model.id}.webp`,import.meta.url).href : null;
-};
-
 export function filterListings(listings, {brand,maxPrice,maxKm,maxCc}) {
   return listings.filter(listing => {
     const model = modelOf(listing);

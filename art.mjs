@@ -1,4 +1,4 @@
-import { spriteUrl } from './bikes.mjs?v=0.5';
+import { loadSprite, spriteKey } from './sprite.mjs?v=0.5.1';
 
 const WIDTH = 1536;
 const HEIGHT = 1024;
@@ -130,7 +130,7 @@ export function createGarageRenderer(scene, openBike) {
       const distance = action === 'buy' ? (1 - progress) ** 2 : action === 'sell' ? progress ** 2 : 0;
       const x = px - distance * 310;
       const y = py + distance * 136;
-      const url = spriteUrl(bike);
+      const url = spriteKey(bike);
       const sprite = sprites.get(url);
       if (workshop) {
         context.save();
@@ -144,7 +144,7 @@ export function createGarageRenderer(scene, openBike) {
           context.font = '30px system-ui';
           context.fillText('Model görseli yok',x,y - 111);
         }
-        if (sprite && bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
+        if (bike.stage === 'repairing') drawRepair(context,x,y,lastPaint,!reducedMotion.matches);
         context.restore();
       }
       const hotspot = hotspots[bike.slot - bayOffset];
@@ -271,12 +271,17 @@ export function createGarageRenderer(scene, openBike) {
       transitions = [...transitions.filter(item => item.bike.id !== animationBike.id),
         {bike:animationBike,action,start:performance.now()}];
     }
+    const visibleKeys = new Set([...garage,...transitions.map(item => item.bike)].map(spriteKey));
+    for (const key of sprites.keys()) {
+      if (!visibleKeys.has(key)) sprites.delete(key);
+    }
     for (const bike of garage) {
-      const url = spriteUrl(bike);
+      const url = spriteKey(bike);
       if (url && !sprites.has(url)) {
         sprites.set(url,null);
-        loadImage(url,image => sprites.set(url,image),() => {
-          sprites.set(url,false);
+        loadSprite(bike).then(image => {
+          if (!sprites.has(url)) return;
+          sprites.set(url,image ?? false);
           invalidate();
         });
       }
@@ -291,7 +296,7 @@ export function createGarageRenderer(scene, openBike) {
 }
 
 function drawBike(ctx,image,x,y) {
-  const h = SPRITE_WIDTH * image.naturalHeight / image.naturalWidth;
+  const h = SPRITE_WIDTH * (image.naturalHeight ?? image.height) / (image.naturalWidth ?? image.width);
   ctx.translate(x,y);
   ctx.rotate(-.36);
   // Compress the radial gradient to a soft contact shadow along the lift.

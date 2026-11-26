@@ -2,9 +2,11 @@ import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
   perform, rentalRate, repairCapacity, repairQuote, roadValue, saveGame,
-} from './game.mjs?v=0.5';
-import { createGarageRenderer } from './art.mjs?v=0.5';
-import { catalog, categoryLabel, filterListings, modelOf, spriteUrl } from './bikes.mjs?v=0.5';
+} from './game.mjs?v=0.5.1';
+import { createGarageRenderer } from './art.mjs?v=0.5.1';
+import { catalog, categoryLabel, filterListings, modelOf } from './bikes.mjs?v=0.5.1';
+
+import { renderSprite } from './sprite.mjs?v=0.5.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -117,19 +119,6 @@ function garageCard(slot) {
   return card;
 }
 
-function setBikeImage(image, fallback, bike) {
-  const url = spriteUrl(bike);
-  image.hidden = !url;
-  fallback.hidden = Boolean(url);
-  image.alt = `${bike.name} model çizimi`;
-  image.onerror = () => {
-    image.hidden = true;
-    fallback.hidden = false;
-  };
-  if (url) image.src = url;
-  else image.removeAttribute('src');
-}
-
 function bikeSpecs(bike) {
   const model = modelOf(bike);
   const specs = [String(bike.year), `${numeric.format(bike.km)} km`, `Kondisyon %${bike.condition ?? 100}`];
@@ -140,7 +129,8 @@ function bikeSpecs(bike) {
 
 function openBike(bike) {
   const model = modelOf(bike);
-  setBikeImage(byId('detail-image'),byId('detail-image-missing'),bike);
+  byId('detail-image').setAttribute('aria-label',bike.name + ' model görseli');
+  renderSprite(byId('detail-image'),byId('detail-image-missing'),bike);
   byId('detail-name').textContent = bike.name;
   byId('detail-class').textContent = categoryLabel[model?.category] ?? '';
   byId('detail-spec').textContent = `${bikeSpecs(bike)} · ${stages[bike.stage]}`;
@@ -150,11 +140,11 @@ function openBike(bike) {
 function marketCard(listing) {
   const card = element('article', '', 'card listing');
   const media = element('div', '', 'listing-media');
-  const image = document.createElement('img');
-  image.loading = 'lazy';
-  image.decoding = 'async';
-  const fallback = element('p', 'Model görseli yok', 'missing-image');
-  setBikeImage(image,fallback,listing);
+  const image = document.createElement('canvas');
+  image.setAttribute('role','img');
+  image.setAttribute('aria-label',listing.name + ' model görseli');
+  const fallback = element('p', 'Bu kasa yılı için doğrulanmış görsel yok', 'missing-image');
+  renderSprite(image,fallback,listing);
   media.append(image,fallback);
   const details = element('div', '', 'listing-details');
   const model = modelOf(listing);

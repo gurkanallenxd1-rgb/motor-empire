@@ -1,4 +1,4 @@
-import { catalog } from './bikes.mjs?v=0.5';
+import { catalog } from './bikes.mjs?v=0.5.1';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -23,7 +23,7 @@ export const PARTS = {
   akü: { name: 'Akü', cost: 1850, hours: 1 },
 };
 
-const colors = [
+export const PAINT_COLORS = [
   { name: 'Siyah', hex: '#292b2e' },
   { name: 'Gri', hex: '#a0a6ae' },
   { name: 'Beyaz', hex: '#eae6da' },
@@ -52,7 +52,7 @@ export function generateMarket(day, random = Math.random) {
     const age = 2026 - year;
     const km = integer(1500 + age * 850,5000 + age * 3700);
     const condition = integer(84,100);
-    const color = colors[integer(0,colors.length - 1)];
+    const color = PAINT_COLORS[integer(0,PAINT_COLORS.length - 1)];
     const faults = model.category === 'scooter' ? ['fren','lastik','akü'] : Object.keys(PARTS);
     const value = Math.round(model.value * (1 + (year - model.lastYear) * .009 - km / 500000) / 50) * 50;
     const price = Math.round(model.price * (value / model.value) * condition / 100 * integer(92,102) / 100 / 50) * 50;
