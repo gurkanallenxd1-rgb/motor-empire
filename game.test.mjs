@@ -5,7 +5,7 @@ import {
   newGame, perform, rentalRate, repairCapacity, saveGame,
 } from './game.mjs';
 
-import { catalog, filterListings, modelOf, spriteUrl } from './bikes.mjs';
+import { catalog, filterListings, modelOf } from './bikes.mjs';
 
 function legacyMarket() {
   const listings = [
@@ -185,8 +185,7 @@ test('v0.3 migration preserves legacy storage, delivery day, listings and sales'
 
 test('daily market offers twelve distinct models with changing valid attributes', () => {
   assert.equal(catalog.length,22);
-  assert.equal(new Set(catalog.map(model => spriteUrl(model))).size,22);
-  assert.equal(spriteUrl({name:'Bilinmeyen model'}),null);
+  assert.equal(new Set(catalog.map(model => model.id)).size,22);
   let seed=14;
   const random = () => ((seed = (Math.imul(seed,1664525) + 1013904223) >>> 0) / 2 ** 32);
   const all = new Set();
