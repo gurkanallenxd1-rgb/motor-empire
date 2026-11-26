@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.7
+# MOTOR EMPIRE v0.7.1
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -50,7 +50,7 @@ GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile ta
 
 ### Görsel denetim
 
-[Model karşılaştırma sayfası](visual-audit.html) 22 mevcut çizimi ve yıl bazında onay durumunu gösterir. Doğrulanmış kasa dosyası yoksa oyun aynı modelin v0.5 WebP çizimini veya yeni WebP atlasındaki hücresini kullanır. Boya maskeleri ayrıdır. Atlas dosyası bulunamazsa sınıf görseli “Sınıf temsili” olarak belirtilir. Kasa yılı ve üretici ayrıntıları doğrulanmış dosya kapsamı 0/100’dür. 100 modelin denetim sayfası kaydırıldıkça çizimleri yükler.
+[Geliştirici karşılaştırma sayfası](visual-audit.html?dev=1) 22 mevcut çizimi ve yıl bazında onay durumunu gösterir. Doğrulanmış kasa dosyası yoksa oyun aynı modelin v0.5 WebP çizimini veya yeni WebP atlasındaki hücresini kullanır. Boya maskeleri ayrıdır. Model dosyası yüklenemezse yer tutucu gösterilir. Başka bir motosikletin görseli seçilmez. Kasa yılı ve üretici ayrıntıları doğrulanmış dosya kapsamı 0/100’dür. 100 modelin denetim sayfası kaydırıldıkça çizimleri yükler.
 
 Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış kasa yılı aralığı, yaratıcı, kaynak ve lisans bağlantılarını kaydet. Kullanım izni, türetme ve yeniden dağıtımı kapsamalı. `assets/verified/` içinde sağ ön üç çeyrek açıdan, ön teker sağda, aynı kadrajda en az 960 px genişliğinde şeffaf WebP oluştur. Aynı ölçülerde ayrı WebP maskesinin alfa kanalı yalnızca boyalı kaportayı kapsamalı. Siyah plastik, lastik, jant, egzoz, motor ve metal parçalar maskenin dışında kalmalı. Bir görseli onaylamadan önce far, depo, egzoz, jant, grenaj ve şasiyi tarihli kaynaklarla karşılaştır.
 
@@ -69,3 +69,18 @@ Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış k
 - Satış geliri tahsil edilen fiyat, gerçekleşen satış kârı ise satış fiyatı eksi birikmiş alım, ekspertiz ve tamir maliyetidir. Günlük nakit farkı, o gün kasaya yazılan gelir ve giderlerin farkıdır. Kredi hareketleri ayrı tutulur.
 - Temiz araç birçok ilanda arızasız olabilir. Ekspertiz varsa arızaları açığa çıkarır, yoksa ücret kaydıyla araç doğrudan satışa hazır olur. Yeni stokta servis katsayısı modele göre belirlenir ve aynı tutar ekspertiz, tamir ve maliyet kaydında kullanılır.
 - Renk paletleri kasa yılına göre sınırlandırılmış temsili renk aileleridir. Tüm ülkeler ve donanımlar için birebir fabrika kodu doğrulanmamıştır. Örnek kaynaklar [KTM 2023 renkleri](https://press.ktm.com/news-ktm-updates-its-2023-street-range-with-fresh-new-colorways?id=168537&l=international&menueid=3050), [KTM Türkiye teknik sayfası](https://www.ktm.com/en-tr/models/naked-bike/2023-ktm-390-duke/technical-specifications.html), [Yamaha Tracer teknik broşürü](https://www.yamaha-motor.eu/content/dam/yme/pl/pl/broszury/Sport%20Touring%202023.pdf) ve [Türkiye ikinci el ilan örnekleri](https://www.sahibinden.com/motosiklet-honda/adana/manuel).
+
+
+### v0.7.1 ilan görünümü
+
+- Marka ve model araması açık, ayrıntılı filtre paneli varsayılan olarak kapalıdır. Marka filtresi model seçeneklerini sınırlar. Arama, sıralama ve tüm filtreler o gün kaydedilmiş ilanlar üzerinde çalışır.
+- İlan satırı detay penceresini açar. Doğrudan satın alma ve mevcut satıcı pazarlığı burada başlar. Tahmini kâr, piyasa değeri eksi ilan tutarı, ekspertiz bedeli ve kondisyona bağlı tahmini bakım payıdır. Kesin tamir masrafları ekspertizden sonra görünür.
+- Pazar bir sayfada en çok 10 ilan kurar. WebP yalnızca satır ekrana yaklaştığında yüklenir.
+- Kayıt biçimi değişmedi. Satış ve alış işlemleri model adı, yıl, ana renk ve varsa ikinci kaporta rengini aynı kayıtta tutar.
+- Uygulamada geliştirici denetim bağlantısını görmek için adresin sonuna `?dev=1` ekle.
+
+### v0.7.1 kasa çizimleri
+
+Sekiz modelde 21 kasa veya renk paketi varyantı eklendi. Yamaha MT-07, MT-09, MT-25 ve R25, Honda CB125F ve PCX 125, Kawasaki Z900 ve KTM Duke 390. `generations.mjs` her seçimin yıl aralığını ve üretici referansını listeler. 2023 Duke 390 için üreticinin turuncu/mavi-gri ve siyah/mat gri renk aileleri iki bağımsız kaporta maskesi kullanır. Motor, teker, egzoz ve sabit malzemeler bu maskelerin dışındadır. Önceden satın alınan veya mevcut ilana kaydedilmiş renk saklanır.
+
+Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve dört kayıpsız renk maskesi atlası içerir. Kırmızı kanal ana kaportayı, yeşil kanal ikinci kaportayı seçer. Çizimler bu oyun için ImageGen ile üretildi. Üretici fotoğrafı paketlenmedi. Referans bağlantısı, çizimin bütün parçalarının ve fiziksel ölçeğinin üretici tarafından doğrulandığı anlamına gelmez. Oyun, doğrulanmış bir eşleşme yüklenene kadar temsili etiketi gösterir. Diğer 92 modelin önceki modele özel çizimleri korunur.

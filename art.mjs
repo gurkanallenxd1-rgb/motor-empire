@@ -1,4 +1,4 @@
-import { loadSprite, spriteKey } from './sprite.mjs?v=0.7';
+import { loadSprite, spriteKey } from './sprite.mjs?v=0.7.1';
 
 const WIDTH = 1536;
 const HEIGHT = 1024;
@@ -43,7 +43,7 @@ export function createGarageRenderer(scene, openBike) {
     image.src = url;
   }
 
-  loadImage(new URL('./assets/workshop.webp?v=0.7', import.meta.url).href, image => {
+  loadImage(new URL('./assets/workshop.webp?v=0.7.1', import.meta.url).href, image => {
     workshop = image;
     scene.dataset.ready = 'true';
   }, () => { scene.querySelector('.scene-status').textContent = 'Atölye görseli yüklenemedi.'; });

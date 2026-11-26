@@ -1,13 +1,13 @@
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
-  assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
+  assets, branchCapacity, dailyTotals, estimatedListingProfit, loadGame, newGame, operatingCost,
   perform, rentalRate, repairCapacity, repairPartCost, repairQuote, realizedSales, roadValue, saveGame,
-} from './game.mjs?v=0.7';
-import { createGarageRenderer } from './art.mjs?v=0.7';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.7';
+} from './game.mjs?v=0.7.1';
+import { createGarageRenderer } from './art.mjs?v=0.7.1';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.7.1';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.7';
-import { renderSprite, spriteFor } from './sprite.mjs?v=0.7';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.7.1';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.7.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -25,6 +25,7 @@ let bayPage = 0;
 let currentPage = 'home';
 let historyLimit = 30;
 let meetingView;
+let sellerReturn;
 let marketPage = 0;
 const LISTINGS_PER_PAGE = 10;
 const activeBranch = () => state.branches.find(branch => branch.id === branchId);
@@ -79,7 +80,10 @@ function garageCard(slot) {
 
   card.append(element('h3', bike.name), element('p', `${stages[bike.stage]} · ${numeric.format(bike.km)} km · Kondisyon %${bike.condition}`, 'spec'),
     element('p', `Toplam maliyet · ${money(bike.spent)}`, 'spec'));
-  if (!spriteFor(bike)) card.append(element('span','Temsili görsel','representative-label'));
+  const representation = element('span','Temsili görsel','representative-label');
+  representation.hidden = Boolean(spriteFor(bike));
+  if (representation.hidden) loadSprite(bike).then(asset=>{ representation.hidden = !asset?.representative; });
+  card.append(representation);
   if (['unchecked','inspected'].includes(bike.stage)) {
     const media = element('div','','inspection-media');
     const canvas = element('canvas','');
@@ -161,31 +165,76 @@ function openBike(bike) {
   byId('bike-detail').showModal();
 }
 
-function marketCard(listing) {
-  const card = element('article', '', 'card listing');
-  const media = element('div', '', 'listing-media');
-  const image = document.createElement('canvas');
-  image.setAttribute('role','img');
-  image.setAttribute('aria-label',listing.name + ' model görseli');
-  const fallback = element('p','Görsel yüklenemedi','missing-image');
-  const label = element('span','Temsili görsel','representative-label');
-  renderSprite(image,fallback,listing,label);
-  media.append(image,fallback,label);
-  const details = element('div', '', 'listing-details');
+const lazyMarketImages = new WeakMap();
+const marketObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries=>{
+  for (const {target,isIntersecting} of entries) {
+    if (!isIntersecting) continue;
+    marketObserver.unobserve(target);
+    const job = lazyMarketImages.get(target);
+    if (job && target.isConnected) renderSprite(...job);
+    lazyMarketImages.delete(target);
+  }
+},{rootMargin:'96px 0px'}) : null;
+
+function listingClass(listing) {
   const model = modelOf(listing);
-  details.append(element('span', [categoryLabel[model?.category],segmentLabel[model?.segment],gradeLabel[listingGrade(listing)]].filter(Boolean).join(' · '), 'category'), element('h3', listing.name),
-    element('p', bikeSpecs(listing), 'spec'),
-    element('p', money(listing.price), 'price'),
-    element('p', `Tahmini satış · ${money(roadValue(listing))}`, 'spec'));
-  const branch = activeBranch();
-  const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu' : state.cash < listing.price ? 'Yetersiz bakiye' : '';
-  const button = actionButton(reason || 'Satın al', 'buy', listing.id, Boolean(reason));
-  button.setAttribute('aria-label', `${listing.name} · ${button.textContent}`);
-  const actions = element('div','','listing-actions');
-  actions.append(button,actionButton(isActive(listing.seller) ? 'Görüşmeye dön' : 'Satıcıyla pazarlık',
-    'meet-seller',listing.id,Boolean(listing.seller && !isActive(listing.seller))));
-  card.append(media,details,actions);
+  return [categoryLabel[model?.category],segmentLabel[model?.segment],gradeLabel[listingGrade(listing)]].filter(Boolean).join(' · ');
+}
+
+function marketCard(listing) {
+  const card = actionButton('', 'open-listing',listing.id);
+  card.className = 'listing-row';
+  card.setAttribute('aria-label',`${listing.name} · ${money(listing.price)} · İlan detayı`);
+  const media = element('span','','listing-media');
+  const image = document.createElement('canvas');
+  image.hidden = true;
+  image.setAttribute('aria-hidden','true');
+  const fallback = element('span','Görsel yok','missing-image');
+  fallback.hidden = true;
+  const label = element('span','Temsili görsel','representative-label');
+  label.hidden = true;
+  media.append(image,fallback,label);
+  if (marketObserver) {
+    lazyMarketImages.set(media,[image,fallback,listing,label]);
+    marketObserver.observe(media);
+  } else renderSprite(image,fallback,listing,label);
+
+  const details = element('span','','listing-details');
+  details.append(element('strong',listing.name,'listing-name'),
+    element('span',`${listing.year} · ${numeric.format(listing.km)} km · ${listing.colorName || 'Renk belirtilmedi'}`,'spec listing-meta'),
+    element('span',`Kondisyon %${listing.condition ?? 100} · ${gradeLabel[listingGrade(listing)]}`,'spec listing-meta'));
+  const values = element('span','','listing-values');
+  values.append(element('strong',money(listing.price),'price'),
+    element('span',`Tahmini satış ${money(roadValue(listing))}`,'spec'));
+  card.append(media,details,values);
   return card;
+}
+
+function openListing(id) {
+  const listing = state.listings.find(item=>item.id === id);
+  if (!listing) return;
+  const dialog = byId('listing-detail');
+  byId('listing-name').textContent = listing.name;
+  byId('listing-class').textContent = listingClass(listing);
+  byId('listing-spec').textContent = bikeSpecs(listing);
+  byId('listing-error').hidden = true;
+  byId('listing-image').setAttribute('aria-label',listing.name);
+  renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
+  byId('listing-prices').replaceChildren(metric('İlan fiyatı',money(listing.price)),
+    metric('Tahmini satış',money(roadValue(listing))),metric('Tahmini kâr',signed(estimatedListingProfit(listing))));
+  const branch = activeBranch();
+  const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu'
+    : state.cash < listing.price ? 'Yetersiz bakiye' : '';
+  const buy = actionButton(reason || 'Satın al · '+money(listing.price),'buy',id,Boolean(reason));
+  buy.classList.add('primary');
+  const canNegotiate = !listing.seller || isActive(listing.seller);
+  const talk = actionButton(isActive(listing.seller) ? 'Görüşmeye dön'
+    : canNegotiate ? 'Satıcıyla pazarlık' : 'Görüşme kapandı','meet-seller',id,!canNegotiate);
+  byId('listing-detail-actions').replaceChildren(talk,buy);
+  if (!dialog.open) {
+    dialog.showModal();
+    dialog.scrollTop = 0;
+  }
 }
 
 function renderMarket() {
@@ -195,14 +244,21 @@ function renderMarket() {
   };
   const listings = filterListings(state.listings, {
     brand: byId('filter-brand').value,
+    modelId: byId('filter-model').value,
+    color: byId('filter-color').value,
+    search: byId('market-search').value,
     category: byId('filter-category').value,
     grade: byId('filter-grade').value,
     minYear: readLimit('filter-year'),
+    maxYear: readLimit('filter-year-max'),
     sort: byId('filter-sort').value,
+    minPrice: readLimit('filter-price-min'),
     maxPrice: readLimit('filter-price'),
+    minKm: readLimit('filter-km-min'),
     maxKm: readLimit('filter-km'),
+    minCc: readLimit('filter-cc-min'),
     maxCc: readLimit('filter-cc'),
-  });
+  },estimatedListingProfit);
   byId('market-count').textContent = `${listings.length} / ${state.listings.length} İLAN`;
   const pages = Math.max(1,Math.ceil(listings.length / LISTINGS_PER_PAGE));
   marketPage = Math.min(marketPage,pages - 1);
@@ -211,6 +267,7 @@ function renderMarket() {
   byId('market-prev').disabled = marketPage === 0;
   byId('market-next').disabled = marketPage + 1 === pages;
   const first = marketPage * LISTINGS_PER_PAGE;
+  marketObserver?.disconnect();
   byId('market').replaceChildren(...(listings.length
     ? listings.slice(first,first + LISTINGS_PER_PAGE).map(marketCard)
     : [element('p', 'Filtrelere uyan ilan bulunamadı.', 'muted')]));
@@ -333,7 +390,10 @@ function render(action, animationBike) {
       metric('Toplam şube sayısı', state.branches.length),metric('İşletme itibarı',`${state.trade.reputation} / 100`));
   }
   if (currentPage === 'garage') renderGarage(branch, action, animationBike);
-  if (currentPage === 'market') renderMarket();
+  if (currentPage === 'market') {
+    refreshMarketColors();
+    renderMarket();
+  }
   if (currentPage === 'business') renderBusiness();
   if (currentPage === 'finance') renderFinance(today, worth);
   updateSave();
@@ -358,6 +418,9 @@ function runAction(action, id, amount, targetBranch = branchId) {
     if (byId('meeting').open) {
       byId('meeting-error').textContent = error.message;
       byId('meeting-error').hidden = false;
+    } else if (byId('listing-detail').open) {
+      byId('listing-error').textContent = error.message;
+      byId('listing-error').hidden = false;
     }
     return false;
   }
@@ -369,6 +432,7 @@ function runAction(action, id, amount, targetBranch = branchId) {
   state = result.state;
   if (action === 'advance') marketPage = 0;
   if (isPurchase) {
+    if (byId('listing-detail').open) byId('listing-detail').close();
     bayPage = Math.floor(animationBike.slot / 2);
     showPage('garage');
   }
@@ -392,10 +456,17 @@ document.addEventListener('click', event => {
   if (page) {
     showPage(page);
     render();
+    if (page === 'market') byId('market-title').scrollIntoView({block:'start'});
+  } else if (action === 'open-listing') {
+    openListing(id);
   } else if (action === 'open-buyer') {
     openMeeting(id,index,'sale');
   } else if (action === 'meet-seller') {
-    if (runAction(action,id)) openMeeting(id,state.listings.find(item=>item.id===id).seller.id,'purchase');
+    if (runAction(action,id)) {
+      sellerReturn = id;
+      if (byId('listing-detail').open) byId('listing-detail').close();
+      openMeeting(id,state.listings.find(item=>item.id===id).seller.id,'purchase');
+    }
   } else if (action) {
     const isBranchAction = ['hire','fire','upgrade'].includes(action);
     const amount = action === 'list' ? button.closest('.card').querySelector('.ask-price input').valueAsNumber : Number(index);
@@ -475,6 +546,12 @@ byId('meeting-negotiate').addEventListener('click',()=>meetingAction('negotiate'
 byId('meeting-reject').addEventListener('click',()=>meetingAction('reject',meetingView.meetingId));
 byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.kind === 'sale' ? 'sell' : 'buy-negotiated',meetingView.meetingId));
 
+byId('meeting').addEventListener('close',()=>{
+  const id = sellerReturn;
+  sellerReturn = undefined;
+  if (id && currentPage === 'market') openListing(id);
+});
+
 byId('branch').addEventListener('change', event => {
   branchId = Number(event.target.value);
   bayPage = 0;
@@ -491,15 +568,52 @@ byId('credit-form').addEventListener('submit', event => {
 
 render();
 
-const brands = [...new Set(catalog.map(model => model.brand))].sort((a,b) => a.localeCompare(b,'tr'));
-byId('filter-brand').append(...brands.map(brand => new Option(brand,brand)));
+const brands = [...new Set(catalog.map(model=>model.brand))].sort((a,b)=>a.localeCompare(b,'tr'));
+byId('filter-brand').append(...brands.map(brand=>new Option(brand,brand)));
 byId('filter-category').append(...Object.entries(categoryLabel).map(([id,label])=>new Option(label,id)));
+byId('dev-audit-link').hidden = new URLSearchParams(location.search).get('dev') !== '1';
+
+function updateFilterModels() {
+  const brand = byId('filter-brand').value;
+  const select = byId('filter-model');
+  const selected = select.value;
+  const options = catalog.filter(model=>!brand || model.brand === brand)
+    .sort((a,b)=>a.name.localeCompare(b.name,'tr'));
+  select.replaceChildren(new Option('Tümü',''),...options.map(model=>new Option(model.name,model.id)));
+  select.value = options.some(model=>model.id === selected) ? selected : '';
+}
+
+function refreshMarketColors() {
+  const select = byId('filter-color');
+  const current = select.value;
+  const colors = [...new Set(state.listings.map(item=>item.colorName).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'tr'));
+  if (current && !colors.includes(current)) colors.push(current);
+  select.replaceChildren(new Option('Tümü',''),...colors.map(color=>new Option(color,color)));
+  select.value = colors.includes(current) ? current : '';
+}
+
 function resetMarketPage() {
   marketPage = 0;
   renderMarket();
 }
-byId('market-filters').addEventListener('input',resetMarketPage);
-byId('market-filters').addEventListener('reset',()=>setTimeout(resetMarketPage,0));
+
+updateFilterModels();
+byId('filter-toggle').addEventListener('click',()=>{
+  const panel = byId('market-filters');
+  panel.hidden = !panel.hidden;
+  byId('filter-toggle').setAttribute('aria-expanded',String(!panel.hidden));
+});
+byId('market-search').addEventListener('input',resetMarketPage);
+byId('market-filters').addEventListener('input',event=>{
+  if (event.target === byId('filter-brand')) updateFilterModels();
+  resetMarketPage();
+});
+byId('market-filters').addEventListener('reset',()=>setTimeout(()=>{
+  byId('market-search').value = '';
+  updateFilterModels();
+  resetMarketPage();
+},0));
 byId('market-filters').addEventListener('submit',event=>event.preventDefault());
 for (const [id,delta] of [['market-prev',-1],['market-next',1]]) {
   byId(id).addEventListener('click',()=>{
