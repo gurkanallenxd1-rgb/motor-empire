@@ -1,7 +1,7 @@
-import { modelOf, paintOptions } from './bikes.mjs?v=0.9';
-import { approvedSprites } from './sprite-catalog.mjs?v=0.9';
-import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.9';
-import { generationFor } from './generations.mjs?v=0.9';
+import { modelOf, paintOptions } from './bikes.mjs?v=0.10';
+import { approvedSprites } from './sprite-catalog.mjs?v=0.10';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.10';
+import { generationFor } from './generations.mjs?v=0.10';
 
 export function spriteFor(bike, entries = approvedSprites) {
   const model = modelOf(bike);
@@ -65,7 +65,7 @@ function loadWebP(path) {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = reject;
-    image.src = new URL(`./assets/${path}?v=0.9`,import.meta.url).href;
+    image.src = new URL(`./assets/${path}?v=0.10`,import.meta.url).href;
   });
   if (sources.size >= 12) sources.delete(sources.keys().next().value);
   sources.set(path,pending);

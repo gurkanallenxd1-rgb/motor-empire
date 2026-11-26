@@ -1,17 +1,19 @@
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.9';
+import { createFinanceView } from './finance-view.mjs?v=0.10';
+import { dailyCashMovement } from './finance.mjs?v=0.10';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.10';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
-  assets, branchCapacity, dailyTotals, estimatedListingProfit, loadGame, newGame, operatingCost,
-  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, realizedSales, roadValue, saveGame,
-} from './game.mjs?v=0.9';
-import { createGarageRenderer } from './art.mjs?v=0.9';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.9';
+  assets, branchCapacity, estimatedListingProfit, loadGame, newGame, operatingCost,
+  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, saveGame,
+} from './game.mjs?v=0.10';
+import { createGarageRenderer } from './art.mjs?v=0.10';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.10';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.9';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.9';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.10';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.10';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.9';
+  repairForecast } from './damage.mjs?v=0.10';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -27,7 +29,6 @@ let state;
 let branchId = 1;
 let bayPage = 0;
 let currentPage = 'home';
-let historyLimit = 30;
 let meetingView;
 let sellerReturn;
 let marketPage = 0;
@@ -382,69 +383,18 @@ function renderBusiness() {
   byId('business').replaceChildren(...cards, expansion);
 }
 
-function historyRow(label, description, amount, style = '') {
-  const row = element('div', '', 'sale');
-  const detail = element('div', '');
-  detail.append(element('b', label), element('p', description, 'spec'));
-  row.append(detail, element('strong', amount, style));
-  return row;
-}
-
-function renderFinance(today, worth) {
-  const salesToday = realizedSales(state.sales,state.day);
-  byId('finance-summary').replaceChildren(
-    metric('Bugünkü gelir', money(today.income)), metric('Bugünkü gider', money(today.expenses)),
-    metric('Bugünkü nakit farkı', signed(today.net)),
-    metric('Bugünkü satış geliri',money(salesToday.revenue)), metric('Bugünkü satış kârı',signed(salesToday.profit)),
-    metric('Toplam varlık', money(worth.total)),
-    metric('Net varlık', money(worth.net)), metric('Borç bakiyesi', money(state.debt)),
-    metric('Motosiklet stoku', money(worth.inventory)), metric('Şube yatırımları', money(worth.equipment)));
-  const summary = tradeSummary(state.trade);
-  byId('finance-summary').append(metric('İtibar',`${state.trade.reputation} / 100`),
-    metric('Satış başarı oranı',summary.success === null ? '—' : `%${summary.success}`),
-    metric('Müşteri memnuniyeti',summary.average === null ? '—' : `%${summary.average}`));
-  const outcomes = { sold:'Satıldı', bought:'Satın alındı', rejected:'Reddedildi', left:'Görüşme kesildi', expired:'Süresi doldu' };
-  const history = state.trade.history.slice(0,historyLimit).map(item => historyRow(item.name,
-    `Gün ${item.day} · ${item.person} · ${outcomes[item.outcome]} · ${item.rounds} tur`,money(item.price)));
-  byId('trade-history').replaceChildren(...(history.length ? history : [element('p','Henüz görüşme tamamlanmadı.','muted')]));
-
-  const available = Math.max(0, LOAN_LIMIT - state.debt);
-  byId('credit-available').textContent = `Kullanılabilir borç limiti · ${money(available)}`;
-  byId('borrow').disabled = available === 0;
-  byId('repay').disabled = !state.debt || !state.cash;
-
-  const days = [...new Set([...state.ledger.slice(0,historyLimit),...state.sales.slice(0,historyLimit)].map(entry=>entry.day))].sort((a,b)=>b-a);
-  byId('daily-history').replaceChildren(...(days.length ? days.map(day => {
-    const totals = dailyTotals(state.ledger, day);
-    const salesOnDay = realizedSales(state.sales,day);
-    return historyRow(`Gün ${day} · Nakit farkı`, `Gelir ${money(totals.income)} · Gider ${money(totals.expenses)} · Satış kârı ${signed(salesOnDay.profit)}`,
-      signed(totals.net), totals.net < 0 ? 'negative' : 'positive');
-  }) : [element('p', 'Henüz günlük finans hareketi yok.', 'muted')]));
-  const branches = new Map(state.branches.map(branch => [branch.id, branch.name]));
-  const labels = { income: 'Gelir', expense: 'Gider', loan: 'Borç', repayment: 'Borç ödemesi' };
-  const transactions = state.ledger.slice(0, historyLimit).map(entry => historyRow(entry.label,
-    `Gün ${entry.day} · ${branches.get(entry.branchId) ?? 'Genel kasa'} · ${labels[entry.kind]}`,
-    signed(['expense', 'repayment'].includes(entry.kind) ? -entry.amount : entry.amount)));
-  byId('transactions').replaceChildren(...(transactions.length ? transactions : [element('p', 'Henüz işlem yok.', 'muted')]));
-  byId('more-history').hidden = Math.max(state.ledger.length,state.trade.history.length) <= historyLimit;
-
-  const sales = state.sales.map(sale => {
-    const profit = realizedSales([sale]).profit;
-    return historyRow(sale.name, `Gün ${sale.day} · Satış ${money(sale.price)} · Maliyet ${money(sale.spent)}`,
-      signed(profit), profit < 0 ? 'negative' : 'positive');
-  });
-  byId('sales').replaceChildren(...(sales.length ? sales : [element('p', 'Henüz satış yapılmadı.', 'muted')]));
-}
+const renderFinance = createFinanceView({byId,element,metric,money,signed,repairForecast,
+  inspectionFee:INSPECTION_FEE,loanLimit:LOAN_LIMIT,tradeSummary});
 
 function render(action, animationBike) {
   const branch = activeBranch();
-  const today = dailyTotals(state.ledger, state.day);
+  const cashChange = dailyCashMovement(state.ledger,state.day);
   const worth = assets(state);
   byId('cash').textContent = money(state.cash);
   byId('day').textContent = String(state.day).padStart(2, '0');
   byId('capacity').textContent = `${branch.garage.length} / ${branchCapacity(branch)}`;
-  byId('profit').textContent = signed(today.net);
-  byId('profit').className = today.net < 0 ? 'negative' : today.net > 0 ? 'positive' : '';
+  byId('profit').textContent = signed(cashChange);
+  byId('profit').className = cashChange < 0 ? 'negative' : cashChange > 0 ? 'positive' : '';
   const select = byId('branch');
   if (select.options.length !== state.branches.length) {
     select.replaceChildren(...state.branches.map(item => new Option(item.name, item.id)));
@@ -461,7 +411,7 @@ function render(action, animationBike) {
     renderMarket();
   }
   if (currentPage === 'business') renderBusiness();
-  if (currentPage === 'finance') renderFinance(today, worth);
+  if (currentPage === 'finance') renderFinance(state,worth);
   updateSave();
 }
 
@@ -481,6 +431,7 @@ function runAction(action, id, amount, targetBranch = branchId) {
     result = perform(state, action, id, amount, targetBranch);
   } catch (error) {
     notice(error.message,true);
+    if (action === 'borrow' || action === 'repay') byId('credit-message').textContent = error.message;
     if (byId('meeting').open) {
       byId('meeting-error').textContent = error.message;
       byId('meeting-error').hidden = false;
@@ -627,10 +578,10 @@ byId('branch').addEventListener('change', event => {
 });
 byId('bays-prev').addEventListener('click', () => { bayPage -= 1; render(); });
 byId('bays-next').addEventListener('click', () => { bayPage += 1; render(); });
-byId('more-history').addEventListener('click', () => { historyLimit += 30; render(); });
 byId('credit-form').addEventListener('submit', event => {
   event.preventDefault();
   const amount = byId('credit-amount');
+  byId('credit-message').textContent = '';
   if (event.submitter && runAction(event.submitter.value, undefined, amount.valueAsNumber)) amount.value = '';
 });
 
