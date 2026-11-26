@@ -1,8 +1,10 @@
-import { catalog } from './bikes.mjs?v=0.5.1';
+import { catalog } from './bikes.mjs?v=0.6';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, updateCounter } from './trade.mjs?v=0.6';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
-export const STORAGE_KEY = 'motor-empire.v2';
+export const PREVIOUS_STORAGE_KEY = 'motor-empire.v2';
+export const STORAGE_KEY = 'motor-empire.v3';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -68,7 +70,7 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 2, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [] };
+  return { version: 3, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
@@ -118,15 +120,6 @@ export function dailyTotals(ledger, day) {
   return summary;
 }
 
-function customers(bike, day) {
-  const names = ['Deniz', 'Ece', 'Mert', 'Selin', 'Kerem', 'İpek'];
-  const adjustment = (day % 4) * 0.01;
-  return [0.77, 0.91, 1.03].map((rate, index) => ({
-    name: names[(day + index) % names.length],
-    price: Math.max(50, Math.round(roadValue(bike) * (rate + adjustment) / 50) * 50),
-  }));
-}
-
 const decimal = value => Math.round(value * 100) / 100;
 const validMoney = value => Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.round(value * 100));
 const validAmount = value => validMoney(value) && value > 0 && decimal(value) === value;
@@ -158,18 +151,61 @@ export function perform(state, action, id, amount, branchId = 1) {
     record('income', value, label, at);
   }
 
+  const listing = next.listings.find(item => item.id === id);
+  function purchase(price) {
+    if (!listing) throw new Error('Bu ilan artık açık değil.');
+    if (branch.garage.length >= branchCapacity(branch)) throw new Error('Bu şubenin garajı dolu.');
+    const slot = Array.from({length:branchCapacity(branch)},(_,index)=>index)
+      .find(index=>!branch.garage.some(item=>item.slot === index));
+    pay(price,`${listing.name} alımı`);
+    if (isActive(listing.seller)) {
+      listing.seller.price = price;
+      finishTrade(next,listing.seller,listing,'bought');
+    }
+    const { seller, ...vehicle } = listing;
+    branch.garage.push({...vehicle,slot,stage:'unchecked',spent:price,condition:listing.condition ?? 100});
+    next.listings = next.listings.filter(item=>item.id !== id);
+    return `${listing.name} · ${branch.name} garajına alındı.`;
+  }
+
+  function activeMeeting(meetingId) {
+    const meeting = listing?.seller && listing.seller.id === meetingId ? listing.seller
+      : bike?.stage === 'listed' ? bike.meetings.find(item=>item.id === meetingId) : null;
+    if (!isActive(meeting)) throw new Error('Bu teklif artık geçerli değil.');
+    return meeting;
+  }
+
   let message;
   switch (action) {
-    case 'buy': {
-      const listing = next.listings.find(item => item.id === id);
+    case 'buy':
+      message = purchase(listing?.price);
+      break;
+    case 'meet-seller':
       if (!listing) throw new Error('Bu ilan artık açık değil.');
-      if (branch.garage.length >= branchCapacity(branch)) throw new Error('Bu şubenin garajı dolu.');
-      const slot = Array.from({ length: branchCapacity(branch) }, (_, index) => index)
-        .find(index => !branch.garage.some(item => item.slot === index));
-      pay(listing.price, `${listing.name} alımı`);
-      next.listings = next.listings.filter(item => item.id !== id);
-      branch.garage.push({ ...listing, slot, stage: 'unchecked', spent: listing.price, condition: listing.condition ?? 100 });
-      message = `${listing.name} · ${branch.name} garajına alındı.`;
+      if (listing.seller && !isActive(listing.seller)) throw new Error('Satıcı bu görüşmeyi kapattı.');
+      listing.seller ??= createSeller(listing,next.day);
+      message = listing.seller.speech;
+      break;
+    case 'counter': {
+      const { meetingId, price } = amount ?? {};
+      if (!validAmount(price)) throw new Error('Geçerli bir fiyat girin.');
+      const meeting = activeMeeting(meetingId);
+      updateCounter(meeting,price);
+      if (meeting.status === 'left') finishTrade(next,meeting,bike ?? listing,'left');
+      message = meeting.speech;
+      break;
+    }
+    case 'reject': {
+      const meeting = activeMeeting(amount);
+      finishTrade(next,meeting,bike ?? listing,'rejected');
+      meeting.speech = 'Görüşme sona erdi.';
+      message = 'Görüşme reddedildi.';
+      break;
+    }
+    case 'buy-negotiated': {
+      const meeting = activeMeeting(amount);
+      if (meeting.kind !== 'purchase') throw new Error('Geçersiz alış görüşmesi.');
+      message = purchase(meeting.price);
       break;
     }
     case 'inspect':
@@ -193,23 +229,31 @@ export function perform(state, action, id, amount, branchId = 1) {
     }
     case 'list':
       if (bike?.stage !== 'ready') throw new Error('Yalnızca satışa hazır motosikletler ilana çıkabilir.');
+      if (amount !== undefined && !validAmount(amount)) throw new Error('Geçerli bir ilan fiyatı girin.');
       bike.stage = 'listed';
-      bike.offers = customers(bike, next.day);
-      message = 'İlan açıldı. Müşteri teklifleri geldi.';
+      bike.ask = amount ?? roadValue(bike);
+      bike.nextVisit = next.day + 1 + (bike.ask > roadValue(bike) * 1.22 ? 1 : 0);
+      bike.meetings = [];
+      message = 'İlan açıldı. Müşteriler sonraki günlerde gelebilir.';
       break;
     case 'unlist':
       if (bike?.stage !== 'listed') throw new Error('Bu motosiklet satışta değil.');
+      for (const meeting of bike.meetings.filter(isActive)) finishTrade(next,meeting,bike,'expired');
       bike.stage = 'ready';
-      delete bike.offers;
+      delete bike.meetings;
+      delete bike.ask;
+      delete bike.nextVisit;
       message = 'Satış ilanı kaldırıldı.';
       break;
     case 'sell': {
-      const offer = bike?.stage === 'listed' && Number.isInteger(amount) && bike.offers[amount];
-      if (!offer) throw new Error('Bu teklif artık geçerli değil.');
-      branch.garage = branch.garage.filter(item => item.id !== id);
-      earn(offer.price, `${bike.name} satışı`);
-      next.sales.unshift({ name: bike.name, day: next.day, price: offer.price, spent: bike.spent });
-      message = `${bike.name}, ${offer.name} adlı müşteriye satıldı.`;
+      const meeting = activeMeeting(amount);
+      if (meeting.kind !== 'sale' || bike?.stage !== 'listed') throw new Error('Bu teklif artık geçerli değil.');
+      branch.garage = branch.garage.filter(item=>item.id !== id);
+      earn(meeting.price,`${bike.name} satışı`);
+      next.sales.unshift({name:bike.name,day:next.day,price:meeting.price,spent:bike.spent});
+      finishTrade(next,meeting,bike,'sold');
+      for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
+      message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
       break;
     }
     case 'rent':
@@ -261,6 +305,7 @@ export function perform(state, action, id, amount, branchId = 1) {
       const tomorrow = next.day + 1;
       let completed = 0;
       let returned = 0;
+      let visits = 0;
       // Today's rentals are earned before any branch settles its mandatory expenses.
       for (const office of next.branches) {
         for (const item of office.garage) {
@@ -298,12 +343,20 @@ export function perform(state, action, id, amount, branchId = 1) {
           completed += 1;
         }
         for (const item of office.garage) {
-          if (item.stage === 'listed') item.offers = customers(item, tomorrow);
+          if (item.stage !== 'listed') continue;
+          for (const meeting of item.meetings.filter(isActive)) {
+            if (tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
+          }
+          item.meetings = item.meetings.filter(isActive);
+          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item));
         }
+      }
+      for (const item of next.listings) {
+        if (isActive(item.seller)) finishTrade(next,item.seller,item,'expired');
       }
       next.day = tomorrow;
       next.listings = generateMarket(tomorrow);
-      message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü.`;
+      message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${visits} müşteri geldi.`;
       break;
     }
     default:
@@ -332,8 +385,8 @@ function validGarageBike(bike, day) {
         || (Number.isSafeInteger(bike.remainingHours) && bike.remainingHours > 0
           && Number.isSafeInteger(bike.repairOrder) && bike.repairOrder > 0);
     case 'listed':
-      return Array.isArray(bike.offers) && bike.offers.length === 3
-        && bike.offers.every(offer => offer && typeof offer.name === 'string' && validAmount(offer.price));
+      return validAmount(bike.ask) && Number.isSafeInteger(bike.nextVisit) && Array.isArray(bike.meetings)
+        && bike.meetings.every(meeting => validMeeting(meeting,'sale'));
     case 'rented':
       return RENTAL_DAYS.includes(bike.rental?.days) && Number.isSafeInteger(bike.rental.endDay)
         && bike.rental.endDay > day && bike.rental.endDay <= day + bike.rental.days
@@ -343,9 +396,17 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 2 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 3 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
-      || !Array.isArray(saved.listings) || !saved.listings.every(validBike)
+      || !Array.isArray(saved.listings) || !saved.listings.every(bike=>validBike(bike)
+        && (bike.seller === undefined || validMeeting(bike.seller,'purchase')))
+      || !saved.trade || !Number.isInteger(saved.trade.reputation) || saved.trade.reputation < 0 || saved.trade.reputation > 100
+      || !Array.isArray(saved.trade.history) || !saved.trade.history.every(row=>row
+        && ['sale','purchase'].includes(row.kind) && ['sold','bought','left','expired','rejected'].includes(row.outcome)
+        && Number.isSafeInteger(row.day) && row.day >= 1 && row.day <= saved.day
+        && typeof row.name === 'string' && typeof row.person === 'string' && validAmount(row.price)
+        && Number.isInteger(row.rounds) && row.rounds >= 0 && row.rounds <= 3
+        && (row.outcome === 'sold' ? Number.isInteger(row.satisfaction) && row.satisfaction >= 0 && row.satisfaction <= 100 : row.satisfaction === null))
       || !Array.isArray(saved.sales) || !Array.isArray(saved.ledger)
       || !Array.isArray(saved.branches) || !saved.branches.length
       || (saved.repairOrder !== undefined && (!Number.isSafeInteger(saved.repairOrder) || saved.repairOrder < 0))) return false;
@@ -372,16 +433,41 @@ function validSave(saved) {
       && validMoney(entry.amount) && typeof entry.label === 'string');
 }
 
+function validMeeting(meeting,kind) {
+  return meeting && meeting.kind === kind && typeof meeting.id === 'string'
+    && ['open','agreed','rejected','left'].includes(meeting.status)
+    && Number.isSafeInteger(meeting.day) && meeting.day >= 1
+    && Number.isInteger(meeting.round) && meeting.round >= 0 && meeting.round <= 3
+    && Number.isInteger(meeting.patience) && meeting.patience >= 0
+    && validAmount(meeting.price) && validAmount(meeting.limit) && validAmount(meeting.anchor)
+    && typeof meeting.speech === 'string' && typeof meeting.profile?.name === 'string'
+    && Number.isInteger(meeting.profile.skill) && meeting.profile.skill >= 1 && meeting.profile.skill <= 5;
+}
+
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const legacy = raw === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-  if (raw === null && legacy === null) return newGame();
-  let state = JSON.parse(raw ?? legacy);
-  if (raw === null && state?.version === 1 && Array.isArray(state.garage)) {
+  const previous = raw === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
+  const legacy = raw === null && previous === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
+  if (raw === null && previous === null && legacy === null) return newGame();
+  let state = JSON.parse(raw ?? previous ?? legacy);
+  if (legacy !== null && state?.version === 1 && Array.isArray(state.garage)) {
     const branch = createBranch(1);
-    branch.garage = state.garage.map(bike => ({ ...bike, condition: 100 }));
-    const { day, cash, listings, sales } = state;
-    state = { ...newGame(), day, cash, listings, sales, branches: [branch] };
+    branch.garage = state.garage.map(bike=>({...bike,condition:100}));
+    const { day,cash,listings,sales } = state;
+    state = {version:2,day,cash,listings,sales,debt:0,ledger:[],branches:[branch]};
+  }
+  if (raw === null && state?.version === 2 && Array.isArray(state.branches)) {
+    state.version = 3;
+    state.trade = createTrade();
+    for (const branch of state.branches) {
+      for (const bike of branch.garage) {
+        if (bike.stage !== 'listed') continue;
+        bike.ask = roadValue(bike);
+        bike.nextVisit = state.day + 1;
+        bike.meetings = (bike.offers ?? []).map((offer,index)=>createBuyer(bike,state.day,index,50,bike.ask,offer));
+        delete bike.offers;
+      }
+    }
   }
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;

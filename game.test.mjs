@@ -50,10 +50,14 @@ test('purchase, inspection, queue, sale and daily cash flow', () => {
   game.act('list','1-0');
   assert.throws(() => game.act('sell','1-0',-1),/teklif/);
   assert.throws(() => game.act('sell','1-0',0.5),/teklif/);
-  game.act('sell','1-0',2);
+  assert.equal(game.bike('1-0').meetings.length,0);
+  while (!game.bike('1-0').meetings.length && game.state.day < 30) game.act('advance');
+  const meeting = game.bike('1-0').meetings[0];
+  assert.ok(meeting);
+  game.act('sell','1-0',meeting.id);
   assert.equal(game.bike('1-0'),undefined);
   assert.equal(game.state.sales.length,1);
-  assert.equal(dailyTotals(game.state.ledger,3).income,game.state.sales[0].price);
+  assert.equal(dailyTotals(game.state.ledger,game.state.day).income,game.state.sales[0].price);
 });
 
 test('hire and fire change repair hours and wages for the selected branch', () => {

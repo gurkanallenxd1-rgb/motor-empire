@@ -1,5 +1,5 @@
-import { modelOf } from './bikes.mjs?v=0.5.1';
-import { approvedSprites } from './sprite-catalog.mjs?v=0.5.1';
+import { modelOf } from './bikes.mjs?v=0.6';
+import { approvedSprites } from './sprite-catalog.mjs?v=0.6';
 
 export function spriteFor(bike, entries = approvedSprites) {
   const model = modelOf(bike);
@@ -23,8 +23,9 @@ function paintColor(bike) {
 }
 
 export function spriteKey(bike) {
+  const model = modelOf(bike);
   const entry = spriteFor(bike);
-  return entry && JSON.stringify([entry.base,entry.mask,paintColor(bike)]);
+  return model && JSON.stringify([model.id,entry?.base,entry?.mask,paintColor(bike)]);
 }
 
 // The mask's alpha represents paint coverage. Outside it all bytes are preserved.
@@ -47,18 +48,18 @@ export function applyPaint(pixels, mask, color) {
 
 const cache = new Map();
 
-function loadWebP(file) {
+function loadWebP(path) {
   return new Promise((resolve,reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = reject;
-    image.src = new URL(`./assets/verified/${file}?v=0.5.1`,import.meta.url).href;
+    image.src = new URL(`./assets/${path}?v=0.6`,import.meta.url).href;
   });
 }
 
-async function compose(entry, color) {
-  const [base,mask] = await Promise.all([loadWebP(entry.base),loadWebP(entry.mask)]);
-  if (base.naturalWidth < 960 || !base.naturalHeight) throw new Error('Model görseli çözünürlüğü yetersiz.');
+async function compose(basePath, maskPath, color, minWidth) {
+  const [base,mask] = await Promise.all([loadWebP(basePath),loadWebP(maskPath)]);
+  if (base.naturalWidth < minWidth || !base.naturalHeight) throw new Error('Model görseli çözünürlüğü yetersiz.');
   if (base.naturalWidth !== mask.naturalWidth || base.naturalHeight !== mask.naturalHeight) {
     throw new Error('Boya maskesi ile model görselinin ölçüleri farklı.');
   }
@@ -78,29 +79,47 @@ async function compose(entry, color) {
 }
 
 export function loadSprite(bike) {
+  const model = modelOf(bike);
+  if (!model) return Promise.resolve(null);
   const entry = spriteFor(bike);
-  if (!entry) return Promise.resolve(null);
   const key = spriteKey(bike);
   const cached = cache.get(key);
   if (cached) return cached;
-  const pending = compose(entry,paintColor(bike)).catch(() => null);
-  if (cache.size >= 16) cache.delete(cache.keys().next().value);
+  const color = paintColor(bike);
+  const pending = (async () => {
+    if (entry) {
+      try {
+        const image = await compose(`verified/${entry.base}`,`verified/${entry.mask}`,color,960);
+        return { image, representative:false };
+      } catch {
+        // A missing approved file may still be represented by its own model.
+      }
+    }
+    const base = `models/${model.id}.webp`;
+    const image = await compose(base,`model-masks/${model.id}.webp`,color,480)
+      .catch(() => loadWebP(base));
+    return { image, representative:true };
+  })().catch(() => null);
+  if (cache.size >= 18) cache.delete(cache.keys().next().value);
   cache.set(key,pending);
   return pending;
 }
 
 const pendingPreviews = new WeakMap();
-export async function renderSprite(canvas, fallback, bike) {
+export async function renderSprite(canvas, fallback, bike, label) {
+  if (label) label.hidden = true;
   const pending = loadSprite(bike);
   pendingPreviews.set(canvas,pending);
   canvas.hidden = true;
-  fallback.hidden = Boolean(spriteFor(bike));
+  fallback.hidden = Boolean(modelOf(bike));
   const sprite = await pending;
   if (pendingPreviews.get(canvas) !== pending) return;
   fallback.hidden = Boolean(sprite);
   if (!sprite) return;
-  canvas.width = sprite.naturalWidth ?? sprite.width;
-  canvas.height = sprite.naturalHeight ?? sprite.height;
-  canvas.getContext('2d').drawImage(sprite,0,0);
+  const { image,representative } = sprite;
+  canvas.width = image.naturalWidth ?? image.width;
+  canvas.height = image.naturalHeight ?? image.height;
+  canvas.getContext('2d').drawImage(image,0,0);
   canvas.hidden = false;
+  if (label) label.hidden = !representative;
 }
