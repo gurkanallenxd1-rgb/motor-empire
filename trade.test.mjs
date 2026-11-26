@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame,newGame,perform,PREVIOUS_STORAGE_KEY,saveGame,STORAGE_KEY } from './game.mjs';
-import { arrive,createBuyer,isActive,tradeSummary,updateCounter } from './trade.mjs';
+import { loadGame,newGame,perform,BUSINESS_STORAGE_KEY,PREVIOUS_STORAGE_KEY,saveGame,STORAGE_KEY } from './game.mjs';
+import { arrive,createBuyer,isActive,negotiate,stableNumber,tradeSummary } from './trade.mjs';
 
 const stock = {id:'demo',name:'Honda PCX 125',year:2023,km:19000,condition:93,price:20000,value:35000,faults:['akü']};
 function fixture() {
@@ -34,74 +34,71 @@ test('buyer arrivals respond to reputation, condition, price and mileage',()=>{
   assert.equal(roles.size,8);
 });
 
-test('accepted counter persists through reload without income until sale and cannot be reused',()=>{
+test('automatic buyer round persists through reload and does not credit cash before sale',()=>{
   let state=action(fixture(),'list','owned',26000);
   assert.equal(state.branches[0].garage[0].meetings.length,0);
   while(!state.branches[0].garage[0].meetings.length && state.day<35) state=action(state,'advance');
   const next=state.branches[0].garage[0].meetings[0];
   assert.ok(next);
-  const price=next.limit;
   const cash=state.cash;
-  state=action(state,'counter','owned',{meetingId:next.id,price});
-  assert.equal(state.cash,cash);
+  state=action(state,'negotiate','owned',next.id);
   assert.equal(state.sales.length,0);
+  assert.equal(state.cash,cash);
   state=reload(state);
   const meeting=state.branches[0].garage[0].meetings[0];
-  assert.equal(meeting.status,'agreed');
   assert.equal(meeting.round,1);
-  assert.equal(meeting.price,price);
-  assert.throws(()=>action(state,'counter','owned',{meetingId:meeting.id,price}),/verilemez/);
+  assert.equal(meeting.patience,next.patience-1);
+  assert.ok(meeting.price>=next.price && meeting.price<=next.limit);
   state=action(state,'sell','owned',meeting.id);
-  assert.equal(state.cash,cash+price);
-  assert.equal(state.sales[0].price,price);
+  assert.equal(state.cash,cash+meeting.price);
+  assert.equal(state.sales[0].price,meeting.price);
   assert.ok(state.trade.reputation>50);
   assert.equal(tradeSummary(state.trade).success,100);
-  assert.ok(tradeSummary(state.trade).average>=30);
   assert.throws(()=>action(state,'sell','owned',meeting.id),/geçerli değil/);
 });
 
-test('patience falls, counter price can improve, rounds are capped, extreme offer ends negotiation',()=>{
+test('rounds cap at three, prices move in the correct direction, and refusal and departure are possible',()=>{
   const base={...stock,ask:40000};
-  const meeting=createBuyer(base,2,2,50,32550);
-  meeting.profile.patience=5;
-  meeting.patience=5;
-  const original=meeting.price;
-  for(let i=0;i<3;i+=1) updateCounter(meeting,meeting.limit+5);
-  assert.equal(meeting.round,3);
-  assert.equal(meeting.patience,2);
-  assert.ok(meeting.price>original);
-  assert.throws(()=>updateCounter(meeting,meeting.limit),/verilemez/);
-  const hostile=createBuyer(base,2,2,50,32550);
-  updateCounter(hostile,hostile.limit*2);
-  assert.equal(hostile.status,'left');
-  assert.equal(isActive(hostile),false);
+  let refusals=0, departures=0, movements=0;
+  for(let index=0;index<150;index+=1){
+    const meeting=createBuyer(base,2,index,50,32550);
+    for(let turn=0;turn<3&&isActive(meeting)&&meeting.patience>0;turn+=1) {
+      const previous=meeting.price;
+      const patience=meeting.patience;
+      negotiate(meeting);
+      assert.equal(meeting.patience,patience-1);
+      assert.ok(meeting.price>=previous && meeting.price<=meeting.limit);
+      if(meeting.status==='left')departures+=1;
+      else if(meeting.price===previous)refusals+=1;
+      else movements+=1;
+    }
+    assert.throws(()=>negotiate(meeting),/hakkı kalmadı/);
+  }
+  assert.ok(refusals&&departures&&movements);
 });
 
-test('seller counter updates price, direct purchase survives rejection and settlement charges once',()=>{
-  let state=action(fixture(),'meet-seller','demo');
-  const seller=state.listings[0].seller;
-  assert.throws(()=>action(state,'counter','demo',{meetingId:seller.id,price:-1}),/Geçerli/);
-  assert.throws(()=>action(state,'counter','demo',{meetingId:'wrong',price:15000}),/teklif/);
-  assert.throws(()=>action(state,'counter','demo',{meetingId:seller.id,price:50000}),/daha düşük/);
-  const counter=Math.floor(seller.limit*.95);
-  const revised=action(state,'counter','demo',{meetingId:seller.id,price:counter});
-  assert.ok(revised.listings[0].seller.price<stock.price);
-  assert.equal(revised.listings[0].seller.status,'open');
-  assert.equal(revised.listings[0].seller.patience,seller.patience-1);
-  const price=seller.limit;
-  const cash=state.cash;
-  state=action(revised,'counter','demo',{meetingId:seller.id,price});
-  assert.equal(state.cash,cash);
-  state=reload(state);
-  assert.equal(state.listings[0].seller.price,price);
-  const paid=action(state,'buy-negotiated','demo',seller.id);
-  assert.equal(paid.cash,cash-price);
-  assert.equal(paid.branches[0].garage[1].spent,price);
-  assert.equal(paid.trade.history[0].outcome,'bought');
-  assert.throws(()=>action(paid,'buy-negotiated','demo',seller.id),/geçerli değil/);
-  const rejected=action(state,'reject','demo',seller.id);
-  assert.throws(()=>action(rejected,'meet-seller','demo'),/kapattı/);
-  assert.equal(action(rejected,'buy','demo').cash,cash-stock.price);
+test('seller discounts persist and settlement charges the displayed price once',()=>{
+  const initial=fixture();
+  // Pick a deterministic ID that yields a first-round discount.
+  for(let i=0;i<50;i+=1){
+    const id='demo'+i;
+    if(stableNumber('seller:'+id+':1:automatic')%100 > 20) { initial.listings=[{...stock,id}];break; }
+  }
+  const id=initial.listings[0].id;
+  const state=action(initial,'meet-seller',id);
+  const original=state.listings[0].seller;
+  assert.throws(()=>action(state,'negotiate',id,'wrong'),/teklif/);
+  const next=reload(action(state,'negotiate',id,original.id));
+  const seller=next.listings[0].seller;
+  assert.ok(seller.price<stock.price && seller.price>=seller.limit);
+  assert.equal(seller.patience,original.patience-1);
+  assert.equal(next.cash,state.cash);
+  const paid=action(next,'buy-negotiated',id,seller.id);
+  assert.equal(paid.cash,state.cash-seller.price);
+  assert.equal(paid.branches[0].garage[1].spent,seller.price);
+  assert.throws(()=>action(paid,'buy-negotiated',id,seller.id),/geçerli değil/);
+  assert.throws(()=>action(paid,'buy',id),/açık değil/);
+  assert.equal(action(action(next,'reject',id,seller.id),'buy',id).cash,state.cash-stock.price);
 });
 
 test('migration retains previous byte string, cash, debt, inventory and legacy sale offers',()=>{
@@ -115,10 +112,10 @@ test('migration retains previous byte string, cash, debt, inventory and legacy s
   prior.branches[0].garage[0].offers=[{name:'Deniz',price:30100},{name:'Ece',price:31000},{name:'Mert',price:32000}];
   prior.sales=[{name:'Test',day:1,price:35000,spent:33000}];
   const original=JSON.stringify(prior);
-  const memory=new Map([[PREVIOUS_STORAGE_KEY,original]]);
+  const memory=new Map([[BUSINESS_STORAGE_KEY,original]]);
   const storage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};
   const migrated=loadGame(storage);
-  assert.equal(migrated.version,3);
+  assert.equal(migrated.version,4);
   assert.equal(migrated.cash,prior.cash);
   assert.equal(migrated.debt,prior.debt);
   assert.equal(migrated.branches[0].staff,2);
@@ -126,6 +123,27 @@ test('migration retains previous byte string, cash, debt, inventory and legacy s
   assert.deepEqual(migrated.branches[0].garage[0].meetings.map(x=>x.price),[30100,31000,32000]);
   assert.equal(migrated.branches[0].garage[0].condition,stock.condition);
   saveGame(storage,migrated);
-  assert.equal(memory.get(PREVIOUS_STORAGE_KEY),original);
+  assert.equal(memory.get(BUSINESS_STORAGE_KEY),original);
   assert.deepEqual(JSON.parse(memory.get(STORAGE_KEY)),migrated);
+});
+
+test('v0.6 migration retains agreed price, a spent round and prior storage while replacing a non-factory paint',()=>{
+  const prior=fixture();
+  prior.version=3;
+  prior.listings=[{...stock,name:'KTM Duke 390',year:2023,color:'#437b4b',colorName:'Yeşil'}];
+  const seller=action({...prior,version:4},'meet-seller','demo').listings[0].seller;
+  prior.listings[0].seller={...seller,status:'agreed',round:1,patience:seller.patience-1,price:seller.limit};
+  prior.cash=82732;
+  prior.trade.reputation=74;
+  const text=JSON.stringify(prior);
+  const memory=new Map([[PREVIOUS_STORAGE_KEY,text]]);
+  const storage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};
+  const migrated=loadGame(storage);
+  assert.equal(migrated.cash,82732);
+  assert.equal(migrated.trade.reputation,74);
+  assert.deepEqual(migrated.listings[0].seller,prior.listings[0].seller);
+  assert.notEqual(migrated.listings[0].colorName,'Yeşil');
+  assert.throws(()=>action(migrated,'negotiate','demo',seller.id),/hakkı kalmadı/);
+  saveGame(storage,migrated);
+  assert.equal(memory.get(PREVIOUS_STORAGE_KEY),text);
 });

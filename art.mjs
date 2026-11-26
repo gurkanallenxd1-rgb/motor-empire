@@ -1,4 +1,4 @@
-import { loadSprite, spriteKey } from './sprite.mjs?v=0.6';
+import { loadSprite, spriteKey } from './sprite.mjs?v=0.7';
 
 const WIDTH = 1536;
 const HEIGHT = 1024;
@@ -43,7 +43,7 @@ export function createGarageRenderer(scene, openBike) {
     image.src = url;
   }
 
-  loadImage(new URL('./assets/workshop.webp?v=0.6', import.meta.url).href, image => {
+  loadImage(new URL('./assets/workshop.webp?v=0.7', import.meta.url).href, image => {
     workshop = image;
     scene.dataset.ready = 'true';
   }, () => { scene.querySelector('.scene-status').textContent = 'Atölye görseli yüklenemedi.'; });
@@ -135,17 +135,7 @@ export function createGarageRenderer(scene, openBike) {
       if (workshop) {
         context.save();
         context.globalAlpha = 1 - distance;
-        if (sprite) {
-          drawBike(context,sprite.image,x,y);
-          if (sprite.representative) {
-            context.font = '27px system-ui';
-            context.textAlign = 'center';
-            context.fillStyle = '#1b1e21';
-            context.fillRect(x - 100,y + 28,200,38);
-            context.fillStyle = '#f1c99f';
-            context.fillText('Temsili görsel',x,y + 56);
-          }
-        }
+        if (sprite) drawBike(context,sprite.image,x,y);
         else if (!url || sprite === false) {
           context.fillStyle = '#1b1e21';
           context.fillRect(x - 139,y - 150,278,59);

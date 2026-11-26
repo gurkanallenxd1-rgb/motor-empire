@@ -1,5 +1,6 @@
-import { modelOf } from './bikes.mjs?v=0.6';
-import { approvedSprites } from './sprite-catalog.mjs?v=0.6';
+import { modelOf, paintOptions } from './bikes.mjs?v=0.7';
+import { approvedSprites } from './sprite-catalog.mjs?v=0.7';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.7';
 
 export function spriteFor(bike, entries = approvedSprites) {
   const model = modelOf(bike);
@@ -19,7 +20,9 @@ function validLink(value) {
 }
 
 function paintColor(bike) {
-  return /^#[0-9a-f]{6}$/i.test(bike.color) ? bike.color.toLowerCase() : null;
+  const choices = paintOptions(modelOf(bike),bike.year);
+  const stored = /^#[0-9a-f]{6}$/i.test(bike.color) ? bike.color.toLowerCase() : null;
+  return (choices.find(color=>color.hex === stored) ?? choices[0])?.hex ?? stored;
 }
 
 export function spriteKey(bike) {
@@ -48,30 +51,40 @@ export function applyPaint(pixels, mask, color) {
 
 const cache = new Map();
 
+const sources = new Map();
+
 function loadWebP(path) {
-  return new Promise((resolve,reject) => {
+  if (sources.has(path)) return sources.get(path);
+  const pending = new Promise((resolve,reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = reject;
-    image.src = new URL(`./assets/${path}?v=0.6`,import.meta.url).href;
+    image.src = new URL(`./assets/${path}?v=0.7`,import.meta.url).href;
   });
+  if (sources.size >= 12) sources.delete(sources.keys().next().value);
+  sources.set(path,pending);
+  return pending;
 }
 
-async function compose(basePath, maskPath, color, minWidth) {
+async function compose(basePath, maskPath, color, minWidth, rect) {
   const [base,mask] = await Promise.all([loadWebP(basePath),loadWebP(maskPath)]);
   if (base.naturalWidth < minWidth || !base.naturalHeight) throw new Error('Model görseli çözünürlüğü yetersiz.');
   if (base.naturalWidth !== mask.naturalWidth || base.naturalHeight !== mask.naturalHeight) {
     throw new Error('Boya maskesi ile model görselinin ölçüleri farklı.');
   }
-  if (!color) return base;
+  if (!color && !rect) return base;
   const canvas = document.createElement('canvas');
-  canvas.width = base.naturalWidth;
-  canvas.height = base.naturalHeight;
+  canvas.width = rect?.[2] ?? base.naturalWidth;
+  canvas.height = rect?.[3] ?? base.naturalHeight;
   const context = canvas.getContext('2d',{willReadFrequently:true});
-  context.drawImage(mask,0,0);
+  const draw = image => {
+    if (rect) context.drawImage(image,...rect,0,0,canvas.width,canvas.height);
+    else context.drawImage(image,0,0);
+  };
+  draw(mask);
   const coverage = context.getImageData(0,0,canvas.width,canvas.height);
   context.clearRect(0,0,canvas.width,canvas.height);
-  context.drawImage(base,0,0);
+  draw(base);
   const pixels = context.getImageData(0,0,canvas.width,canvas.height);
   applyPaint(pixels.data,coverage.data,color);
   context.putImageData(pixels,0,0);
@@ -95,10 +108,23 @@ export function loadSprite(bike) {
         // A missing approved file may still be represented by its own model.
       }
     }
-    const base = `models/${model.id}.webp`;
-    const image = await compose(base,`model-masks/${model.id}.webp`,color,480)
+    const cell = atlasFor(model.id);
+    if (cell) {
+      try {
+        const image = await compose(cell.base,cell.mask,color,960,cell.rect);
+        return {image,representative:true};
+      } catch {
+        // Fall back to a clearly marked class image when a pack is unavailable.
+      }
+    }
+    const classImage = {commuter:'honda-cb125f',naked:'yamaha-mt07',sport:'yamaha-r25',scooter:'honda-forza250',
+      adventure:'kawasaki-z900',touring:'bajaj-dominar400',cruiser:'suzuki-gn125'};
+    const generic = !legacySprite(model.id);
+    const id = generic ? classImage[model.category] : model.id;
+    const base = `models/${id}.webp`;
+    const image = await compose(base,`model-masks/${id}.webp`,color,480)
       .catch(() => loadWebP(base));
-    return { image, representative:true };
+    return {image,representative:true,generic};
   })().catch(() => null);
   if (cache.size >= 18) cache.delete(cache.keys().next().value);
   cache.set(key,pending);
@@ -121,5 +147,8 @@ export async function renderSprite(canvas, fallback, bike, label) {
   canvas.height = image.naturalHeight ?? image.height;
   canvas.getContext('2d').drawImage(image,0,0);
   canvas.hidden = false;
-  if (label) label.hidden = !representative;
+  if (label) {
+    label.textContent = sprite.generic ? 'Sınıf temsili' : 'Temsili görsel';
+    label.hidden = !representative;
+  }
 }

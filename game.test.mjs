@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  LEGACY_STORAGE_KEY, STORAGE_KEY, assets, branchCapacity, dailyTotals, generateMarket, loadGame,
+  LEGACY_STORAGE_KEY, STORAGE_KEY, assets, branchCapacity, dailyTotals, generateMarket, loadGame, realizedSales, repairQuote,
   newGame, perform, rentalRate, repairCapacity, saveGame,
 } from './game.mjs';
 
-import { catalog, filterListings, modelOf } from './bikes.mjs';
+import { catalog, filterListings, gradeLabel, listingGrade, modelOf, paintOptions } from './bikes.mjs';
 
 function legacyMarket() {
   const listings = [
@@ -187,27 +187,35 @@ test('v0.3 migration preserves legacy storage, delivery day, listings and sales'
   assert.throws(() => loadGame(storage),/geçersiz/);
 });
 
-test('daily market offers twelve distinct models with changing valid attributes', () => {
-  assert.equal(catalog.length,22);
-  assert.equal(new Set(catalog.map(model => model.id)).size,22);
+test('daily market offers thirty distinct models with changing valid attributes', () => {
+  assert.equal(catalog.length,100);
+  assert.equal(new Set(catalog.map(model => model.id)).size,100);
   let seed=14;
   const random = () => ((seed = (Math.imul(seed,1664525) + 1013904223) >>> 0) / 2 ** 32);
   const all = new Set();
-  for (let day=1;day<=15;day+=1) {
+  const grades = new Set();
+  assert.equal(new Set(catalog.map(model=>model.brand)).size,19);
+  assert.ok(catalog.every(model=>model.maintenance>0&&model.faultRisk>0&&model.demand>0));
+  for (let day=1;day<=180;day+=1) {
     const listings=generateMarket(day,random);
-    assert.equal(listings.length,12);
-    assert.equal(new Set(listings.map(bike=>bike.name)).size,12);
-    assert.ok(listings.slice(0,4).every(bike=>bike.price < 45000));
+    assert.equal(listings.length,30);
+    assert.equal(new Set(listings.map(bike=>bike.name)).size,30);
+    assert.deepEqual(Object.fromEntries(['budget','mid','premium','rare'].map(segment=>[segment,
+      listings.filter(bike=>modelOf(bike).segment===segment).length])),{budget:8,mid:14,premium:6,rare:2});
+    assert.ok(listings.slice(0,4).every(bike=>bike.price < 55000));
     for (const bike of listings) {
       const model=modelOf(bike);
       all.add(bike.name);
+      grades.add(listingGrade(bike));
+      assert.ok(paintOptions(model,bike.year).some(paint=>paint.hex===bike.color));
       assert.ok(bike.year>=model.firstYear&&bike.year<=model.lastYear);
-      assert.ok(bike.condition>=84&&bike.condition<=100&&bike.km>0&&bike.price>0&&bike.value>0);
-      assert.ok(bike.colorName && bike.faults.length>=1 && new Set(bike.faults).size===bike.faults.length);
+      assert.ok(bike.condition>=48&&bike.condition<=100&&bike.km>0&&bike.price>0&&bike.value>0);
+      assert.ok(bike.colorName && bike.faults.length<=4 && new Set(bike.faults).size===bike.faults.length);
       if(model.category==='scooter') assert.ok(!bike.faults.includes('zincir'));
     }
   }
   assert.equal(all.size,catalog.length);
+  assert.equal(grades.size,Object.keys(gradeLabel).length);
 });
 
 test('filters combine four constraints and buying preserves generated condition', () => {
@@ -221,6 +229,30 @@ test('filters combine four constraints and buying preserves generated condition'
   assert.equal(game.bike(listing.id).condition,92);
   assert.equal(game.bike(listing.id).colorName,'Kırmızı');
   game.act('advance');
-  assert.equal(game.state.listings.length,12);
+  assert.equal(game.state.listings.length,30);
   assert.ok(game.state.listings.every(bike=>bike.id.startsWith('2-')));
+});
+
+test('condition, category, model year and descending prices compose with old filters',()=>{
+  const fixtures=legacyMarket().listings.map((bike,index)=>({...bike,condition:[91,77,64][index]}));
+  assert.deepEqual(filterListings(fixtures,{category:'commuter',minYear:2017,grade:'clean'}).map(bike=>bike.id),['1-0']);
+  assert.deepEqual(filterListings(fixtures,{sort:'price-desc'}).map(bike=>bike.id),['1-1','1-2','1-0']);
+  assert.deepEqual(fixtures.map(bike=>bike.id),['1-0','1-1','1-2']);
+});
+
+test('clean inspections pay once and sales profit excludes earlier expenses from current cash flow',()=>{
+  const game=play({...legacyMarket(),listings:[{...legacyMarket().listings[0],faults:[]}]});
+  game.act('buy','1-0');
+  assert.throws(()=>game.act('buy','1-0'),/açık değil/);
+  game.act('inspect','1-0');
+  assert.equal(game.bike('1-0').stage,'ready');
+  assert.equal(game.bike('1-0').spent,27350);
+  assert.deepEqual(repairQuote({faults:['akü'],serviceFactor:1.5}),{cost:2775,hours:1});
+  assert.throws(()=>game.act('inspect','1-0'),/Ekspertiz/);
+  const sale={day:2,price:31500.35,spent:27350};
+  assert.deepEqual(realizedSales([sale],2),{revenue:31500.35,cost:27350,profit:4150.35});
+  assert.equal(realizedSales([sale],1).profit,0);
+  assert.equal(dailyTotals(game.state.ledger,1).net,-27350);
+  game.act('advance');
+  assert.ok(!game.state.listings.some(item=>item.id==='1-0'));
 });

@@ -1,8 +1,10 @@
+import { additions } from './catalog-data.mjs?v=0.7';
+
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
-  ['honda-cb125f', 'Honda CB 125F', 'commuter', 124, 10.9, 2016, 2024, 26900, 34800],
+  ['honda-cb125f', 'Honda CB 125F', 'commuter', 124, 10.9, 2016, 2024, 49000, 79000],
   ['bajaj-pulsar-ns200', 'Bajaj Pulsar NS 200', 'naked', 199.5, 24.5, 2015, 2025, 38500, 50700],
-  ['yamaha-ybr125', 'Yamaha YBR 125', 'commuter', 124, 10, 2009, 2017, 29500, 39200],
+  ['yamaha-ybr125', 'Yamaha YBR 125', 'commuter', 124, 10, 2009, 2017, 39000, 57000],
   ['suzuki-gn125', 'Suzuki GN 125', 'commuter', 124, 12, 2005, 2018, 25400, 32800],
   ['tvs-apache-rtr160', 'TVS Apache RTR 160', 'naked', 159.7, 15.5, 2016, 2024, 33800, 44800],
   ['mondial-drift-l', 'Mondial Drift L', 'commuter', 125, 11, 2016, 2023, 21700, 29100],
@@ -17,25 +19,101 @@ const models = [
   ['honda-pcx125', 'Honda PCX 125', 'scooter', 125, 12.5, 2021, 2025, 96000, 122000],
   ['honda-forza250', 'Honda Forza 250', 'scooter', 249, 23, 2018, 2025, 157000, 189000],
   ['ktm-duke250', 'KTM Duke 250', 'naked', 248.8, 30, 2017, 2023, 99000, 124000],
-  ['ktm-duke390', 'KTM Duke 390', 'naked', 373.2, 44, 2017, 2023, 149000, 182000],
+  ['ktm-duke390', 'KTM Duke 390', 'naked', 373.2, 44, 2017, 2023, 179000, 221000],
   ['bajaj-dominar400', 'Bajaj Dominar 400', 'naked', 373.3, 40, 2019, 2025, 106000, 134000],
   ['kawasaki-ninja400', 'Kawasaki Ninja 400', 'sport', 399, 45, 2018, 2023, 188000, 224000],
   ['kawasaki-z900', 'Kawasaki Z900', 'naked', 948, 125, 2017, 2025, 319000, 371000],
   ['rks-arome125', 'RKS Arome 125', 'scooter', 125, 8.7, 2021, 2025, 35700, 45900],
 ];
 
-export const catalog = models.map(([id,name,category,cc,hp,firstYear,lastYear,price,value]) =>
-  ({ id,name,category,cc,hp,firstYear,lastYear,price,value,brand:name.split(' ')[0] }));
+const additionsInLira = additions.map(([id,name,category,cc,hp,first,last,buy,value,paints]) =>
+  [id,name,category,Number(cc),Number(hp),Number(first),Number(last),1000 * Number(buy),1000 * Number(value),paints]);
+
+export const PAINT_COLORS = {
+  black:{name:'Siyah',hex:'#292b2e'}, grey:{name:'Gri',hex:'#a0a6ae'}, white:{name:'Beyaz',hex:'#eae6da'},
+  red:{name:'Kırmızı',hex:'#c93838'}, blue:{name:'Mavi',hex:'#3564ba'}, green:{name:'Yeşil',hex:'#639d34'},
+  orange:{name:'Turuncu',hex:'#e86920'}, yellow:{name:'Sarı',hex:'#e7b843'}, mirror:{name:'Ayna siyahı',hex:'#383a40'},
+};
+
+const legacyPaints = {
+  'honda-cb125f':'black red white', 'bajaj-pulsar-ns200':'black white red', 'yamaha-ybr125':'black red blue',
+  'suzuki-gn125':'black red', 'tvs-apache-rtr160':'black red grey', 'mondial-drift-l':'black red',
+  'honda-cbr125r':'red black white', 'yamaha-delight125':'white grey black',
+  'yamaha-mt25':'black blue', 'yamaha-r25':'blue black', 'yamaha-mt07':'black blue',
+  'yamaha-mt09':'grey blue black', 'honda-cb250r':'black red', 'honda-cbr250r':'red black',
+  'honda-pcx125':'white grey black', 'honda-forza250':'white grey black', 'ktm-duke250':'white orange black',
+  'ktm-duke390':'white orange black', 'bajaj-dominar400':'black green',
+  'kawasaki-ninja400':'green black', 'kawasaki-z900':'green black', 'rks-arome125':'white grey',
+};
+
+const yearPaints = {
+  'ktm-duke390': [[2017,2020,'white orange'],[2021,2022,'grey white'],[2023,2023,'orange grey black']],
+  'ktm-duke250': [[2017,2019,'white orange'],[2020,2023,'grey black']],
+  'yamaha-mt09': [[2021,2023,'grey blue black'],[2024,2025,'blue black']],
+  'bajaj-dominar400': [[2019,2020,'black green'],[2021,2025,'black green']],
+  'honda-pcx125': [[2021,2024,'white grey black'],[2025,2025,'grey black']],
+};
+
+const yearSpecs = {
+  'honda-cb125f': [[2016,2020,124.7,10.6]],
+  'yamaha-mt07': [[2014,2020,689,74.8]],
+  'kawasaki-z900': [[2025,2025,948,124]],
+  'honda-cbr125r': [[2011,2017,124.7,13.3]],
+};
+
+export const catalog = [...models,...additionsInLira].map(([id,name,category,cc,hp,firstYear,lastYear,price,value,paints]) => ({
+  id,name,category,cc,hp,firstYear,lastYear,price,value,
+  brand:name.startsWith('Royal Enfield ') ? 'Royal Enfield' : name.split(' ')[0],
+  palettes:(yearPaints[id] ?? [[firstYear,lastYear,paints ?? legacyPaints[id]]]).map(([from,to,keys]) =>
+    ({from,to,colors:keys.split(' ').map(key=>PAINT_COLORS[key])})),
+  maintenance:Math.round((850 + cc * 3.8) / 50) * 50,
+  faultRisk:Math.min(.46,.18 + (2025 - firstYear) * .009 + cc / 10000),
+  demand:({commuter:.18,scooter:.17,naked:.10,sport:.07,adventure:.09,touring:.06,cruiser:.05})[category],
+  segment:price <= 50000 ? 'budget' : value >= 1_000_000 ? 'rare' : value >= 400000 ? 'premium' : 'mid',
+}));
 const byName = new Map(catalog.map(model => [model.name,model]));
 
-export const categoryLabel = { commuter: 'Şehir motosikleti', naked: 'Naked', sport: 'Sport', scooter: 'Scooter' };
+export const categoryLabel = {
+  commuter:'Şehir motosikleti', naked:'Naked', sport:'Sport', scooter:'Scooter',
+  adventure:'Macera', touring:'Tur', cruiser:'Cruiser',
+};
+export const segmentLabel = { budget:'Ekonomik', mid:'Orta segment', premium:'Premium', rare:'Nadir' };
+export const gradeLabel = { damaged:'Hasarlı', neglected:'Bakımsız', clean:'Temiz' };
+export const listingGrade = bike => (bike.condition ?? 100) < 68 ? 'damaged' : (bike.condition ?? 100) < 86 ? 'neglected' : 'clean';
+
 export const modelOf = bike => byName.get(bike.name);
-export function filterListings(listings, {brand,maxPrice,maxKm,maxCc}) {
-  return listings.filter(listing => {
+export function specsFor(bike) {
+  const model = modelOf(bike);
+  if (!model) return null;
+  const variant = yearSpecs[model.id]?.find(([first,last])=>bike.year >= first && bike.year <= last);
+  return variant ? { cc:variant[2], hp:variant[3] } : {cc:model.cc,hp:model.hp};
+}
+
+export function paintOptions(model,year) {
+  return model?.palettes.find(({from,to})=>year >= from && year <= to)?.colors ?? [];
+}
+
+export function normalizePaint(bike) {
+  const choices = paintOptions(modelOf(bike),bike.year);
+  if (!choices.length) return bike;
+  const paint = choices.find(item=>item.hex.toLowerCase() === String(bike.color ?? '').toLowerCase() || item.name === bike.colorName) ?? choices[0];
+  bike.color = paint.hex;
+  bike.colorName = paint.name;
+  return bike;
+}
+
+export function filterListings(listings, {brand,category,grade,maxPrice=null,maxKm=null,maxCc=null,minYear=null,sort}={}) {
+  const filtered = listings.filter(listing => {
     const model = modelOf(listing);
     return (!brand || model?.brand === brand)
+      && (!category || model?.category === category)
+      && (!grade || listingGrade(listing) === grade)
       && (maxPrice === null || listing.price <= maxPrice)
       && (maxKm === null || listing.km <= maxKm)
-      && (maxCc === null || (model && model.cc <= maxCc));
+      && (maxCc === null || (model && specsFor(listing).cc <= maxCc))
+      && (minYear === null || listing.year >= minYear);
   });
+  if (sort === 'price-asc') filtered.sort((a,b)=>a.price-b.price);
+  if (sort === 'price-desc') filtered.sort((a,b)=>b.price-a.price);
+  return filtered;
 }
