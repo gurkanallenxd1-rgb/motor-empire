@@ -1,5 +1,6 @@
-import { additions } from './catalog-data.mjs?v=0.8';
-import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.8';
+import { ISTANBUL, provinceName } from './provinces.mjs?v=0.9';
+import { additions } from './catalog-data.mjs?v=0.9';
+import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.9';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
@@ -109,14 +110,15 @@ const searchKey = value => String(value ?? '').toLowerCase().normalize('NFKD')
   .replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/[^a-z0-9]+/g,' ').trim();
 
 export function filterListings(listings, filters = {}, estimatedProfit = () => 0) {
-  const {brand,modelId,color,category,grade,search,sort} = filters;
+  const {brand,modelId,color,category,grade,search,sort,province} = filters;
   const within = (value,min,max) => (min == null || value >= min) && (max == null || value <= max);
   const words = searchKey(search).split(' ').filter(Boolean);
   const filtered = listings.filter(listing => {
     const model = modelOf(listing);
     const specs = specsFor(listing);
     const text = searchKey(listing.name);
-    return (!brand || model?.brand === brand)
+    return (!province || (listing.province ?? ISTANBUL) === province)
+      && (!brand || model?.brand === brand)
       && (!modelId || model?.id === modelId)
       && (!color || listing.colorName === color)
       && (!category || model?.category === category)
@@ -127,11 +129,20 @@ export function filterListings(listings, filters = {}, estimatedProfit = () => 0
       && (specs ? within(specs.cc,filters.minCc,filters.maxCc) : filters.minCc == null && filters.maxCc == null)
       && within(listing.year,filters.minYear,filters.maxYear);
   });
+  const compare = (a,b) => a.localeCompare(b,'tr');
+  const modelName = bike => {
+    const model = modelOf(bike);
+    return model ? model.name.slice(model.brand.length+1) : bike.name;
+  };
+  const profits = sort === 'profit-desc' ? new Map(filtered.map(bike=>[bike,estimatedProfit(bike)])) : null;
   const order = {
     'price-asc': (a,b)=>a.price-b.price, 'price-desc': (a,b)=>b.price-a.price,
     'km-asc': (a,b)=>a.km-b.km, 'year-desc': (a,b)=>b.year-a.year,
     'condition-desc': (a,b)=>(b.condition ?? 100)-(a.condition ?? 100),
-    'profit-desc': (a,b)=>estimatedProfit(b)-estimatedProfit(a),
+    'city-asc': (a,b)=>compare(provinceName(a.province),provinceName(b.province)),
+    'brand-asc': (a,b)=>compare(modelOf(a)?.brand ?? a.name,modelOf(b)?.brand ?? b.name),
+    'model-asc': (a,b)=>compare(modelName(a),modelName(b)),
+    'profit-desc': (a,b)=>profits.get(b)-profits.get(a),
   }[sort];
   if (typeof order === 'function') filtered.sort(order);
   return filtered;

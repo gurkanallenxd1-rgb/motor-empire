@@ -143,7 +143,7 @@ test('capacity upgrades, highest slot and independent Istanbul branch', () => {
 
 test('mandatory shortfall creates debt, financing is separate, invalid inputs leave state intact', () => {
   const game = play({ ...newGame(),cash:100,debt:250000 });
-  assert.throws(() => game.act('buy','1-0'),/yeterli nakit/);
+  assert.throws(() => game.act('buy',game.state.listings[0].id),/yeterli nakit/);
   assert.throws(() => game.act('upgrade'),/yeterli nakit/);
   assert.throws(() => game.act('open-branch'),/yeterli nakit/);
   game.act('advance');
@@ -197,7 +197,7 @@ test('daily market offers thirty distinct models with changing valid attributes'
   assert.equal(new Set(catalog.map(model=>model.brand)).size,19);
   assert.ok(catalog.every(model=>model.maintenance>0&&model.faultRisk>0&&model.demand>0));
   for (let day=1;day<=180;day+=1) {
-    const listings=generateMarket(day,random);
+    const listings=generateMarket(day,random).filter(bike=>bike.province===34);
     assert.equal(listings.length,30);
     assert.equal(new Set(listings.map(bike=>bike.name)).size,30);
     assert.deepEqual(Object.fromEntries(['budget','mid','premium','rare'].map(segment=>[segment,
@@ -229,7 +229,7 @@ test('filters combine four constraints and buying preserves generated condition'
   assert.equal(game.bike(listing.id).condition,92);
   assert.equal(game.bike(listing.id).colorName,'Kırmızı');
   game.act('advance');
-  assert.equal(game.state.listings.length,30);
+  assert.equal(game.state.listings.length,510);
   assert.ok(game.state.listings.every(bike=>bike.id.startsWith('2-')));
 });
 
