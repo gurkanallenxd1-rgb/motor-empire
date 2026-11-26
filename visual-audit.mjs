@@ -1,6 +1,6 @@
-import { catalog } from './bikes.mjs?v=0.5.1';
-import { PAINT_COLORS } from './game.mjs?v=0.5.1';
-import { renderSprite, spriteFor } from './sprite.mjs?v=0.5.1';
+import { catalog } from './bikes.mjs?v=0.6';
+import { PAINT_COLORS } from './game.mjs?v=0.6';
+import { renderSprite, spriteFor } from './sprite.mjs?v=0.6';
 
 const observations = {
   'honda-cb125f': 'Köşeli ön far seçiliyor. Depo kaplaması, egzoz ve jantın kasa yılı doğrulanamıyor.',
@@ -50,7 +50,7 @@ const cards = catalog.map(model => {
   note.className = 'muted';
   const reference = element('figure');
   const old = element('img');
-  old.src = `./assets/models/${model.id}.webp?v=0.5.1`;
+  old.src = `./assets/models/${model.id}.webp?v=0.6`;
   old.loading = 'lazy';
   old.alt = model.name + ' için v0.5 inceleme çizimi';
   reference.append(old,element('figcaption','v0.5 çizimi · Kasa doğrulaması yok'));
@@ -58,20 +58,22 @@ const cards = catalog.map(model => {
   const candidate = element('figure');
   const canvas = element('canvas');
   canvas.setAttribute('role','img');
-  canvas.setAttribute('aria-label',model.name + ' onaylı kasa görseli');
-  const placeholder = element('p','Bu kasa yılı için doğrulanmış görsel yok');
+  canvas.setAttribute('aria-label',model.name + ' kasa görseli');
+  const placeholder = element('p','Görsel yüklenemedi');
   placeholder.className = 'missing-image';
   const caption = element('figcaption');
-  candidate.append(canvas,placeholder,caption);
+  const label = element('span','Temsili görsel');
+  label.className = 'representative-label';
+  candidate.append(canvas,placeholder,label,caption);
   card.append(title,year,note,reference,candidate);
   grid.append(card);
   year.addEventListener('change',refresh);
-  return { model, year, reference, canvas, placeholder, caption };
+  return { model, year, reference, canvas, placeholder, caption, label };
 });
 
 function refresh() {
   let covered = 0;
-  for (const {model,year,reference,canvas,placeholder,caption} of cards) {
+  for (const {model,year,reference,canvas,placeholder,caption,label} of cards) {
     reference.hidden = !baseline.checked;
     const bike = { name:model.name, year:Number(year.value), color:color.value };
     const entry = spriteFor(bike);
@@ -84,7 +86,7 @@ function refresh() {
       license.href = entry.licenseUrl;
       caption.append(source,' · ',license);
     }
-    renderSprite(canvas,placeholder,bike);
+    renderSprite(canvas,placeholder,bike,label);
   }
   summary.textContent = `${covered} / ${cards.length} model için seçilen kasa yılı onaylı`;
 }

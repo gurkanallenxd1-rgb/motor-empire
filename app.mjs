@@ -2,11 +2,12 @@ import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
   perform, rentalRate, repairCapacity, repairQuote, roadValue, saveGame,
-} from './game.mjs?v=0.5.1';
-import { createGarageRenderer } from './art.mjs?v=0.5.1';
-import { catalog, categoryLabel, filterListings, modelOf } from './bikes.mjs?v=0.5.1';
+} from './game.mjs?v=0.6';
+import { createGarageRenderer } from './art.mjs?v=0.6';
+import { catalog, categoryLabel, filterListings, modelOf } from './bikes.mjs?v=0.6';
 
-import { renderSprite } from './sprite.mjs?v=0.5.1';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.6';
+import { renderSprite } from './sprite.mjs?v=0.6';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -23,6 +24,7 @@ let branchId = 1;
 let bayPage = 0;
 let currentPage = 'home';
 let historyLimit = 30;
+let meetingView;
 const activeBranch = () => state.branches.find(branch => branch.id === branchId);
 let saveAvailable = true;
 
@@ -98,22 +100,31 @@ function garageCard(slot) {
       button.setAttribute('aria-label', `${bike.name} · ${days} gün kirala`);
       rentActions.append(button);
     }
+    const ask = element('label', 'İlan fiyatı (TL)', 'ask-price');
+    const input = element('input', '');
+    input.type = 'number';
+    input.min = '1';
+    input.step = '.01';
+    input.inputMode = 'decimal';
+    input.value = roadValue(bike);
+    ask.append(input);
+    card.append(ask);
     card.append(actionButton('Satışa çıkar', 'list', bike.id),
       element('p', `Kiralama · ${money(rentalRate(bike))} / gün`, 'spec rental-rate'), rentActions);
   } else if (bike.stage === 'rented') {
     card.append(element('p', `Dönüş · Gün ${bike.rental.endDay} · ${money(bike.rental.rate)} / gün`, 'spec'));
   } else if (bike.stage === 'listed') {
-    bike.offers.forEach((offer, index) => {
-      const row = element('div', '', 'offer');
-      const details = element('div', '');
-      const profit = offer.price - bike.spent;
-      details.append(element('b', offer.name), element('p', money(offer.price)),
-        element('p', signed(profit), profit < 0 ? 'negative spec' : 'positive spec'));
-      const button = actionButton('Kabul et', 'sell', bike.id, false, index);
-      button.setAttribute('aria-label', `${offer.name} teklifini kabul et: ${money(offer.price)}`);
-      row.append(details, button);
+    const active = bike.meetings.filter(isActive);
+    card.append(element('p',`İstenen fiyat · ${money(bike.ask)}`,'spec'));
+    if (!active.length) card.append(element('p','Müşteri bekleniyor. Yeni günde talep yeniden hesaplanır.','muted'));
+    for (const meeting of active) {
+      const row = element('div','','offer');
+      const details = element('div','');
+      details.append(element('b',meeting.profile.name),
+        element('p',`${meeting.profile.type} · ${money(meeting.price)}`,'spec'));
+      row.append(details,actionButton('Görüş', 'open-buyer', bike.id, false, meeting.id));
       card.append(row);
-    });
+    }
     card.append(actionButton('Satış ilanını kaldır', 'unlist', bike.id));
   }
   return card;
@@ -130,7 +141,7 @@ function bikeSpecs(bike) {
 function openBike(bike) {
   const model = modelOf(bike);
   byId('detail-image').setAttribute('aria-label',bike.name + ' model görseli');
-  renderSprite(byId('detail-image'),byId('detail-image-missing'),bike);
+  renderSprite(byId('detail-image'),byId('detail-image-missing'),bike,byId('detail-representative'));
   byId('detail-name').textContent = bike.name;
   byId('detail-class').textContent = categoryLabel[model?.category] ?? '';
   byId('detail-spec').textContent = `${bikeSpecs(bike)} · ${stages[bike.stage]}`;
@@ -143,9 +154,10 @@ function marketCard(listing) {
   const image = document.createElement('canvas');
   image.setAttribute('role','img');
   image.setAttribute('aria-label',listing.name + ' model görseli');
-  const fallback = element('p', 'Bu kasa yılı için doğrulanmış görsel yok', 'missing-image');
-  renderSprite(image,fallback,listing);
-  media.append(image,fallback);
+  const fallback = element('p','Görsel yüklenemedi','missing-image');
+  const label = element('span','Temsili görsel','representative-label');
+  renderSprite(image,fallback,listing,label);
+  media.append(image,fallback,label);
   const details = element('div', '', 'listing-details');
   const model = modelOf(listing);
   details.append(element('span', categoryLabel[model?.category] ?? '', 'category'), element('h3', listing.name),
@@ -156,7 +168,10 @@ function marketCard(listing) {
   const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu' : state.cash < listing.price ? 'Yetersiz bakiye' : '';
   const button = actionButton(reason || 'Satın al', 'buy', listing.id, Boolean(reason));
   button.setAttribute('aria-label', `${listing.name} · ${button.textContent}`);
-  card.append(media, details, button);
+  const actions = element('div','','listing-actions');
+  actions.append(button,actionButton(isActive(listing.seller) ? 'Görüşmeye dön' : 'Satıcıyla pazarlık',
+    'meet-seller',listing.id,Boolean(listing.seller && !isActive(listing.seller))));
+  card.append(media,details,actions);
   return card;
 }
 
@@ -234,6 +249,15 @@ function renderFinance(today, worth) {
     metric('Bugünkü net', signed(today.net)), metric('Toplam varlık', money(worth.total)),
     metric('Net varlık', money(worth.net)), metric('Borç bakiyesi', money(state.debt)),
     metric('Motosiklet stoku', money(worth.inventory)), metric('Şube yatırımları', money(worth.equipment)));
+  const summary = tradeSummary(state.trade);
+  byId('finance-summary').append(metric('İtibar',`${state.trade.reputation} / 100`),
+    metric('Satış başarı oranı',summary.success === null ? '—' : `%${summary.success}`),
+    metric('Müşteri memnuniyeti',summary.average === null ? '—' : `%${summary.average}`));
+  const outcomes = { sold:'Satıldı', bought:'Satın alındı', rejected:'Reddedildi', left:'Görüşme kesildi', expired:'Süresi doldu' };
+  const history = state.trade.history.slice(0,historyLimit).map(item => historyRow(item.name,
+    `Gün ${item.day} · ${item.person} · ${outcomes[item.outcome]} · ${item.rounds} tur`,money(item.price)));
+  byId('trade-history').replaceChildren(...(history.length ? history : [element('p','Henüz görüşme tamamlanmadı.','muted')]));
+
   const available = Math.max(0, LOAN_LIMIT - state.debt);
   byId('credit-available').textContent = `Kullanılabilir borç limiti · ${money(available)}`;
   byId('borrow').disabled = available === 0;
@@ -251,7 +275,7 @@ function renderFinance(today, worth) {
     `Gün ${entry.day} · ${branches.get(entry.branchId) ?? 'Genel kasa'} · ${labels[entry.kind]}`,
     signed(['expense', 'repayment'].includes(entry.kind) ? -entry.amount : entry.amount)));
   byId('transactions').replaceChildren(...(transactions.length ? transactions : [element('p', 'Henüz işlem yok.', 'muted')]));
-  byId('more-history').hidden = state.ledger.length <= historyLimit;
+  byId('more-history').hidden = Math.max(state.ledger.length,state.trade.history.length) <= historyLimit;
 
   const sales = state.sales.map(sale => {
     const profit = sale.price - sale.spent;
@@ -278,7 +302,7 @@ function render(action, animationBike) {
   if (currentPage === 'home') {
     byId('home-summary').replaceChildren(metric('Toplam varlık', money(worth.total)),
       metric('Borç bakiyesi', money(state.debt)), metric('Aktif şube iş kapasitesi', `${repairCapacity(branch)} saat/gün`),
-      metric('Toplam şube sayısı', state.branches.length));
+      metric('Toplam şube sayısı', state.branches.length),metric('İşletme itibarı',`${state.trade.reputation} / 100`));
   }
   if (currentPage === 'garage') renderGarage(branch, action, animationBike);
   if (currentPage === 'market') renderMarket();
@@ -302,15 +326,20 @@ function runAction(action, id, amount, targetBranch = branchId) {
   try {
     result = perform(state, action, id, amount, targetBranch);
   } catch (error) {
-    notice(error.message, true);
+    notice(error.message,true);
+    if (byId('meeting').open) {
+      byId('meeting-error').textContent = error.message;
+      byId('meeting-error').hidden = false;
+    }
     return false;
   }
 
-  const animationBike = action === 'buy'
+  const isPurchase = ['buy','buy-negotiated'].includes(action);
+  const animationBike = isPurchase
     ? result.state.branches.find(branch => branch.id === branchId).garage.find(bike => bike.id === id)
     : action === 'sell' ? activeBranch().garage.find(bike => bike.id === id) : undefined;
   state = result.state;
-  if (action === 'buy') {
+  if (isPurchase) {
     bayPage = Math.floor(animationBike.slot / 2);
     showPage('garage');
   }
@@ -322,7 +351,7 @@ function runAction(action, id, amount, targetBranch = branchId) {
     }
   }
   const warning = saveAvailable ? '' : ' İlerleme kaydedilemedi.';
-  render(action, animationBike);
+  render(isPurchase ? 'buy' : action, animationBike);
   notice(result.message + warning, !saveAvailable);
   return true;
 }
@@ -334,11 +363,93 @@ document.addEventListener('click', event => {
   if (page) {
     showPage(page);
     render();
+  } else if (action === 'open-buyer') {
+    openMeeting(id,index,'sale');
+  } else if (action === 'meet-seller') {
+    if (runAction(action,id)) openMeeting(id,state.listings.find(item=>item.id===id).seller.id,'purchase');
   } else if (action) {
     const isBranchAction = ['hire','fire','upgrade'].includes(action);
-    runAction(action, id, Number(index), isBranchAction ? Number(id) : branchId);
+    const amount = action === 'list' ? button.closest('.card').querySelector('.ask-price input').valueAsNumber : Number(index);
+    runAction(action,id,amount,isBranchAction ? Number(id) : branchId);
   }
 });
+
+function openMeeting(bikeId,meetingId,kind) {
+  meetingView = {bikeId,meetingId,kind,branchId};
+  byId('meeting-counter-form').hidden = true;
+  byId('meeting-counter').value = '';
+  updateMeeting();
+  if (!byId('meeting').open) byId('meeting').showModal();
+}
+
+function updateMeeting() {
+  const view = meetingView;
+  const isSale = view.kind === 'sale';
+  const bike = isSale
+    ? state.branches.find(branch=>branch.id === view.branchId)?.garage.find(item=>item.id === view.bikeId)
+    : state.listings.find(item=>item.id === view.bikeId);
+  const meeting = isSale ? bike?.meetings.find(item=>item.id === view.meetingId) : bike?.seller;
+  if (!meeting) { byId('meeting').close(); return; }
+  const {profile} = meeting;
+  byId('meeting-title').textContent = isSale ? 'Müşteri görüşmesi' : 'Satıcı görüşmesi';
+  byId('meeting-role').textContent = isSale ? profile.type : 'İKİNCİ EL PAZARI';
+  byId('meeting-avatar').textContent = profile.avatar;
+  byId('meeting-name').textContent = profile.name;
+  byId('meeting-job').textContent = `${profile.age} yaş · ${profile.job}`;
+  byId('meeting-traits').textContent = `${profile.personality} · Pazarlık ${profile.skill}/5`;
+  byId('meeting-goal').textContent = isSale ? `${categoryLabel[profile.category]} · ${profile.goal}` : '';
+  byId('meeting-speech').textContent = meeting.speech;
+  byId('meeting-round').textContent = `Sabır ${meeting.patience}/${profile.patience} · Tur ${meeting.round}/${MAX_ROUNDS}`;
+  byId('meeting-patience').max = profile.patience;
+  byId('meeting-patience').value = meeting.patience;
+  byId('meeting-bike').textContent = bike.name;
+  byId('meeting-spec').textContent = bikeSpecs(bike);
+  byId('meeting-image').setAttribute('aria-label',bike.name);
+  renderSprite(byId('meeting-image'),byId('meeting-image-missing'),bike,byId('meeting-representative'));
+  const value = roadValue(bike);
+  const cost = isSale ? bike.spent : bike.price;
+  const margin = meeting.price - cost;
+  byId('meeting-metrics').replaceChildren(
+    metric(isSale ? 'Müşteri teklifi' : 'Satıcının güncel fiyatı',money(meeting.price)),
+    metric(isSale ? 'Toplam maliyet' : 'İlan fiyatı',money(cost)),
+    metric('Tahmini piyasa değeri',money(value)),
+    metric(isSale ? 'Satışta net kâr' : 'Piyasaya göre fark',isSale ? signed(margin) : signed(value-meeting.price)),
+    metric('Teklif / piyasa',`%${Math.round(meeting.price / value * 100)}`));
+  const scale = Math.max(meeting.price,cost,value,1);
+  byId('meeting-bars').replaceChildren(...[[isSale ? 'Maliyet' : 'İlan fiyatı',cost],['Piyasa',value],['Teklif',meeting.price]].map(([name,amount]) => {
+    const label = element('label',`${name} · ${money(amount)}`);
+    const bar = element('progress','');
+    bar.max = scale;
+    bar.value = amount;
+    label.append(bar);
+    return label;
+  }));
+  byId('meeting-error').hidden = true;
+  const active = isActive(meeting);
+  byId('meeting-counter-form').hidden = true;
+  byId('meeting-negotiate').disabled = meeting.status !== 'open' || meeting.round >= MAX_ROUNDS;
+  byId('meeting-reject').hidden = !active;
+  byId('meeting-confirm').hidden = !active;
+  byId('meeting-confirm').textContent = isSale ? 'Sat' : 'Satın al';
+}
+
+function meetingAction(action,amount) {
+  const view = meetingView;
+  if (!view || !runAction(action,view.bikeId,amount,view.branchId)) return;
+  if (action === 'sell' || action === 'buy-negotiated') byId('meeting').close();
+  else updateMeeting();
+}
+
+byId('meeting-negotiate').addEventListener('click',()=>{
+  byId('meeting-counter-form').hidden = false;
+  byId('meeting-counter').focus();
+});
+byId('meeting-counter-form').addEventListener('submit',event=>{
+  event.preventDefault();
+  meetingAction('counter',{meetingId:meetingView.meetingId,price:byId('meeting-counter').valueAsNumber});
+});
+byId('meeting-reject').addEventListener('click',()=>meetingAction('reject',meetingView.meetingId));
+byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.kind === 'sale' ? 'sell' : 'buy-negotiated',meetingView.meetingId));
 
 byId('branch').addEventListener('change', event => {
   branchId = Number(event.target.value);
