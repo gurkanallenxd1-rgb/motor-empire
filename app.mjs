@@ -2,12 +2,12 @@ import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
   perform, rentalRate, repairCapacity, repairQuote, saveGame,
-} from './game.mjs';
-import { createGarageRenderer } from './art.mjs';
-import { categoryLabel, categoryOf, spriteUrl } from './bikes.mjs';
+} from './game.mjs?v=0.4.1';
+import { createGarageRenderer } from './art.mjs?v=0.4.1';
+import { categoryLabel, categoryOf, spriteUrl } from './bikes.mjs?v=0.4.1';
 
 const byId = id => document.getElementById(id);
-const drawGarage = createGarageRenderer(byId('garage-scene'), openBike);
+let drawGarage;
 const numeric = new Intl.NumberFormat('tr-TR');
 const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
@@ -152,6 +152,7 @@ function metric(label, value) {
 }
 
 function renderGarage(branch, action, bike) {
+  drawGarage ??= createGarageRenderer(byId('garage-scene'), openBike);
   const offset = bayPage * 2;
   const capacity = branchCapacity(branch);
   byId('bay-pages').hidden = capacity <= 2;
@@ -203,8 +204,8 @@ function renderFinance(today, worth) {
     metric('Motosiklet stoku', money(worth.inventory)), metric('Şube yatırımları', money(worth.equipment)));
   const available = Math.max(0, LOAN_LIMIT - state.debt);
   byId('credit-available').textContent = `Kullanılabilir borç limiti · ${money(available)}`;
-  byId('credit-form').elements.namedItem('credit')[0].disabled = available === 0;
-  byId('credit-form').elements.namedItem('credit')[1].disabled = !state.debt || !state.cash;
+  byId('borrow').disabled = available === 0;
+  byId('repay').disabled = !state.debt || !state.cash;
 
   const days = [...new Set(state.ledger.slice(0, historyLimit).map(entry => entry.day))];
   byId('daily-history').replaceChildren(...(days.length ? days.map(day => {
