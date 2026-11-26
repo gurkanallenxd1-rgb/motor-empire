@@ -1,19 +1,21 @@
-import { createFinanceView } from './finance-view.mjs?v=0.10';
-import { dailyCashMovement } from './finance.mjs?v=0.10';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.10';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.11';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.11';
+import { createFinanceView } from './finance-view.mjs?v=0.11';
+import { dailyCashMovement } from './finance.mjs?v=0.11';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.11';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
-  assets, branchCapacity, estimatedListingProfit, loadGame, newGame, operatingCost,
-  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, saveGame,
-} from './game.mjs?v=0.10';
-import { createGarageRenderer } from './art.mjs?v=0.10';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.10';
+  assets, branchCapacity, estimatedListingProfit, newGame, operatingCost,
+  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
+} from './game.mjs?v=0.11';
+import { createGarageRenderer } from './art.mjs?v=0.11';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.11';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.10';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.10';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.11';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.11';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.10';
+  repairForecast } from './damage.mjs?v=0.11';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -48,14 +50,122 @@ function updateSave() {
   byId('save').dataset.error = !saveAvailable;
 }
 
-try {
-  state = loadGame(window.localStorage);
-  saveGame(window.localStorage, state);
-} catch {
-  state ??= newGame();
+let transact;
+let timer;
+let ticking = false;
+let busy = false;
+
+function stopSaving(error) {
   saveAvailable = false;
-  notice('Kayıt okunamadı veya yazılamadı. Bu oturumun ilerlemesi kaydedilmeyecek.', true);
+  clearInterval(timer);
+  updateSave();
+  notice(error?.message ? `Kayıt kullanılamıyor · ${error.message}` : 'Kayıt kullanılamıyor.',true);
 }
+
+function timedText(bike) {
+  if (bike.stage === 'shipping') {
+    const remaining = Math.max(0,deliveryTime(bike)-gameTime(state.day,projectedOffset(state.clock,Date.now())));
+    const hours = Math.ceil(remaining/HOUR_MS);
+    return `${provinceName(bike.province)} → İstanbul · Kalan ${Math.floor(hours/24)} gün ${hours%24} sa · Teslimat: Gün ${bike.shipping.arrivalDay}`;
+  }
+  if (bike.readyDay) return `Teslim · Gün ${bike.readyDay}`;
+  const branch = activeBranch();
+  const elapsed = projectedOffset(state.clock,Date.now())-state.clock.offset;
+  const free = Math.max(0,repairCapacity(branch)*HOUR_MS-(branch.workMs ?? 0));
+  const ahead = branch.garage.filter(item=>item.stage==='repairing' && !item.readyDay
+    && (item.repairOrder ?? 0)<(bike.repairOrder ?? 0))
+    .reduce((total,item)=>total+item.remainingHours*HOUR_MS-(item.repairProgress ?? 0),0);
+  const work = Math.max(0,Math.min(free,elapsed*(1+branch.staff))-ahead);
+  const remaining = Math.max(0,bike.remainingHours*HOUR_MS-(bike.repairProgress ?? 0)-work);
+  const minutes = Math.ceil(remaining*60/HOUR_MS);
+  return `Kalan işçilik · ${Math.floor(minutes/60)} sa ${minutes%60} dk`;
+}
+
+function clockDisplay(now = Date.now()) {
+  if (!state?.clock) return;
+  const offset = projectedOffset(state.clock,now);
+  const minute = Math.min(1439,Math.floor(offset*1440/DAY_MS));
+  const pad = value => String(value).padStart(2,'0');
+  byId('clock-time').textContent = `Gün ${state.day} · ${pad(Math.floor(minute/60))}:${pad(minute%60)}`;
+  byId('clock-countdown').textContent = state.clock.paused ? 'Duraklatıldı' : `Yeni güne ${Math.ceil((DAY_MS-offset)/1000)} sn`;
+  byId('clock-progress').value = offset;
+  byId('toggle-clock').textContent = state.clock.paused ? 'Devam et' : 'Duraklat';
+  if (currentPage === 'garage') for (const node of byId('garage').querySelectorAll('[data-timed-bike]')) {
+    const bike = activeBranch().garage.find(item=>item.id === node.dataset.timedBike);
+    if (bike && ['shipping','repairing'].includes(bike.stage)) node.textContent = timedText(bike);
+  }
+}
+
+function showOffline(summary) {
+  if (!summary || document.hidden || !(summary.days || summary.completed || summary.delivered)) return;
+  const dialog = byId('offline-summary');
+  byId('offline-totals').replaceChildren(
+    metric('Geçen oyun günü',summary.days),metric('Tamamlanan tamir',summary.completed),
+    metric('Teslim edilen nakliye',summary.delivered),metric('Dönen kiralık',summary.returned),
+    metric('Gelen müşteri',summary.visits),metric('Gelir',money(summary.income)),metric('Gider',money(summary.expenses)));
+  byId('offline-limit').hidden = !summary.capped;
+  if (!dialog.open) dialog.showModal();
+}
+
+function acceptTime(next) {
+  const refresh = !state || next.day !== state.day || next.clock?.revision !== state.clock?.revision;
+  const y = window.scrollY;
+  state = next;
+  if (refresh) {
+    render();
+    window.scrollTo(0,y);
+    if (byId('meeting').open) updateMeeting();
+  }
+  clockDisplay();
+}
+
+function clockIsDue(now) {
+  const offset = projectedOffset(state.clock,now);
+  if (offset >= DAY_MS) return true;
+  return state.branches.some(branch=>{
+    const activeWork = Math.min((offset-state.clock.offset)*(1+branch.staff),
+      Math.max(0,repairCapacity(branch)*HOUR_MS-(branch.workMs ?? 0)));
+    const head = branch.garage.filter(bike=>bike.stage === 'repairing' && !bike.readyDay)
+      .sort((a,b)=>(a.repairOrder ?? 0)-(b.repairOrder ?? 0))[0];
+    return (head && activeWork >= head.remainingHours*HOUR_MS-(head.repairProgress ?? 0))
+      || branch.garage.some(bike=>bike.stage === 'shipping' && deliveryTime(bike) <= gameTime(state.day,offset));
+  });
+}
+
+async function tickClock(background = false) {
+  if (!state || !saveAvailable || ticking || (busy && !background) || (document.hidden && !background)) return;
+  ticking = true;
+  try {
+    if (background || clockIsDue(Date.now())) {
+      const result = await transact();
+      acceptTime(result.state);
+      if (background) showOffline(result.summary);
+    } else clockDisplay();
+  } catch (error) { stopSaving(error); }
+  finally { ticking = false; }
+}
+
+function startTicker() {
+  clearInterval(timer);
+  if (saveAvailable && !document.hidden && !state.clock.paused) timer = setInterval(()=>tickClock(),1000);
+}
+
+async function startGame() {
+  try {
+    transact = createTimeStore(window.localStorage,saveLock(navigator,window.indexedDB));
+    const result = await transact();
+    acceptTime(result.state);
+    showOffline(result.summary);
+  } catch (error) {
+    // A failed shared save stays read-only so another tab's progress cannot be overwritten.
+    state ??= {...newGame(),clock:{...startClock(Date.now()),paused:true}};
+    render();
+    clockDisplay();
+    stopSaving(error);
+  }
+  startTicker();
+}
+
 
 function actionButton(label, action, id, disabled = false, index) {
   const button = document.createElement('button');
@@ -122,7 +232,9 @@ function garageCard(slot) {
   card.append(element('h3', bike.name), element('p', `${stages[bike.stage]} · ${numeric.format(bike.km)} km · Kondisyon %${bike.condition}`, 'spec'),
     element('p', `Toplam maliyet · ${money(bike.spent)}`, 'spec'));
   if (bike.stage === 'shipping') {
-    card.append(element('p',`${provinceName(bike.province)} → İstanbul · Teslimat: Gün ${bike.shipping.arrivalDay}`,'spec'),
+    const countdown = element('p',timedText(bike),'spec');
+    countdown.dataset.timedBike = bike.id;
+    card.append(countdown,
       element('p',`Nakliye · ${money(bike.shipping.fee)} · ${numeric.format(bike.shipping.km)} km`,'spec'));
     return card;
   }
@@ -150,8 +262,9 @@ function garageCard(slot) {
       element('p',`Toplam işçilik · ${quote.hours} saat`,'spec'),
       actionButton(`Tamire başla · ${money(quote.cost)}`, 'repair', bike.id, state.cash < quote.cost));
   } else if (bike.stage === 'repairing') {
-    const progress = bike.readyDay ? `Teslim · Gün ${bike.readyDay}` : `Kalan işçilik · ${bike.remainingHours} saat`;
-    card.append(element('p',progress,'spec'),repairComparison(repairForecast(bike),'Tamir tahmini'));
+    const progress = element('p',timedText(bike),'spec');
+    progress.dataset.timedBike = bike.id;
+    card.append(progress,repairComparison(repairForecast(bike),'Tamir tahmini'));
   } else if (bike.stage === 'ready') {
     const rentActions = element('div', '', 'quick-actions rent-actions');
     rentActions.setAttribute('aria-label','Kiralama süresi');
@@ -425,10 +538,35 @@ function showPage(page) {
   window.scrollTo(0,0);
 }
 
-function runAction(action, id, amount, targetBranch = branchId) {
-  let result;
+async function runAction(action, id, amount, targetBranch = branchId) {
+  if (!state || !saveAvailable || busy) return false;
+  busy = true;
+  const oldBike = action === 'sell' ? activeBranch().garage.find(bike=>bike.id === id) : undefined;
   try {
-    result = perform(state, action, id, amount, targetBranch);
+    const result = await transact(action,id,amount,targetBranch);
+    if (result.error) {
+      acceptTime(result.state);
+      throw result.error;
+    }
+    if (action === 'toggle-clock' || action === 'hold-buyer') {
+      acceptTime(result.state);
+      if (action === 'toggle-clock') startTicker();
+      return true;
+    }
+    state = result.state;
+    const isPurchase = ['buy','buy-negotiated'].includes(action);
+    const animationBike = isPurchase
+      ? state.branches.find(branch=>branch.id===targetBranch).garage.find(bike=>bike.id===id) : oldBike;
+    if (isPurchase) {
+      if (byId('listing-detail').open) byId('listing-detail').close();
+      branchId = targetBranch;
+      bayPage = Math.floor(animationBike.slot/2);
+      showPage('garage');
+    }
+    render(isPurchase && animationBike.stage !== 'shipping' ? 'buy' : action,animationBike);
+    notice(result.message);
+    clockDisplay();
+    return true;
   } catch (error) {
     notice(error.message,true);
     if (action === 'borrow' || action === 'repay') byId('credit-message').textContent = error.message;
@@ -440,35 +578,12 @@ function runAction(action, id, amount, targetBranch = branchId) {
       byId('listing-error').hidden = false;
     }
     return false;
-  }
-
-  const isPurchase = ['buy','buy-negotiated'].includes(action);
-  const animationBike = isPurchase
-    ? result.state.branches.find(branch => branch.id === branchId).garage.find(bike => bike.id === id)
-    : action === 'sell' ? activeBranch().garage.find(bike => bike.id === id) : undefined;
-  state = result.state;
-  if (action === 'advance') marketPage = 0;
-  if (isPurchase) {
-    if (byId('listing-detail').open) byId('listing-detail').close();
-    bayPage = Math.floor(animationBike.slot / 2);
-    showPage('garage');
-  }
-  if (saveAvailable) {
-    try {
-      saveGame(window.localStorage, state);
-    } catch {
-      saveAvailable = false;
-    }
-  }
-  const warning = saveAvailable ? '' : ' İlerleme kaydedilemedi.';
-  render(isPurchase && animationBike.stage !== 'shipping' ? 'buy' : action, animationBike);
-  notice(result.message + warning, !saveAvailable);
-  return true;
+  } finally { busy = false; }
 }
 
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   const button = event.target.closest('button');
-  if (!button || button.disabled) return;
+  if (!state || !button || button.disabled) return;
   const { page, action, id, index } = button.dataset;
   if (page) {
     showPage(page);
@@ -477,9 +592,9 @@ document.addEventListener('click', event => {
   } else if (action === 'open-listing') {
     openListing(id);
   } else if (action === 'open-buyer') {
-    openMeeting(id,index,'sale');
+    if (await runAction('hold-buyer',id,index)) openMeeting(id,index,'sale');
   } else if (action === 'meet-seller') {
-    if (runAction(action,id)) {
+    if (await runAction(action,id)) {
       sellerReturn = id;
       if (byId('listing-detail').open) byId('listing-detail').close();
       openMeeting(id,state.listings.find(item=>item.id===id).seller.id,'purchase');
@@ -554,9 +669,9 @@ function updateMeeting() {
   byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price+(forecast?.delivery.fee ?? 0))}`;
 }
 
-function meetingAction(action,amount) {
+async function meetingAction(action,amount) {
   const view = meetingView;
-  if (!view || !runAction(action,view.bikeId,amount,view.branchId)) return;
+  if (!view || !await runAction(action,view.bikeId,amount,view.branchId)) return;
   if (action === 'sell' || action === 'buy-negotiated') byId('meeting').close();
   else updateMeeting();
 }
@@ -578,14 +693,12 @@ byId('branch').addEventListener('change', event => {
 });
 byId('bays-prev').addEventListener('click', () => { bayPage -= 1; render(); });
 byId('bays-next').addEventListener('click', () => { bayPage += 1; render(); });
-byId('credit-form').addEventListener('submit', event => {
+byId('credit-form').addEventListener('submit', async event => {
   event.preventDefault();
   const amount = byId('credit-amount');
   byId('credit-message').textContent = '';
-  if (event.submitter && runAction(event.submitter.value, undefined, amount.valueAsNumber)) amount.value = '';
+  if (event.submitter && await runAction(event.submitter.value, undefined, amount.valueAsNumber)) amount.value = '';
 });
-
-render();
 
 const brands = [...new Set(catalog.map(model=>model.brand))].sort((a,b)=>a.localeCompare(b,'tr'));
 byId('filter-brand').append(...brands.map(brand=>new Option(brand,brand)));
@@ -614,7 +727,7 @@ function refreshMarketColors() {
 
 function resetMarketPage() {
   marketPage = 0;
-  renderMarket();
+  if (state) renderMarket();
 }
 
 const provinceSelect = byId('filter-province');
@@ -646,3 +759,25 @@ for (const [id,delta] of [['market-prev',-1],['market-next',1]]) {
     byId('market-title').scrollIntoView({block:'start'});
   });
 }
+
+window.addEventListener('storage',async event=>{
+  if (event.key !== STORAGE_KEY || !transact || !state || document.hidden) return;
+  try {
+    const result = await transact('refresh');
+    acceptTime(result.state);
+    startTicker();
+  } catch (error) { stopSaving(error); }
+});
+document.addEventListener('visibilitychange',async ()=>{
+  clearInterval(timer);
+  if (document.hidden || !state) return;
+  await tickClock(true);
+  startTicker();
+});
+window.addEventListener('pageshow',async event=>{
+  if (event.persisted && state) {
+    await tickClock(true);
+    startTicker();
+  }
+});
+startGame();

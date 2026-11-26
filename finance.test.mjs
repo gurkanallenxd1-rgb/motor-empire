@@ -143,5 +143,5 @@ test('v0.9 migration preserves a truck in transit and active bargaining without 
   assert.equal(report(migrated,7).series[0].cash,migrated.cash);
   saveGame(storage,migrated);
   assert.equal(storage.getItem(TURKEY_STORAGE_KEY),raw);
-  assert.equal(loadGame(storage).version,7);
+  assert.equal(loadGame(storage).version,8);
 });

@@ -5,19 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.10">
-  <script type="module" src="./app.mjs?v=0.10"></script>
+  <link rel="stylesheet" href="./style.css?v=0.11">
+  <script type="module" src="./app.mjs?v=0.11"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.10</span>
+      <span class="version">SÜRÜM 0.11</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
+  <div class="clock-bar">
+    <div class="shell clock-inner">
+      <div class="clock-readout"><strong id="clock-time">Gün 1 · 00:00</strong><span id="clock-countdown">Yeni güne 60 sn</span>
+        <progress id="clock-progress" max="60000" value="0" aria-label="Oyun günü ilerlemesi"></progress></div>
+      <button id="toggle-clock" type="button" data-action="toggle-clock">Duraklat</button>
+    </div>
+  </div>
   <main class="shell">
-    <div class="intro"><div><p class="eyebrow">İŞLETME PANELİ</p><h1>Garaj Yönetimi</h1></div><button id="advance" class="primary" data-action="advance">Günü ilerlet <span aria-hidden="true">→</span></button></div>
+    <div class="intro"><div><p class="eyebrow">İŞLETME PANELİ</p><h1>Garaj Yönetimi</h1></div></div>
     <section class="stats" aria-label="İşletme özeti">
       <div class="stat-cash"><span>NAKİT KASA</span><strong id="cash">75.000 TL</strong></div>
       <div class="stat-day"><span>OYUN GÜNÜ</span><strong id="day">01</strong></div>
@@ -145,6 +152,12 @@
         <button id="more-finance-archives" type="button" hidden>Daha fazla geçmiş göster</button>
       </details>
     </section>
+    <dialog id="offline-summary" aria-labelledby="offline-title">
+      <h2 id="offline-title">Sen yokken</h2>
+      <p id="offline-limit" class="spec" hidden>Çevrimdışı ilerleme 60 oyun günüyle sınırlandı.</p>
+      <div id="offline-totals" class="metrics"></div>
+      <form method="dialog"><button type="submit" class="primary">Oyuna dön</button></form>
+    </dialog>
   </main>
   <nav class="bottom-nav" aria-label="Oyun menüsü">
     <button type="button" data-page="home" aria-current="page"><span aria-hidden="true">⌂</span>Ana Sayfa</button>

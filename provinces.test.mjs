@@ -138,7 +138,7 @@ test('v0.8 migration preserves storage, current seller, finances and inventory w
   const memory = new Map([[DAMAGE_STORAGE_KEY,raw]]);
   const storage = {getItem:key=>memory.get(key) ?? null,setItem:(key,value)=>memory.set(key,value)};
   const migrated = loadGame(storage);
-  assert.equal(migrated.version,7);
+  assert.equal(migrated.version,8);
   assert.deepEqual(migrated.listings[0],{...old.listings[0],province:34});
   for (const key of ['cash','debt','branches','sales','ledger','trade']) assert.deepEqual(migrated[key],old[key],key);
   assert.ok(!migrated.listings.some(bike=>bike.id==='purchased'));
