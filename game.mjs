@@ -1,10 +1,11 @@
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.9';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.9';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.9';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.10';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.10';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.10';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.10';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.9';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.9';
+  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.10';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.10';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -12,7 +13,8 @@ export const BUSINESS_STORAGE_KEY = 'motor-empire.v2';
 export const PREVIOUS_STORAGE_KEY = 'motor-empire.v3';
 export const MARKET_STORAGE_KEY = 'motor-empire.v4';
 export const DAMAGE_STORAGE_KEY = 'motor-empire.v5';
-export const STORAGE_KEY = 'motor-empire.v6';
+export const TURKEY_STORAGE_KEY = 'motor-empire.v6';
+export const STORAGE_KEY = 'motor-empire.v7';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -99,7 +101,7 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 6, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
+  return { version: 7, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
@@ -164,7 +166,8 @@ export function perform(state, action, id, amount, branchId = 1) {
   const bike = branch.garage.find(item => item.id === id);
 
   function record(kind, value, label, at = branch) {
-    next.ledger.unshift({ day: next.day, branchId: at?.id ?? null, kind, amount: value, label });
+    const entry = { day: next.day, branchId: at?.id ?? null, kind, amount: value, label };
+    next.ledger.unshift({...entry,...entryDetails(entry)});
   }
 
   function pay(cost, label, at = branch, mandatory = false) {
@@ -263,6 +266,7 @@ export function perform(state, action, id, amount, branchId = 1) {
       }
       pay(quote.cost, `${bike.name} tamir parçaları`);
       bike.spent += quote.cost;
+      bike.repairCost = quote.cost;
       bike.remainingHours = quote.hours;
       bike.repairOrder = (next.repairOrder ?? 0) + 1;
       next.repairOrder = bike.repairOrder;
@@ -293,7 +297,7 @@ export function perform(state, action, id, amount, branchId = 1) {
       if (meeting.kind !== 'sale' || bike?.stage !== 'listed') throw new Error('Bu teklif artık geçerli değil.');
       branch.garage = branch.garage.filter(item=>item.id !== id);
       earn(meeting.price,`${bike.name} satışı`);
-      next.sales.unshift({name:bike.name,day:next.day,price:meeting.price,spent:bike.spent});
+      next.sales.unshift({name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id});
       finishTrade(next,meeting,bike,'sold');
       for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
       message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
@@ -386,6 +390,7 @@ export function perform(state, action, id, amount, branchId = 1) {
             if (item.remainingHours > 0) continue;
           }
           completeRepair(item,tomorrow);
+          delete item.repairCost;
           item.stage = 'ready';
           delete item.readyDay;
           delete item.remainingHours;
@@ -404,6 +409,8 @@ export function perform(state, action, id, amount, branchId = 1) {
       for (const item of next.listings) {
         if (isActive(item.seller)) finishTrade(next,item.seller,item,'expired');
       }
+      next.financeSnapshots ??= [];
+      next.financeSnapshots.push({day:next.day,cash:next.cash,netWorth:assets(next).net});
       next.day = tomorrow;
       next.listings = generateMarket(tomorrow);
       message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`;
@@ -443,9 +450,10 @@ function validGarageBike(bike, day) {
         && bike.shipping.arrivalDay <= day+quote.days;
     }
     case 'repairing':
-      return (Number.isSafeInteger(bike.readyDay) && bike.readyDay > day)
-        || (Number.isSafeInteger(bike.remainingHours) && bike.remainingHours > 0
-          && Number.isSafeInteger(bike.repairOrder) && bike.repairOrder > 0);
+      return (bike.repairCost === undefined || (validAmount(bike.repairCost) && bike.repairCost <= bike.spent))
+        && ((Number.isSafeInteger(bike.readyDay) && bike.readyDay > day)
+          || (Number.isSafeInteger(bike.remainingHours) && bike.remainingHours > 0
+            && Number.isSafeInteger(bike.repairOrder) && bike.repairOrder > 0));
     case 'listed':
       return validAmount(bike.ask) && Number.isSafeInteger(bike.nextVisit) && Array.isArray(bike.meetings)
         && bike.meetings.every(meeting => validMeeting(meeting,'sale'));
@@ -458,7 +466,7 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 6 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 7 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
       || !Array.isArray(saved.listings) || !saved.listings.every(bike=>validBike(bike)
         && (bike.seller === undefined || validMeeting(bike.seller,'purchase')))
@@ -470,6 +478,9 @@ function validSave(saved) {
         && Number.isInteger(row.rounds) && row.rounds >= 0 && row.rounds <= 3
         && (row.outcome === 'sold' ? Number.isInteger(row.satisfaction) && row.satisfaction >= 0 && row.satisfaction <= 100 : row.satisfaction === null))
       || !Array.isArray(saved.sales) || !Array.isArray(saved.ledger)
+      || !Array.isArray(saved.financeSnapshots) || !saved.financeSnapshots.every((row,index,all)=>row
+        && Number.isSafeInteger(row.day) && row.day > (all[index-1]?.day ?? 0) && row.day < saved.day
+        && validMoney(row.cash) && Number.isFinite(row.netWorth))
       || !Array.isArray(saved.branches) || !saved.branches.length
       || (saved.repairOrder !== undefined && (!Number.isSafeInteger(saved.repairOrder) || saved.repairOrder < 0))) return false;
   const ids = [...saved.listings.map(item => item.id)];
@@ -492,7 +503,9 @@ function validSave(saved) {
     && saved.ledger.every(entry => entry && Number.isSafeInteger(entry.day) && entry.day >= 1 && entry.day <= saved.day
       && (entry.branchId === null || saved.branches.some(branch => branch.id === entry.branchId))
       && ['income','expense','loan','repayment'].includes(entry.kind)
-      && validMoney(entry.amount) && typeof entry.label === 'string');
+      && validMoney(entry.amount) && typeof entry.label === 'string'
+      && (entry.category === undefined || Object.prototype.hasOwnProperty.call(FINANCE_CATEGORIES,entry.category))
+      && (entry.model == null || typeof entry.model === 'string'));
 }
 
 function validMeeting(meeting,kind) {
@@ -508,14 +521,20 @@ function validMeeting(meeting,kind) {
 
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const damage = raw === null ? storage.getItem(DAMAGE_STORAGE_KEY) : null;
-  const market = raw === null && damage === null ? storage.getItem(MARKET_STORAGE_KEY) : null;
-  const previous = raw === null && damage === null && market === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
-  const business = raw === null && damage === null && market === null && previous === null ? storage.getItem(BUSINESS_STORAGE_KEY) : null;
-  const legacy = raw === null && damage === null && market === null && previous === null && business === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-  if (raw === null && damage === null && market === null && previous === null && business === null && legacy === null) return newGame();
-  let state = JSON.parse(raw ?? damage ?? market ?? previous ?? business ?? legacy);
-  if (legacy !== null && state?.version === 1 && Array.isArray(state.garage)) {
+  const keys = [TURKEY_STORAGE_KEY,DAMAGE_STORAGE_KEY,MARKET_STORAGE_KEY,
+    PREVIOUS_STORAGE_KEY,BUSINESS_STORAGE_KEY,LEGACY_STORAGE_KEY];
+  let archived = null;
+  let source;
+  if (raw === null) for (const key of keys) {
+    archived = storage.getItem(key);
+    if (archived !== null) {
+      source = key;
+      break;
+    }
+  }
+  if (raw === null && archived === null) return newGame();
+  let state = JSON.parse(raw ?? archived);
+  if (source === LEGACY_STORAGE_KEY && state?.version === 1 && Array.isArray(state.garage)) {
     const branch = createBranch(1);
     branch.garage = state.garage.map(bike=>({...bike,condition:100}));
     const { day,cash,listings,sales } = state;
@@ -559,6 +578,11 @@ export function loadGame(storage) {
     const occupied = new Set([...state.listings,...(state.branches ?? []).flatMap(branch=>branch.garage ?? [])]
       .map(bike=>bike?.id));
     state.listings.push(...generateMarket(state.day,random,false).filter(bike=>!occupied.has(bike.id)));
+  }
+  if (raw === null && state?.version === 6 && Array.isArray(state.ledger)) {
+    state.version = 7;
+    state.financeSnapshots = [];
+    state.ledger = state.ledger.map(entry=>entry && ({...entry,...entryDetails(entry)}));
   }
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;

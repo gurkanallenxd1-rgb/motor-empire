@@ -1,4 +1,4 @@
-import { additions } from './catalog-data.mjs?v=0.9';
+import { additions } from './catalog-data.mjs?v=0.10';
 
 // Packed six at a time in catalog order, read left to right, top to bottom.
 export const availablePacks = new Set([0,1,2,3,4,5,6,7,8,9,10,11,12]);

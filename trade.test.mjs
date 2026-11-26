@@ -115,7 +115,7 @@ test('migration retains previous byte string, cash, debt, inventory and legacy s
   const memory=new Map([[BUSINESS_STORAGE_KEY,original]]);
   const storage={getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,value)};
   const migrated=loadGame(storage);
-  assert.equal(migrated.version,6);
+  assert.equal(migrated.version,7);
   assert.equal(migrated.cash,prior.cash);
   assert.equal(migrated.debt,prior.debt);
   assert.equal(migrated.branches[0].staff,2);
