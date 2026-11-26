@@ -1,4 +1,5 @@
-import { additions } from './catalog-data.mjs?v=0.7.1';
+import { additions } from './catalog-data.mjs?v=0.8';
+import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.8';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
@@ -80,8 +81,8 @@ export const categoryLabel = {
   adventure:'Macera', touring:'Tur', cruiser:'Cruiser',
 };
 export const segmentLabel = { budget:'Ekonomik', mid:'Orta segment', premium:'Premium', rare:'Nadir' };
-export const gradeLabel = { damaged:'Hasarlı', neglected:'Bakımsız', clean:'Temiz' };
-export const listingGrade = bike => (bike.condition ?? 100) < 68 ? 'damaged' : (bike.condition ?? 100) < 86 ? 'neglected' : 'clean';
+export const gradeLabel = GRADE_LABELS;
+export const listingGrade = damageGrade;
 
 export const modelOf = bike => byName.get(bike.name);
 export function specsFor(bike) {

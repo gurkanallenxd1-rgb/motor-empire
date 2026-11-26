@@ -1,13 +1,16 @@
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, estimatedListingProfit, loadGame, newGame, operatingCost,
-  perform, rentalRate, repairCapacity, repairPartCost, repairQuote, realizedSales, roadValue, saveGame,
-} from './game.mjs?v=0.7.1';
-import { createGarageRenderer } from './art.mjs?v=0.7.1';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.7.1';
+  perform, rentalRate, repairCapacity, repairPartCost, realizedSales, roadValue, saveGame,
+} from './game.mjs?v=0.8';
+import { createGarageRenderer } from './art.mjs?v=0.8';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.8';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.7.1';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.7.1';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.8';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.8';
+
+import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
+  listingForecast, repairForecast } from './damage.mjs?v=0.8';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -69,6 +72,41 @@ function element(tag, text, className = '') {
   return node;
 }
 
+function issueDetails(bike,{active=true}={}) {
+  const details = element('div','','damage-details');
+  const faults = activeIssues(bike);
+  if (active && !faults.length) details.append(element('p','Aktif arıza veya hasar kaydı yok.','spec'));
+  for (const [kind,label] of Object.entries(ISSUE_KIND_LABELS)) {
+    const items = active ? faults.filter(code=>PARTS[code].kind === kind) : [];
+    if (!items.length) continue;
+    const list = element('ul','','parts');
+    for (const code of items) {
+      const part = PARTS[code];
+      list.append(element('li',`${part.name} · ${money(repairPartCost(bike,code))} · ${part.hours} sa. · +${part.gain} kondisyon`));
+    }
+    details.append(element('h3',label),list);
+  }
+  const history = historicalIssues(bike);
+  if (history.length) {
+    const list = element('ul','','parts');
+    for (const code of history) {
+      const label = {agir:'Ağır hasar kaydı',pert:'Pert geçmişi'}[code] ?? PARTS[code].name;
+      list.append(element('li',label));
+    }
+    details.append(element('h3','Kalıcı hasar geçmişi'),list);
+  }
+  return details;
+}
+
+function repairComparison(report,label) {
+  const section = element('div','','repair-comparison');
+  section.append(element('h3',label),
+    element('p',`Kondisyon · %${report.beforeCondition} → %${report.afterCondition}`,'spec'),
+    element('p',`Piyasa değeri · ${money(report.beforeValue)} → ${money(report.afterValue)}`,'spec'),
+    element('p',`Tamir masrafı · ${money(report.cost)}`,'spec'));
+  return section;
+}
+
 function garageCard(slot) {
   const bike = activeBranch().garage.find(item => item.slot === slot);
   const card = element('article', '', bike ? 'card' : 'empty');
@@ -94,20 +132,18 @@ function garageCard(slot) {
     renderSprite(canvas,missing,bike);
     card.append(media);
   }
+  if (bike.lastRepair) card.append(repairComparison(bike.lastRepair,`Tamir sonucu · Gün ${bike.lastRepair.day}`));
   if (bike.stage === 'unchecked') {
+    if (historicalIssues(bike).length) card.append(issueDetails(bike,{active:false}));
     card.append(actionButton(`Ekspertiz · ${money(INSPECTION_FEE)}`, 'inspect', bike.id, state.cash < INSPECTION_FEE));
   } else if (bike.stage === 'inspected') {
-    const quote = repairQuote(bike);
-    const list = element('ul', '', 'parts');
-    for (const fault of bike.faults) {
-      const part = PARTS[fault];
-      list.append(element('li', `${part.name} · ${money(repairPartCost(bike,fault))} · ${part.hours} sa.`));
-    }
-    card.append(list, element('p', `Toplam işçilik · ${quote.hours} saat`, 'spec'),
+    const quote = repairForecast(bike);
+    card.append(issueDetails(bike),repairComparison(quote,'Tamir tahmini'),
+      element('p',`Toplam işçilik · ${quote.hours} saat`,'spec'),
       actionButton(`Tamire başla · ${money(quote.cost)}`, 'repair', bike.id, state.cash < quote.cost));
   } else if (bike.stage === 'repairing') {
     const progress = bike.readyDay ? `Teslim · Gün ${bike.readyDay}` : `Kalan işçilik · ${bike.remainingHours} saat`;
-    card.append(element('p', progress, 'spec'));
+    card.append(element('p',progress,'spec'),repairComparison(repairForecast(bike),'Tamir tahmini'));
   } else if (bike.stage === 'ready') {
     const rentActions = element('div', '', 'quick-actions rent-actions');
     rentActions.setAttribute('aria-label','Kiralama süresi');
@@ -143,6 +179,9 @@ function garageCard(slot) {
       card.append(row);
     }
     card.append(actionButton('Satış ilanını kaldır', 'unlist', bike.id));
+  }
+  if (!['unchecked','inspected'].includes(bike.stage) && historicalIssues(bike).length) {
+    card.append(issueDetails(bike,{active:false}));
   }
   return card;
 }
@@ -205,7 +244,7 @@ function marketCard(listing) {
     element('span',`Kondisyon %${listing.condition ?? 100} · ${gradeLabel[listingGrade(listing)]}`,'spec listing-meta'));
   const values = element('span','','listing-values');
   values.append(element('strong',money(listing.price),'price'),
-    element('span',`Tahmini satış ${money(roadValue(listing))}`,'spec'));
+    element('span',`Mevcut değer ${money(roadValue(listing))}`,'spec'));
   card.append(media,details,values);
   return card;
 }
@@ -220,8 +259,21 @@ function openListing(id) {
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
-  byId('listing-prices').replaceChildren(metric('İlan fiyatı',money(listing.price)),
-    metric('Tahmini satış',money(roadValue(listing))),metric('Tahmini kâr',signed(estimatedListingProfit(listing))));
+  const forecast = listingForecast(listing,INSPECTION_FEE);
+  byId('listing-prices').replaceChildren(
+    metric('Temiz piyasa değeri',money(cleanValue(listing))),
+    metric('İlan fiyatı',money(listing.price)),
+    metric('Mevcut kondisyon',`%${forecast.beforeCondition}`),
+    metric('Mevcut piyasa değeri',money(forecast.beforeValue)),
+    metric('Tahmini tamir masrafı',money(forecast.cost)),
+    metric('Tamir sonrası kondisyon',`%${forecast.afterCondition}`),
+    metric('Tamir sonrası tahmini değer',money(forecast.afterValue)),
+    metric('Tahmini toplam maliyet',money(forecast.total)),
+    metric(forecast.profit < 0 ? 'Tahmini zarar' : 'Tahmini kâr',signed(forecast.profit))
+  );
+  const urgency = SELLER_URGENCY[listing.urgency];
+  byId('listing-urgency').textContent = urgency ? `Satıcı aciliyeti · ${urgency.label}` : '';
+  byId('listing-damage').replaceChildren(issueDetails(listing));
   const branch = activeBranch();
   const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu'
     : state.cash < listing.price ? 'Yetersiz bakiye' : '';

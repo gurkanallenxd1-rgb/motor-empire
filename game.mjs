@@ -1,11 +1,16 @@
-import { catalog, modelOf, normalizePaint, paintOptions } from './bikes.mjs?v=0.7.1';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.7.1';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.8';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.8';
+
+import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
+  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.8';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.8';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
 export const BUSINESS_STORAGE_KEY = 'motor-empire.v2';
 export const PREVIOUS_STORAGE_KEY = 'motor-empire.v3';
-export const STORAGE_KEY = 'motor-empire.v4';
+export const MARKET_STORAGE_KEY = 'motor-empire.v4';
+export const STORAGE_KEY = 'motor-empire.v5';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -18,14 +23,6 @@ export const GARAGE_LEVELS = Object.freeze([
   { capacity: 10, cost: 250000 },
 ]);
 
-export const PARTS = {
-  zincir: { name: 'Zincir seti', cost: 1650, hours: 2 },
-  fren: { name: 'Fren balataları', cost: 2100, hours: 3 },
-  debriyaj: { name: 'Debriyaj seti', cost: 4350, hours: 5 },
-  lastik: { name: 'Lastik takımı', cost: 5800, hours: 3 },
-  akü: { name: 'Akü', cost: 1850, hours: 1 },
-};
-
 function shuffle(items, random) {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i -= 1) {
@@ -33,6 +30,21 @@ function shuffle(items, random) {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+function marketIssues(model,random) {
+  const roll = random();
+  const risk = model.faultRisk;
+  const maintenance = model.category === 'scooter' ? ['yag','fren','lastik','akü']
+    : ['yag','fren','lastik','akü','zincir','debriyaj'];
+  const choose = list => list[Math.floor(random() * list.length)];
+  const minor = ['grenaj','manet','ayna','sinyal','ayaklik'];
+  if (roll < .025) return ['pert',choose(minor)];
+  if (roll < .065 + risk*.09) return [choose(['saseIslem','saseDegisim','motor','agir']),choose(maintenance)];
+  if (roll < .14 + risk*.15) return [choose(['depo','jant','masa','radyator','sanziman']),choose(minor)];
+  if (roll < .25 + risk*.22) return [choose(minor),choose(maintenance)];
+  if (roll < .47 + risk*.24) return shuffle(maintenance,random).slice(0,1+Math.floor(random()*3));
+  return [];
 }
 
 export function generateMarket(day, random = Math.random) {
@@ -44,22 +56,20 @@ export function generateMarket(day, random = Math.random) {
     const year = integer(model.firstYear,model.lastYear);
     const age = 2026 - year;
     const km = integer(1500 + age * 850,5000 + age * 3700);
-    const roll = random();
-    const condition = roll < model.faultRisk * .44 ? integer(48,67)
-      : roll < model.faultRisk + .24 ? integer(68,85) : integer(86,100);
+    const faults = marketIssues(model,random);
+    const condition = Math.max(25,integer(88,100)-faults.reduce((sum,code)=>sum+PARTS[code].gain,0));
     const choices = paintOptions(model,year);
     const color = choices[integer(0,choices.length - 1)];
-    const availableFaults = model.category === 'scooter' ? ['fren','lastik','akü'] : Object.keys(PARTS);
-    const faultCount = condition < 68 ? integer(2,Math.min(4,availableFaults.length))
-      : condition < 86 ? integer(1,2) : random() < model.faultRisk * .28 ? 1 : 0;
-    const value = Math.round(model.value * (1 + (year - model.lastYear) * .009 - km / 500000) / 50) * 50;
     const serviceFactor = Math.max(1,Math.min(2,model.maintenance / 2600));
-    const faults = shuffle(availableFaults,random).slice(0,faultCount);
-    const serviceDiscount = repairQuote({faults,serviceFactor}).cost * (condition < 68 ? .55 : .35);
-    const price = Math.max(3000,Math.round((model.price * (value / model.value) * condition / 100
-      * integer(94,111) / 100 - serviceDiscount) / 50) * 50);
-    return { id:`${day}-${slot}`,name:model.name,year,km,condition,price,value,serviceFactor,
+    const cleanBase = Math.round(model.value * (1 + (year-model.lastYear)*.009));
+    const urgencyRoll = random();
+    const urgency = model.segment === 'budget' || urgencyRoll < .19 ? 'urgent' : urgencyRoll < .82 ? 'normal' : 'patient';
+    const bike = { id:`${day}-${slot}`,name:model.name,year,km,condition,cleanBase,serviceFactor,urgency,
       color:color.hex,colorName:color.name,...(color.accent ? {paintAccent:color.accent} : {}),faults };
+    bike.damageHistory = historicalIssues(bike);
+    bike.value = cleanValue(bike);
+    bike.price = askingPrice(bike,random);
+    return bike;
   });
 }
 
@@ -68,33 +78,15 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 4, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
+  return { version: 5, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
 export const repairCapacity = branch => 8 * (1 + branch.staff);
 export const operatingCost = branch => DAILY_OVERHEAD + branch.staff * DAILY_WAGE;
 
-export function repairPartCost(bike,fault) {
-  return Math.round(PARTS[fault].cost * (bike.serviceFactor ?? 1));
-}
-
-export function repairQuote(bike) {
-  return bike.faults.reduce((total, fault) => ({
-    cost: total.cost + repairPartCost(bike,fault),
-    hours: total.hours + PARTS[fault].hours,
-  }), { cost: 0, hours: 0 });
-}
-
-export function roadValue(bike) {
-  return Math.round(bike.value * (bike.condition ?? 100) / 100);
-}
-
-// Disclosed estimate. Purchased bikes still require an inspection for their actual faults.
 export function estimatedListingProfit(bike) {
-  const wear = Math.max(0,100-(bike.condition ?? 100));
-  const reserve = Math.round((modelOf(bike)?.maintenance ?? 1500) * wear / 48);
-  return roadValue(bike) - bike.price - INSPECTION_FEE - reserve;
+  return listingForecast(bike,INSPECTION_FEE).profit;
 }
 
 export function rentalRate(bike) {
@@ -108,8 +100,7 @@ export function assets(state) {
     equipment += (branch.id === 1 ? 0 : BRANCH_COST)
       + GARAGE_LEVELS.slice(0, branch.level).reduce((total, level) => total + level.cost, 0);
     for (const bike of branch.garage) {
-      const partsDue = ['unchecked', 'inspected'].includes(bike.stage) ? repairQuote(bike).cost : 0;
-      inventory += Math.max(0, roadValue(bike) - partsDue);
+      inventory += roadValue(bike);
     }
   }
   const total = state.cash + equipment + inventory;
@@ -355,6 +346,7 @@ export function perform(state, action, id, amount, branchId = 1) {
             item.remainingHours -= worked;
             if (item.remainingHours > 0) continue;
           }
+          completeRepair(item,tomorrow);
           item.stage = 'ready';
           delete item.readyDay;
           delete item.remainingHours;
@@ -391,8 +383,11 @@ function validBike(bike) {
     && validAmount(bike.price) && validAmount(bike.value) && bike.value >= 50
     && (bike.condition === undefined || (Number.isInteger(bike.condition) && bike.condition >= 25 && bike.condition <= 100))
     && (bike.serviceFactor === undefined || (Number.isFinite(bike.serviceFactor) && bike.serviceFactor >= 1 && bike.serviceFactor <= 2))
-    && Array.isArray(bike.faults)
-    && bike.faults.every(fault => Object.prototype.hasOwnProperty.call(PARTS, fault));
+    && (bike.cleanBase === undefined || validAmount(bike.cleanBase))
+    && (bike.urgency === undefined || Object.prototype.hasOwnProperty.call(SELLER_URGENCY,bike.urgency))
+    && Array.isArray(bike.faults) && bike.faults.every(knownPart)
+    && (bike.damageHistory === undefined || (Array.isArray(bike.damageHistory)
+      && bike.damageHistory.every(code=>knownPart(code) && PARTS[code].kind !== 'maintenance')));
 }
 
 function validGarageBike(bike, day) {
@@ -416,7 +411,7 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 4 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 5 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
       || !Array.isArray(saved.listings) || !saved.listings.every(bike=>validBike(bike)
         && (bike.seller === undefined || validMeeting(bike.seller,'purchase')))
@@ -466,11 +461,12 @@ function validMeeting(meeting,kind) {
 
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const previous = raw === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
-  const business = raw === null && previous === null ? storage.getItem(BUSINESS_STORAGE_KEY) : null;
-  const legacy = raw === null && previous === null && business === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-  if (raw === null && previous === null && business === null && legacy === null) return newGame();
-  let state = JSON.parse(raw ?? previous ?? business ?? legacy);
+  const market = raw === null ? storage.getItem(MARKET_STORAGE_KEY) : null;
+  const previous = raw === null && market === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
+  const business = raw === null && market === null && previous === null ? storage.getItem(BUSINESS_STORAGE_KEY) : null;
+  const legacy = raw === null && market === null && previous === null && business === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
+  if (raw === null && market === null && previous === null && business === null && legacy === null) return newGame();
+  let state = JSON.parse(raw ?? market ?? previous ?? business ?? legacy);
   if (legacy !== null && state?.version === 1 && Array.isArray(state.garage)) {
     const branch = createBranch(1);
     branch.garage = state.garage.map(bike=>({...bike,condition:100}));
@@ -493,6 +489,14 @@ export function loadGame(storage) {
   if (raw === null && state?.version === 3 && Array.isArray(state.branches) && Array.isArray(state.listings)) {
     state.version = 4;
     for (const bike of [...state.listings,...state.branches.flatMap(branch=>branch.garage)]) normalizePaint(bike);
+  }
+  if (raw === null && state?.version === 4 && Array.isArray(state.branches) && Array.isArray(state.listings)) {
+    state.version = 5;
+    for (const bike of [...state.listings,...state.branches.flatMap(branch=>branch.garage)]) {
+      bike.damageHistory = historicalIssues(bike);
+      // Completed jobs in older versions left their repaired faults in this array.
+      if (['ready','listed','rented'].includes(bike.stage)) bike.faults = [];
+    }
   }
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;

@@ -202,14 +202,14 @@ test('daily market offers thirty distinct models with changing valid attributes'
     assert.equal(new Set(listings.map(bike=>bike.name)).size,30);
     assert.deepEqual(Object.fromEntries(['budget','mid','premium','rare'].map(segment=>[segment,
       listings.filter(bike=>modelOf(bike).segment===segment).length])),{budget:8,mid:14,premium:6,rare:2});
-    assert.ok(listings.slice(0,4).every(bike=>bike.price < 55000));
+    assert.ok(listings.slice(0,4).every(bike=>bike.price < 75000));
     for (const bike of listings) {
       const model=modelOf(bike);
       all.add(bike.name);
       grades.add(listingGrade(bike));
       assert.ok(paintOptions(model,bike.year).some(paint=>paint.hex===bike.color));
       assert.ok(bike.year>=model.firstYear&&bike.year<=model.lastYear);
-      assert.ok(bike.condition>=48&&bike.condition<=100&&bike.km>0&&bike.price>0&&bike.value>0);
+      assert.ok(bike.condition>=25&&bike.condition<=100&&bike.km>0&&bike.price>0&&bike.value>0);
       assert.ok(bike.colorName && bike.faults.length<=4 && new Set(bike.faults).size===bike.faults.length);
       if(model.category==='scooter') assert.ok(!bike.faults.includes('zincir'));
     }
@@ -234,7 +234,7 @@ test('filters combine four constraints and buying preserves generated condition'
 });
 
 test('condition, category, model year and descending prices compose with old filters',()=>{
-  const fixtures=legacyMarket().listings.map((bike,index)=>({...bike,condition:[91,77,64][index]}));
+  const fixtures=legacyMarket().listings.map((bike,index)=>({...bike,condition:[91,77,64][index],faults:[[],['fren'],['masa']][index]}));
   assert.deepEqual(filterListings(fixtures,{category:'commuter',minYear:2017,grade:'clean'}).map(bike=>bike.id),['1-0']);
   assert.deepEqual(filterListings(fixtures,{sort:'price-desc'}).map(bike=>bike.id),['1-1','1-2','1-0']);
   assert.deepEqual(fixtures.map(bike=>bike.id),['1-0','1-1','1-2']);

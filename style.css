@@ -352,3 +352,21 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
   .listing-meta,.listing-values .spec { font-size:11px; }
   .listing-row .listing-name { font-size:14px; }
 }
+
+.damage-details, .repair-comparison {
+  margin-block:8px;
+  min-width:0;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:#1f211e;
+}
+.damage-details h3,.repair-comparison h3 { font-size:.88rem; margin:0 0 4px; }
+.damage-details .parts { margin:0 0 7px; }
+.damage-details .parts:last-child { margin-bottom:0; }
+.repair-comparison .spec { margin:2px 0 0; }
+#listing-urgency:empty { display:none; }
+@media (max-width:420px) {
+  .listing-prices { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .listing-prices .metric strong { font-size:13px; }
+}
