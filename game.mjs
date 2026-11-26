@@ -1,11 +1,12 @@
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.10';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.10';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.10';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.10';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.11';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.11';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.11';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.11';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.11';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.10';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.10';
+  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.11';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.11';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -14,7 +15,8 @@ export const PREVIOUS_STORAGE_KEY = 'motor-empire.v3';
 export const MARKET_STORAGE_KEY = 'motor-empire.v4';
 export const DAMAGE_STORAGE_KEY = 'motor-empire.v5';
 export const TURKEY_STORAGE_KEY = 'motor-empire.v6';
-export const STORAGE_KEY = 'motor-empire.v7';
+export const FINANCE_STORAGE_KEY = 'motor-empire.v7';
+export const STORAGE_KEY = 'motor-empire.v8';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -101,7 +103,7 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 7, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
+  return { version: 8, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
@@ -160,7 +162,10 @@ const validMoney = value => Number.isFinite(value) && value >= 0 && Number.isSaf
 const validAmount = value => validMoney(value) && value > 0 && decimal(value) === value;
 
 export function perform(state, action, id, amount, branchId = 1) {
-  const next = JSON.parse(JSON.stringify(state));
+  return applyAction(JSON.parse(JSON.stringify(state)),action,id,amount,branchId);
+}
+
+function applyAction(next, action, id, amount, branchId, deferMarket = false) {
   const branch = next.branches.find(item => item.id === branchId);
   if (!branch) throw new Error('Şube bulunamadı.');
   const bike = branch.garage.find(item => item.id === id);
@@ -204,7 +209,8 @@ export function perform(state, action, id, amount, branchId = 1) {
     }
     const { seller, ...vehicle } = listing;
     branch.garage.push({...vehicle,slot,stage:delivery.days ? 'shipping' : 'unchecked',spent,
-      ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days}} : {}),
+      ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days,
+        ...(next.clock ? {arrivalMs:gameTime(next.day+delivery.days,next.clock.offset)} : {})}} : {}),
       condition:listing.condition ?? 100});
     next.listings = next.listings.filter(item=>item.id !== id);
     return delivery.days ? `${listing.name} yolda · ${branch.name} · Teslimat: Gün ${next.day+delivery.days}.`
@@ -229,6 +235,12 @@ export function perform(state, action, id, amount, branchId = 1) {
       listing.seller ??= createSeller(listing,next.day);
       message = listing.seller.speech;
       break;
+    case 'hold-buyer': {
+      const meeting = activeMeeting(amount);
+      if (meeting.kind !== 'sale') throw new Error('Geçersiz müşteri görüşmesi.');
+      meeting.held = true;
+      break;
+    }
     case 'negotiate': {
       const meeting = activeMeeting(amount);
       negotiate(meeting);
@@ -349,19 +361,15 @@ export function perform(state, action, id, amount, branchId = 1) {
       message = 'Borç ödemesi yapıldı.';
       break;
     case 'advance': {
+      if (next.clock && next.clock.offset !== DAY_MS) throw new Error('Gün henüz tamamlanmadı.');
       const tomorrow = next.day + 1;
       let completed = 0;
       let returned = 0;
-      let delivered = 0;
+      const delivered = deliver(next,gameTime(tomorrow));
       let visits = 0;
       // Today's rentals are earned before any branch settles its mandatory expenses.
       for (const office of next.branches) {
         for (const item of office.garage) {
-          if (item.stage === 'shipping' && item.shipping.arrivalDay <= tomorrow) {
-            item.stage = 'unchecked';
-            delete item.shipping;
-            delivered += 1;
-          }
           if (item.stage !== 'rented') continue;
           earn(item.rental.rate, `${item.name} kira geliri`, office);
           if (item.rental.endDay === tomorrow) {
@@ -376,51 +384,117 @@ export function perform(state, action, id, amount, branchId = 1) {
       for (const office of next.branches) {
         pay(DAILY_OVERHEAD, 'Günlük işletme gideri', office, true);
         if (office.staff) pay(office.staff * DAILY_WAGE, 'Usta maaşları', office, true);
-        let hours = repairCapacity(office);
-        const queue = office.garage.filter(item => item.stage === 'repairing')
-          .sort((a,b) => (a.repairOrder ?? 0) - (b.repairOrder ?? 0));
-        for (const item of queue) {
-          if (item.readyDay !== undefined) {
-            // Legacy jobs retain their promised completion day.
-            if (item.readyDay > tomorrow) continue;
-          } else {
-            const worked = Math.min(hours, item.remainingHours);
-            hours -= worked;
-            item.remainingHours -= worked;
-            if (item.remainingHours > 0) continue;
-          }
-          completeRepair(item,tomorrow);
-          delete item.repairCost;
-          item.stage = 'ready';
-          delete item.readyDay;
-          delete item.remainingHours;
-          delete item.repairOrder;
-          completed += 1;
+        if (!next.clock) completed += workRepairs(office,tomorrow,repairCapacity(office)*HOUR_MS);
+        else {
+          completed += workRepairs(office,tomorrow,0);
+          delete office.workMs;
         }
         for (const item of office.garage) {
           if (item.stage !== 'listed') continue;
           for (const meeting of item.meetings.filter(isActive)) {
-            if (tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
+            if (!meeting.held && !meeting.round && meeting.status !== 'agreed' && tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
           }
           item.meetings = item.meetings.filter(isActive);
           visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item));
         }
       }
-      for (const item of next.listings) {
-        if (isActive(item.seller)) finishTrade(next,item.seller,item,'expired');
-      }
       next.financeSnapshots ??= [];
       next.financeSnapshots.push({day:next.day,cash:next.cash,netWorth:assets(next).net});
       next.day = tomorrow;
-      next.listings = generateMarket(tomorrow);
-      message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`;
-      break;
+      if (next.clock) next.clock.offset = 0;
+      next.listings = next.listings.filter(item=>isActive(item.seller));
+      if (!deferMarket) next.listings.push(...generateMarket(tomorrow));
+      if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
+      return {state:next,completed,returned,delivered,visits,
+        message:`Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`};
     }
     default:
       throw new Error('Geçersiz işlem.');
   }
   if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
   return { state: next, message };
+}
+
+function deliver(state, time) {
+  let count = 0;
+  for (const branch of state.branches) for (const bike of branch.garage) {
+    if (bike.stage !== 'shipping' || deliveryTime(bike) > time) continue;
+    bike.stage = 'unchecked';
+    delete bike.shipping;
+    count++;
+  }
+  return count;
+}
+
+function workRepairs(branch, day, availableMs) {
+  let completed = 0;
+  const queue = branch.garage.filter(bike=>bike.stage === 'repairing')
+    .sort((a,b)=>(a.repairOrder ?? 0)-(b.repairOrder ?? 0));
+  for (const bike of queue) {
+    if (bike.readyDay !== undefined) {
+      if (bike.readyDay > day) continue;
+    } else {
+      const needed = bike.remainingHours*HOUR_MS-(bike.repairProgress ?? 0);
+      const worked = Math.min(availableMs,needed);
+      availableMs -= worked;
+      if (branch.workMs !== undefined) branch.workMs += worked;
+      const remaining = needed-worked;
+      if (remaining > 0) {
+        bike.remainingHours = Math.ceil(remaining/HOUR_MS);
+        bike.repairProgress = bike.remainingHours*HOUR_MS-remaining;
+        continue;
+      }
+    }
+    completeRepair(bike,day);
+    bike.stage = 'ready';
+    delete bike.repairCost;
+    delete bike.repairProgress;
+    delete bike.readyDay;
+    delete bike.remainingHours;
+    delete bike.repairOrder;
+    completed++;
+  }
+  return completed;
+}
+
+// Called under the cross-tab save lock. Work is applied once to the latest persisted anchor.
+export function synchronize(state, now) {
+  if (!state.clock) {
+    return {state:{...state,clock:startClock(now)},summary:null};
+  }
+  const millis = elapsedWall(state.clock,now);
+  const capped = !state.clock.paused && now-state.clock.wall > OFFLINE_LIMIT;
+  if (!millis) return {state,summary:null};
+  const next = JSON.parse(JSON.stringify(state));
+  const clock = next.clock;
+  clock.wall = Math.max(now,clock.wall);
+  const summary = {days:0,completed:0,returned:0,delivered:0,visits:0,income:0,expenses:0,capped};
+  let remaining = millis;
+  const ledgerLength = next.ledger.length;
+  while (remaining > 0) {
+    const step = Math.min(remaining,DAY_MS-clock.offset);
+    remaining -= step;
+    clock.offset += step;
+    summary.delivered += deliver(next,gameTime(next.day,clock.offset));
+    for (const branch of next.branches) {
+      branch.workMs ??= 0;
+      const capacity = Math.max(0,repairCapacity(branch)*HOUR_MS-branch.workMs);
+      summary.completed += workRepairs(branch,next.day,Math.min(step*(1+branch.staff),capacity));
+    }
+    if (clock.offset === DAY_MS) {
+      const result = applyAction(next,'advance',undefined,undefined,1,true);
+      summary.days++;
+      for (const key of ['completed','returned','delivered','visits']) summary[key] += result[key];
+    }
+  }
+  if (summary.days) next.listings.push(...generateMarket(next.day));
+  for (const row of next.ledger.slice(0,next.ledger.length-ledgerLength)) {
+    if (row.kind === 'income') summary.income += row.amount;
+    if (row.kind === 'expense') summary.expenses += row.amount;
+  }
+  summary.income = decimal(summary.income);
+  summary.expenses = decimal(summary.expenses);
+  return {state:next,summary};
 }
 
 function validBike(bike) {
@@ -444,13 +518,17 @@ function validGarageBike(bike, day) {
     case 'unchecked': case 'inspected': case 'ready': return true;
     case 'shipping': {
       const quote = shippingQuote(bike.province);
-      return quote.days > 0 && bike.shipping?.km === quote.km && bike.shipping.fee === quote.fee
+      return quote.days > 0 && (bike.shipping?.arrivalMs === undefined ||
+        (Number.isSafeInteger(bike.shipping.arrivalMs) && bike.shipping.arrivalMs >= gameTime(bike.shipping.arrivalDay)
+          && bike.shipping.arrivalMs < gameTime(bike.shipping.arrivalDay+1))) && bike.shipping?.km === quote.km && bike.shipping.fee === quote.fee
         && bike.shipping.days === quote.days && bike.spent >= quote.fee
         && Number.isSafeInteger(bike.shipping.arrivalDay) && bike.shipping.arrivalDay > day
         && bike.shipping.arrivalDay <= day+quote.days;
     }
     case 'repairing':
       return (bike.repairCost === undefined || (validAmount(bike.repairCost) && bike.repairCost <= bike.spent))
+        && (bike.repairProgress === undefined || (Number.isSafeInteger(bike.repairProgress)
+          && bike.repairProgress >= 0 && bike.repairProgress < HOUR_MS))
         && ((Number.isSafeInteger(bike.readyDay) && bike.readyDay > day)
           || (Number.isSafeInteger(bike.remainingHours) && bike.remainingHours > 0
             && Number.isSafeInteger(bike.repairOrder) && bike.repairOrder > 0));
@@ -466,8 +544,12 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 7 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 8 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
+      || (saved.clock !== undefined && (!saved.clock || !Number.isSafeInteger(saved.clock.wall) || saved.clock.wall < 0
+        || !Number.isSafeInteger(saved.clock.offset) || saved.clock.offset < 0 || saved.clock.offset >= DAY_MS
+        || typeof saved.clock.paused !== 'boolean'
+        || (saved.clock.revision !== undefined && (!Number.isSafeInteger(saved.clock.revision) || saved.clock.revision < 0))))
       || !Array.isArray(saved.listings) || !saved.listings.every(bike=>validBike(bike)
         && (bike.seller === undefined || validMeeting(bike.seller,'purchase')))
       || !saved.trade || !Number.isInteger(saved.trade.reputation) || saved.trade.reputation < 0 || saved.trade.reputation > 100
@@ -488,6 +570,7 @@ function validSave(saved) {
     if (!branch || branch.id !== index + 1 || typeof branch.name !== 'string'
         || !Number.isInteger(branch.level) || !GARAGE_LEVELS[branch.level - 1]
         || !Number.isSafeInteger(branch.staff) || branch.staff < 0 || !validMoney(operatingCost(branch))
+        || (branch.workMs !== undefined && (!Number.isSafeInteger(branch.workMs) || branch.workMs < 0))
         || !Array.isArray(branch.garage)) return false;
     const slots = [];
     for (const bike of branch.garage) {
@@ -521,7 +604,7 @@ function validMeeting(meeting,kind) {
 
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const keys = [TURKEY_STORAGE_KEY,DAMAGE_STORAGE_KEY,MARKET_STORAGE_KEY,
+  const keys = [FINANCE_STORAGE_KEY,TURKEY_STORAGE_KEY,DAMAGE_STORAGE_KEY,MARKET_STORAGE_KEY,
     PREVIOUS_STORAGE_KEY,BUSINESS_STORAGE_KEY,LEGACY_STORAGE_KEY];
   let archived = null;
   let source;
@@ -584,6 +667,7 @@ export function loadGame(storage) {
     state.financeSnapshots = [];
     state.ledger = state.ledger.map(entry=>entry && ({...entry,...entryDetails(entry)}));
   }
+  if (raw === null && state?.version === 7) state.version = 8;
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;
 }

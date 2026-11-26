@@ -1,4 +1,4 @@
-import { modelOf } from './bikes.mjs?v=0.10';
+import { modelOf } from './bikes.mjs?v=0.11';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });

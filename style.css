@@ -420,3 +420,13 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
   .finance-filters .finance-select { grid-column:1/-1; }
   .finance-toolbar select { font-size:14px; }
 }
+
+.clock-bar { position:sticky; top:0; z-index:3; padding-top:env(safe-area-inset-top); background:#1c211e; border-bottom:1px solid var(--line); }
+.clock-inner { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; padding-block:5px; }
+.clock-readout { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:3px 8px; min-width:0; font-variant-numeric:tabular-nums; }
+.clock-readout span { color:var(--muted); font-size:12px; }
+.clock-readout progress { display:block; width:100%; height:6px; accent-color:var(--accent); }
+#toggle-clock { padding-inline:10px; }
+#offline-summary { width:min(480px,calc(100% - 20px)); max-height:calc(100% - 24px); overflow:auto; padding:13px; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+#offline-summary::backdrop { background:#101311d9; }
+#offline-totals { grid-template-columns:repeat(2,minmax(0,1fr)); margin-block:9px; }
