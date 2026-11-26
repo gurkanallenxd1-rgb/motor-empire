@@ -1,13 +1,13 @@
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, loadGame, newGame, operatingCost,
-  perform, rentalRate, repairCapacity, repairQuote, roadValue, saveGame,
-} from './game.mjs?v=0.6';
-import { createGarageRenderer } from './art.mjs?v=0.6';
-import { catalog, categoryLabel, filterListings, modelOf } from './bikes.mjs?v=0.6';
+  perform, rentalRate, repairCapacity, repairPartCost, repairQuote, realizedSales, roadValue, saveGame,
+} from './game.mjs?v=0.7';
+import { createGarageRenderer } from './art.mjs?v=0.7';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.7';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.6';
-import { renderSprite } from './sprite.mjs?v=0.6';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.7';
+import { renderSprite, spriteFor } from './sprite.mjs?v=0.7';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -25,6 +25,8 @@ let bayPage = 0;
 let currentPage = 'home';
 let historyLimit = 30;
 let meetingView;
+let marketPage = 0;
+const LISTINGS_PER_PAGE = 10;
 const activeBranch = () => state.branches.find(branch => branch.id === branchId);
 let saveAvailable = true;
 
@@ -77,6 +79,17 @@ function garageCard(slot) {
 
   card.append(element('h3', bike.name), element('p', `${stages[bike.stage]} · ${numeric.format(bike.km)} km · Kondisyon %${bike.condition}`, 'spec'),
     element('p', `Toplam maliyet · ${money(bike.spent)}`, 'spec'));
+  if (!spriteFor(bike)) card.append(element('span','Temsili görsel','representative-label'));
+  if (['unchecked','inspected'].includes(bike.stage)) {
+    const media = element('div','','inspection-media');
+    const canvas = element('canvas','');
+    canvas.setAttribute('role','img');
+    canvas.setAttribute('aria-label',bike.name + ' ekspertiz görseli');
+    const missing = element('p','Görsel yüklenemedi','muted');
+    media.append(canvas,missing);
+    renderSprite(canvas,missing,bike);
+    card.append(media);
+  }
   if (bike.stage === 'unchecked') {
     card.append(actionButton(`Ekspertiz · ${money(INSPECTION_FEE)}`, 'inspect', bike.id, state.cash < INSPECTION_FEE));
   } else if (bike.stage === 'inspected') {
@@ -84,7 +97,7 @@ function garageCard(slot) {
     const list = element('ul', '', 'parts');
     for (const fault of bike.faults) {
       const part = PARTS[fault];
-      list.append(element('li', `${part.name} · ${money(part.cost)} · ${part.hours} sa.`));
+      list.append(element('li', `${part.name} · ${money(repairPartCost(bike,fault))} · ${part.hours} sa.`));
     }
     card.append(list, element('p', `Toplam işçilik · ${quote.hours} saat`, 'spec'),
       actionButton(`Tamire başla · ${money(quote.cost)}`, 'repair', bike.id, state.cash < quote.cost));
@@ -131,7 +144,7 @@ function garageCard(slot) {
 }
 
 function bikeSpecs(bike) {
-  const model = modelOf(bike);
+  const model = specsFor(bike);
   const specs = [String(bike.year), `${numeric.format(bike.km)} km`, `Kondisyon %${bike.condition ?? 100}`];
   if (model) specs.unshift(`${numeric.format(model.cc)} cc`, `${numeric.format(model.hp)} bg`);
   if (bike.colorName) specs.push(bike.colorName);
@@ -160,7 +173,7 @@ function marketCard(listing) {
   media.append(image,fallback,label);
   const details = element('div', '', 'listing-details');
   const model = modelOf(listing);
-  details.append(element('span', categoryLabel[model?.category] ?? '', 'category'), element('h3', listing.name),
+  details.append(element('span', [categoryLabel[model?.category],segmentLabel[model?.segment],gradeLabel[listingGrade(listing)]].filter(Boolean).join(' · '), 'category'), element('h3', listing.name),
     element('p', bikeSpecs(listing), 'spec'),
     element('p', money(listing.price), 'price'),
     element('p', `Tahmini satış · ${money(roadValue(listing))}`, 'spec'));
@@ -182,13 +195,24 @@ function renderMarket() {
   };
   const listings = filterListings(state.listings, {
     brand: byId('filter-brand').value,
+    category: byId('filter-category').value,
+    grade: byId('filter-grade').value,
+    minYear: readLimit('filter-year'),
+    sort: byId('filter-sort').value,
     maxPrice: readLimit('filter-price'),
     maxKm: readLimit('filter-km'),
     maxCc: readLimit('filter-cc'),
   });
   byId('market-count').textContent = `${listings.length} / ${state.listings.length} İLAN`;
+  const pages = Math.max(1,Math.ceil(listings.length / LISTINGS_PER_PAGE));
+  marketPage = Math.min(marketPage,pages - 1);
+  byId('market-pagination').hidden = pages < 2;
+  byId('market-page-number').textContent = `${marketPage + 1} / ${pages}`;
+  byId('market-prev').disabled = marketPage === 0;
+  byId('market-next').disabled = marketPage + 1 === pages;
+  const first = marketPage * LISTINGS_PER_PAGE;
   byId('market').replaceChildren(...(listings.length
-    ? listings.map(marketCard)
+    ? listings.slice(first,first + LISTINGS_PER_PAGE).map(marketCard)
     : [element('p', 'Filtrelere uyan ilan bulunamadı.', 'muted')]));
 }
 
@@ -244,9 +268,12 @@ function historyRow(label, description, amount, style = '') {
 }
 
 function renderFinance(today, worth) {
+  const salesToday = realizedSales(state.sales,state.day);
   byId('finance-summary').replaceChildren(
     metric('Bugünkü gelir', money(today.income)), metric('Bugünkü gider', money(today.expenses)),
-    metric('Bugünkü net', signed(today.net)), metric('Toplam varlık', money(worth.total)),
+    metric('Bugünkü nakit farkı', signed(today.net)),
+    metric('Bugünkü satış geliri',money(salesToday.revenue)), metric('Bugünkü satış kârı',signed(salesToday.profit)),
+    metric('Toplam varlık', money(worth.total)),
     metric('Net varlık', money(worth.net)), metric('Borç bakiyesi', money(state.debt)),
     metric('Motosiklet stoku', money(worth.inventory)), metric('Şube yatırımları', money(worth.equipment)));
   const summary = tradeSummary(state.trade);
@@ -263,10 +290,11 @@ function renderFinance(today, worth) {
   byId('borrow').disabled = available === 0;
   byId('repay').disabled = !state.debt || !state.cash;
 
-  const days = [...new Set(state.ledger.slice(0, historyLimit).map(entry => entry.day))];
+  const days = [...new Set([...state.ledger.slice(0,historyLimit),...state.sales.slice(0,historyLimit)].map(entry=>entry.day))].sort((a,b)=>b-a);
   byId('daily-history').replaceChildren(...(days.length ? days.map(day => {
     const totals = dailyTotals(state.ledger, day);
-    return historyRow(`Gün ${day}`, `Gelir ${money(totals.income)} · Gider ${money(totals.expenses)}`,
+    const salesOnDay = realizedSales(state.sales,day);
+    return historyRow(`Gün ${day} · Nakit farkı`, `Gelir ${money(totals.income)} · Gider ${money(totals.expenses)} · Satış kârı ${signed(salesOnDay.profit)}`,
       signed(totals.net), totals.net < 0 ? 'negative' : 'positive');
   }) : [element('p', 'Henüz günlük finans hareketi yok.', 'muted')]));
   const branches = new Map(state.branches.map(branch => [branch.id, branch.name]));
@@ -278,7 +306,7 @@ function renderFinance(today, worth) {
   byId('more-history').hidden = Math.max(state.ledger.length,state.trade.history.length) <= historyLimit;
 
   const sales = state.sales.map(sale => {
-    const profit = sale.price - sale.spent;
+    const profit = realizedSales([sale]).profit;
     return historyRow(sale.name, `Gün ${sale.day} · Satış ${money(sale.price)} · Maliyet ${money(sale.spent)}`,
       signed(profit), profit < 0 ? 'negative' : 'positive');
   });
@@ -339,6 +367,7 @@ function runAction(action, id, amount, targetBranch = branchId) {
     ? result.state.branches.find(branch => branch.id === branchId).garage.find(bike => bike.id === id)
     : action === 'sell' ? activeBranch().garage.find(bike => bike.id === id) : undefined;
   state = result.state;
+  if (action === 'advance') marketPage = 0;
   if (isPurchase) {
     bayPage = Math.floor(animationBike.slot / 2);
     showPage('garage');
@@ -376,8 +405,6 @@ document.addEventListener('click', event => {
 
 function openMeeting(bikeId,meetingId,kind) {
   meetingView = {bikeId,meetingId,kind,branchId};
-  byId('meeting-counter-form').hidden = true;
-  byId('meeting-counter').value = '';
   updateMeeting();
   if (!byId('meeting').open) byId('meeting').showModal();
 }
@@ -388,7 +415,7 @@ function updateMeeting() {
   const bike = isSale
     ? state.branches.find(branch=>branch.id === view.branchId)?.garage.find(item=>item.id === view.bikeId)
     : state.listings.find(item=>item.id === view.bikeId);
-  const meeting = isSale ? bike?.meetings.find(item=>item.id === view.meetingId) : bike?.seller;
+  const meeting = isSale ? bike?.meetings?.find(item=>item.id === view.meetingId) : bike?.seller;
   if (!meeting) { byId('meeting').close(); return; }
   const {profile} = meeting;
   byId('meeting-title').textContent = isSale ? 'Müşteri görüşmesi' : 'Satıcı görüşmesi';
@@ -396,10 +423,9 @@ function updateMeeting() {
   byId('meeting-avatar').textContent = profile.avatar;
   byId('meeting-name').textContent = profile.name;
   byId('meeting-job').textContent = `${profile.age} yaş · ${profile.job}`;
-  byId('meeting-traits').textContent = `${profile.personality} · Pazarlık ${profile.skill}/5`;
-  byId('meeting-goal').textContent = isSale ? `${categoryLabel[profile.category]} · ${profile.goal}` : '';
   byId('meeting-speech').textContent = meeting.speech;
-  byId('meeting-round').textContent = `Sabır ${meeting.patience}/${profile.patience} · Tur ${meeting.round}/${MAX_ROUNDS}`;
+  const rights = Math.min(MAX_ROUNDS - meeting.round,meeting.patience);
+  byId('meeting-round').textContent = `Sabır ${meeting.patience}/${profile.patience} · Kalan hak ${meeting.status === 'open' ? rights : 0}`;
   byId('meeting-patience').max = profile.patience;
   byId('meeting-patience').value = meeting.patience;
   byId('meeting-bike').textContent = bike.name;
@@ -409,28 +435,33 @@ function updateMeeting() {
   const value = roadValue(bike);
   const cost = isSale ? bike.spent : bike.price;
   const margin = meeting.price - cost;
+  byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
+  byId('meeting-price').textContent = money(meeting.price);
+  const profit = Math.round((isSale ? margin : value-meeting.price)*100)/100;
   byId('meeting-metrics').replaceChildren(
-    metric(isSale ? 'Müşteri teklifi' : 'Satıcının güncel fiyatı',money(meeting.price)),
     metric(isSale ? 'Toplam maliyet' : 'İlan fiyatı',money(cost)),
-    metric('Tahmini piyasa değeri',money(value)),
-    metric(isSale ? 'Satışta net kâr' : 'Piyasaya göre fark',isSale ? signed(margin) : signed(value-meeting.price)),
-    metric('Teklif / piyasa',`%${Math.round(meeting.price / value * 100)}`));
+    metric('Piyasa değeri',money(value)),
+    metric(isSale ? (profit < 0 ? 'Net zarar' : 'Net kâr') : 'Piyasaya göre fark',signed(profit)));
   const scale = Math.max(meeting.price,cost,value,1);
-  byId('meeting-bars').replaceChildren(...[[isSale ? 'Maliyet' : 'İlan fiyatı',cost],['Piyasa',value],['Teklif',meeting.price]].map(([name,amount]) => {
-    const label = element('label',`${name} · ${money(amount)}`);
-    const bar = element('progress','');
-    bar.max = scale;
-    bar.value = amount;
-    label.append(bar);
-    return label;
-  }));
+  const bars = byId('meeting-bars');
+  const markers = [[isSale ? 'Maliyet' : 'İlan fiyatı',cost],['Piyasa',value],['Teklif',meeting.price]];
+  bars.setAttribute('aria-label',markers.map(([name,amount])=>`${name} ${money(amount)}`).join(' · '));
+  const axis = element('div','','price-axis');
+  const legend = element('div','','price-legend');
+  markers.forEach(([name,amount],index)=>{
+    const marker = element('span','','price-marker marker-' + index);
+    marker.style.left = `${Math.max(2,Math.min(98,amount / scale * 100))}%`;
+    axis.append(marker);
+    const key = element('span',name,'legend-' + index);
+    legend.append(key);
+  });
+  bars.replaceChildren(axis,legend);
   byId('meeting-error').hidden = true;
   const active = isActive(meeting);
-  byId('meeting-counter-form').hidden = true;
-  byId('meeting-negotiate').disabled = meeting.status !== 'open' || meeting.round >= MAX_ROUNDS;
+  byId('meeting-negotiate').disabled = meeting.status !== 'open' || rights <= 0;
   byId('meeting-reject').hidden = !active;
   byId('meeting-confirm').hidden = !active;
-  byId('meeting-confirm').textContent = isSale ? 'Sat' : 'Satın al';
+  byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price)}`;
 }
 
 function meetingAction(action,amount) {
@@ -440,14 +471,7 @@ function meetingAction(action,amount) {
   else updateMeeting();
 }
 
-byId('meeting-negotiate').addEventListener('click',()=>{
-  byId('meeting-counter-form').hidden = false;
-  byId('meeting-counter').focus();
-});
-byId('meeting-counter-form').addEventListener('submit',event=>{
-  event.preventDefault();
-  meetingAction('counter',{meetingId:meetingView.meetingId,price:byId('meeting-counter').valueAsNumber});
-});
+byId('meeting-negotiate').addEventListener('click',()=>meetingAction('negotiate',meetingView.meetingId));
 byId('meeting-reject').addEventListener('click',()=>meetingAction('reject',meetingView.meetingId));
 byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.kind === 'sale' ? 'sell' : 'buy-negotiated',meetingView.meetingId));
 
@@ -469,6 +493,18 @@ render();
 
 const brands = [...new Set(catalog.map(model => model.brand))].sort((a,b) => a.localeCompare(b,'tr'));
 byId('filter-brand').append(...brands.map(brand => new Option(brand,brand)));
-byId('market-filters').addEventListener('input', renderMarket);
-byId('market-filters').addEventListener('reset', () => setTimeout(renderMarket, 0));
-byId('market-filters').addEventListener('submit', event => event.preventDefault());
+byId('filter-category').append(...Object.entries(categoryLabel).map(([id,label])=>new Option(label,id)));
+function resetMarketPage() {
+  marketPage = 0;
+  renderMarket();
+}
+byId('market-filters').addEventListener('input',resetMarketPage);
+byId('market-filters').addEventListener('reset',()=>setTimeout(resetMarketPage,0));
+byId('market-filters').addEventListener('submit',event=>event.preventDefault());
+for (const [id,delta] of [['market-prev',-1],['market-next',1]]) {
+  byId(id).addEventListener('click',()=>{
+    marketPage += delta;
+    renderMarket();
+    byId('market-title').scrollIntoView({block:'start'});
+  });
+}

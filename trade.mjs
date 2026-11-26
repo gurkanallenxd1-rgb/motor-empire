@@ -1,4 +1,4 @@
-import { modelOf } from './bikes.mjs?v=0.6';
+import { modelOf } from './bikes.mjs?v=0.7';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -75,8 +75,7 @@ export const isActive = meeting => meeting && ['open','agreed'].includes(meeting
 
 export function arrive(bike,day,reputation,value) {
   if (day < bike.nextVisit) return 0;
-  const category = modelOf(bike)?.category;
-  const classDemand = { commuter:.12, scooter:.10, naked:.03, sport:-.04 }[category] ?? 0;
+  const classDemand = (modelOf(bike)?.demand ?? .08) - .07;
   const demand = clamp(.76 + classDemand + (reputation - 50) * .006 + (bike.condition - 85) * .008
     - Math.max(0,bike.ask / value - 1) * .72 - Math.min(.24,bike.km / 250000),.10,1);
   const visits = (stableNumber(`${bike.id}:${day}:demand`) % 100) / 100 < demand ? 1 + Math.floor(reputation / 35) : 0;
@@ -85,38 +84,31 @@ export function arrive(bike,day,reputation,value) {
   return count;
 }
 
-export function updateCounter(meeting,price) {
+export function negotiate(meeting) {
   if (meeting.status !== 'open' || meeting.round >= MAX_ROUNDS || meeting.patience <= 0) {
-    throw new Error('Bu görüşmede yeni karşı teklif verilemez.');
+    throw new Error('Bu görüşmede pazarlık hakkı kalmadı.');
   }
-  if (meeting.kind === 'purchase' && price > meeting.price) throw new Error('Satıcının istediği fiyattan daha düşük teklif verin.');
   meeting.round += 1;
   meeting.patience -= 1;
-  meeting.lastCounter = price;
   const buyer = meeting.kind === 'sale';
-  const acceptable = buyer ? price <= meeting.limit : price >= meeting.limit;
-  const extreme = buyer ? price > meeting.limit * 1.28 : price < meeting.limit * .60;
-  if (acceptable) {
-    meeting.price = price;
-    meeting.status = 'agreed';
-    meeting.speech = meeting.round % 2 ? 'Tamamdır, bu fiyata anlaşabiliriz.' : 'Teklifinizi kabul ediyorum. İşlemi tamamlayalım.';
-    return;
-  }
-  if (extreme || meeting.patience === 0) {
+  const gap = Math.abs(meeting.limit - meeting.price);
+  const roll = stableNumber(`${meeting.id}:${meeting.round}:automatic`) % 100;
+  const resistance = meeting.profile.skill * 3 + (meeting.round - 1) * 8;
+  if ((roll < resistance && meeting.patience === 0) || (meeting.round > 1 && roll < 5)) {
     meeting.status = 'left';
-    meeting.speech = buyer ? 'Maalesef bütçem yetmiyor, başka motorlara bakacağım.' : 'Bu fiyata veremem. Görüşmeyi burada bitirelim.';
+    meeting.speech = buyer ? 'Bütçeme uygun başka ilanlara bakacağım.' : 'Bu fiyata daha fazla bekleyemem. Görüşmeyi bitirelim.';
     return;
   }
-  const step = .24 + (6 - meeting.profile.skill) * .085 + meeting.round * .06;
-  const revised = roundPrice(meeting.price + (meeting.limit - meeting.price) * step);
-  const counter = buyer
-    ? clamp(revised,meeting.price,meeting.limit)
-    : clamp(revised,meeting.limit,meeting.price);
-  const improved = counter !== meeting.price;
-  meeting.price = counter;
-  meeting.speech = improved
-    ? (buyer ? 'Bütçemi biraz aşıyor. Bu yeni teklif size uyar mı?' : 'O kadar inemem, ama şu fiyata anlaşabiliriz.')
-    : (buyer ? 'Bütçem için ilk teklifim hâlâ geçerli.' : 'Bu turun ardından fiyatımı değiştirmiyorum.');
+  if (!gap || roll < resistance) {
+    meeting.speech = buyer ? 'Bu turda teklifimi artıramam. Önceki teklifim geçerli.' : 'Bu turda indirim yapamam. Önceki fiyatım geçerli.';
+    return;
+  }
+  const fraction = .18 + (6 - meeting.profile.skill) * .065 + (roll % 17) / 100 + meeting.round * .035;
+  const step = Math.min(gap,roundPrice(gap * fraction));
+  meeting.price = Math.round((meeting.price + (buyer ? step : -step)) * 100) / 100;
+  meeting.speech = buyer
+    ? ['Teklifimi biraz yükseltebilirim.','Bu fiyat benim için daha zor ama yapabilirim.','Yeni teklifimi değerlendirin.'][roll % 3]
+    : ['Sizin için fiyatı biraz düşürdüm.','Bu indirimle anlaşabiliriz.','Bundan biraz daha aşağı inebilirim.'][roll % 3];
 }
 
 export function finishTrade(state,meeting,bike,outcome) {

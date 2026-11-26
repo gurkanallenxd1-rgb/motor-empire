@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.6">
-  <script type="module" src="./app.mjs?v=0.6"></script>
+  <link rel="stylesheet" href="./style.css?v=0.7">
+  <script type="module" src="./app.mjs?v=0.7"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.6</span>
+      <span class="version">SÜRÜM 0.7</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
@@ -22,7 +22,7 @@
       <div class="stat-cash"><span>NAKİT KASA</span><strong id="cash">75.000 TL</strong></div>
       <div class="stat-day"><span>OYUN GÜNÜ</span><strong id="day">01</strong></div>
       <div class="stat-capacity"><span>GARAJ KAPASİTESİ</span><strong id="capacity">0 / 2</strong></div>
-      <div class="stat-profit"><span>BUGÜNKÜ NET</span><strong id="profit">0 TL</strong></div>
+      <div class="stat-profit"><span>BUGÜNKÜ NAKİT FARKI</span><strong id="profit">0 TL</strong></div>
     </section>
     <p id="notice" class="notice" role="status"></p>
     <div class="branch-bar">
@@ -66,9 +66,16 @@
           <label>Azami fiyat (TL) <input id="filter-price" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
           <label>Azami kilometre <input id="filter-km" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
           <label>Azami hacim (cc) <input id="filter-cc" type="number" min="0" inputmode="numeric" placeholder="Sınırsız"></label>
+          <label>Kategori <select id="filter-category"><option value="">Tümü</option></select></label>
+          <label>Kondisyon <select id="filter-grade"><option value="">Tümü</option><option value="clean">Temiz</option><option value="neglected">Bakımsız</option><option value="damaged">Hasarlı</option></select></label>
+          <label>En eski model yılı <input id="filter-year" type="number" min="1900" max="2026" inputmode="numeric" placeholder="Tümü"></label>
+          <label>Sıralama <select id="filter-sort"><option value="">Pazar sırası</option><option value="price-asc">Önce ucuz</option><option value="price-desc">Önce pahalı</option></select></label>
           <button type="reset">Filtreleri temizle</button>
         </form>
         <div id="market" class="market-list"></div>
+        <nav id="market-pagination" class="market-pagination" aria-label="İlan sayfaları" hidden>
+          <button type="button" id="market-prev">Önceki</button><span id="market-page-number" aria-live="polite"></span><button type="button" id="market-next">Sonraki</button>
+        </nav>
         <p class="muted market-foot">İlanlar her oyun günü yenilenir.</p>
         <p class="market-foot"><a class="jump" href="./visual-audit.html">Model görsel denetimi</a></p>
       </section>
@@ -133,30 +140,27 @@
         <div class="meeting-profile"><span id="meeting-avatar" aria-hidden="true"></span>
           <div><h3 id="meeting-name"></h3><p id="meeting-job" class="spec"></p></div>
         </div>
-        <p id="meeting-traits" class="spec"></p>
-        <p id="meeting-goal" class="spec"></p>
         <p id="meeting-speech" class="speech" aria-live="polite"></p>
         <label class="meeting-meter" for="meeting-patience"><span id="meeting-round"></span>
           <progress id="meeting-patience" value="1" max="1"></progress>
         </label>
       </section>
       <section class="meeting-vehicle" aria-label="Motosiklet ve teklif">
-        <div class="meeting-image">
-          <canvas id="meeting-image" role="img" hidden></canvas>
-          <p id="meeting-image-missing" class="muted" hidden>Görsel yüklenemedi</p>
-          <span id="meeting-representative" class="representative-label" hidden>Temsili görsel</span>
+        <div class="meeting-bike-row">
+          <div class="meeting-image">
+            <canvas id="meeting-image" role="img" hidden></canvas>
+            <p id="meeting-image-missing" class="muted" hidden>Görsel yüklenemedi</p>
+          </div>
+          <div><h3 id="meeting-bike"></h3><p id="meeting-spec" class="spec"></p>
+            <span id="meeting-representative" class="representative-label" hidden>Temsili görsel</span>
+          </div>
         </div>
-        <h3 id="meeting-bike"></h3><p id="meeting-spec" class="spec"></p>
-        <div id="meeting-metrics" class="metrics"></div>
-        <div id="meeting-bars" class="meeting-bars"></div>
+        <div class="meeting-quote"><span id="meeting-price-label" class="spec"></span><strong id="meeting-price" aria-live="polite"></strong></div>
+        <div id="meeting-metrics" class="meeting-metrics"></div>
+        <div id="meeting-bars" class="meeting-bars" role="img"></div>
       </section>
     </div>
     <p id="meeting-error" class="notice" role="status" data-error="true" hidden></p>
-    <form id="meeting-counter-form" hidden>
-      <label for="meeting-counter">Karşı teklif (TL)</label>
-      <input id="meeting-counter" type="number" min="1" step="0.01" inputmode="decimal" required>
-      <button type="submit">Teklifi gönder</button>
-    </form>
     <div class="meeting-actions">
       <button id="meeting-negotiate" type="button">Pazarlık yap</button>
       <button id="meeting-reject" type="button">Reddet</button>
