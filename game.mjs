@@ -1,16 +1,18 @@
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.8';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.8';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.9';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.9';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.9';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.8';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.8';
+  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.9';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.9';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
 export const BUSINESS_STORAGE_KEY = 'motor-empire.v2';
 export const PREVIOUS_STORAGE_KEY = 'motor-empire.v3';
 export const MARKET_STORAGE_KEY = 'motor-empire.v4';
-export const STORAGE_KEY = 'motor-empire.v5';
+export const DAMAGE_STORAGE_KEY = 'motor-empire.v5';
+export const STORAGE_KEY = 'motor-empire.v6';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -47,11 +49,10 @@ function marketIssues(model,random) {
   return [];
 }
 
-export function generateMarket(day, random = Math.random) {
+function generateProvince(day, province, selected, random) {
   const integer = (min,max) => min + Math.floor(random() * (max - min + 1));
-  const ordered = shuffle(catalog,random);
-  const quotas = [['budget',8],['mid',14],['premium',6],['rare',2]];
-  const selected = quotas.flatMap(([segment,count])=>ordered.filter(model=>model.segment === segment).slice(0,count));
+  const stock = new Map();
+  for (const model of selected) stock.set(model.category,(stock.get(model.category) ?? 0)+1);
   return selected.map((model,slot) => {
     const year = integer(model.firstYear,model.lastYear);
     const age = 2026 - year;
@@ -64,13 +65,33 @@ export function generateMarket(day, random = Math.random) {
     const cleanBase = Math.round(model.value * (1 + (year-model.lastYear)*.009));
     const urgencyRoll = random();
     const urgency = model.segment === 'budget' || urgencyRoll < .19 ? 'urgent' : urgencyRoll < .82 ? 'normal' : 'patient';
-    const bike = { id:`${day}-${slot}`,name:model.name,year,km,condition,cleanBase,serviceFactor,urgency,
+    const bike = { id:`${day}-${province}-${slot}`,province,name:model.name,year,km,condition,cleanBase,serviceFactor,urgency,
       color:color.hex,colorName:color.name,...(color.accent ? {paintAccent:color.accent} : {}),faults };
     bike.damageHistory = historicalIssues(bike);
     bike.value = cleanValue(bike);
-    bike.price = askingPrice(bike,random);
+    const baseline = askingPrice(bike,random);
+    const pressure = marketPressure(day,province,model.demand,stock.get(model.category)/selected.length);
+    bike.price = Math.max(Math.ceil(baseline*.95),Math.min(Math.floor(baseline*1.05),Math.round(baseline*(1+pressure))));
     return bike;
   });
+}
+
+function bySegment(ordered, quotas) {
+  return quotas.flatMap(([segment,count])=>ordered.filter(model=>model.segment === segment).slice(0,count));
+}
+
+export function generateMarket(day, random = Math.random, includeIstanbul = true) {
+  const ordered = shuffle(catalog,random);
+  const local = bySegment(ordered,[['budget',8],['mid',14],['premium',6],['rare',2]]);
+  const sharedModel = local[0];
+  const market = includeIstanbul ? generateProvince(day,ISTANBUL,local,random) : [];
+  for (const {id} of PROVINCES) {
+    if (id === ISTANBUL) continue;
+    const pool = shuffle(catalog,random).filter(model=>model !== sharedModel);
+    const selected = [sharedModel,...bySegment(pool,[['budget',2],['mid',2],[id % 5 === 0 ? 'rare' : 'premium',1]])];
+    market.push(...generateProvince(day,id,selected,random));
+  }
+  return market;
 }
 
 function createBranch(id) {
@@ -78,15 +99,20 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 5, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
+  return { version: 6, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
 export const repairCapacity = branch => 8 * (1 + branch.staff);
 export const operatingCost = branch => DAILY_OVERHEAD + branch.staff * DAILY_WAGE;
 
+export function purchaseForecast(bike, price = bike.price) {
+  const delivery = shippingQuote(bike.province);
+  return {delivery,...listingForecast({...bike,price},INSPECTION_FEE,delivery.fee)};
+}
+
 export function estimatedListingProfit(bike) {
-  return listingForecast(bike,INSPECTION_FEE).profit;
+  return purchaseForecast(bike).profit;
 }
 
 export function rentalRate(bike) {
@@ -164,15 +190,22 @@ export function perform(state, action, id, amount, branchId = 1) {
     if (branch.garage.length >= branchCapacity(branch)) throw new Error('Bu şubenin garajı dolu.');
     const slot = Array.from({length:branchCapacity(branch)},(_,index)=>index)
       .find(index=>!branch.garage.some(item=>item.slot === index));
+    const delivery = shippingQuote(listing.province);
+    const spent = decimal(price + delivery.fee);
+    if (next.cash < spent) throw new Error('Alım ve nakliye için yeterli nakit yok.');
     pay(price,`${listing.name} alımı`);
+    if (delivery.fee) pay(delivery.fee,`${listing.name} nakliyesi · ${provinceName(listing.province)}`);
     if (isActive(listing.seller)) {
       listing.seller.price = price;
       finishTrade(next,listing.seller,listing,'bought');
     }
     const { seller, ...vehicle } = listing;
-    branch.garage.push({...vehicle,slot,stage:'unchecked',spent:price,condition:listing.condition ?? 100});
+    branch.garage.push({...vehicle,slot,stage:delivery.days ? 'shipping' : 'unchecked',spent,
+      ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days}} : {}),
+      condition:listing.condition ?? 100});
     next.listings = next.listings.filter(item=>item.id !== id);
-    return `${listing.name} · ${branch.name} garajına alındı.`;
+    return delivery.days ? `${listing.name} yolda · ${branch.name} · Teslimat: Gün ${next.day+delivery.days}.`
+      : `${listing.name} · ${branch.name} garajına alındı.`;
   }
 
   function activeMeeting(meetingId) {
@@ -315,10 +348,16 @@ export function perform(state, action, id, amount, branchId = 1) {
       const tomorrow = next.day + 1;
       let completed = 0;
       let returned = 0;
+      let delivered = 0;
       let visits = 0;
       // Today's rentals are earned before any branch settles its mandatory expenses.
       for (const office of next.branches) {
         for (const item of office.garage) {
+          if (item.stage === 'shipping' && item.shipping.arrivalDay <= tomorrow) {
+            item.stage = 'unchecked';
+            delete item.shipping;
+            delivered += 1;
+          }
           if (item.stage !== 'rented') continue;
           earn(item.rental.rate, `${item.name} kira geliri`, office);
           if (item.rental.endDay === tomorrow) {
@@ -367,7 +406,7 @@ export function perform(state, action, id, amount, branchId = 1) {
       }
       next.day = tomorrow;
       next.listings = generateMarket(tomorrow);
-      message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${visits} müşteri geldi.`;
+      message = `Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`;
       break;
     }
     default:
@@ -385,6 +424,7 @@ function validBike(bike) {
     && (bike.serviceFactor === undefined || (Number.isFinite(bike.serviceFactor) && bike.serviceFactor >= 1 && bike.serviceFactor <= 2))
     && (bike.cleanBase === undefined || validAmount(bike.cleanBase))
     && (bike.urgency === undefined || Object.prototype.hasOwnProperty.call(SELLER_URGENCY,bike.urgency))
+    && (bike.province === undefined || Boolean(provinceOf(bike.province)))
     && Array.isArray(bike.faults) && bike.faults.every(knownPart)
     && (bike.damageHistory === undefined || (Array.isArray(bike.damageHistory)
       && bike.damageHistory.every(code=>knownPart(code) && PARTS[code].kind !== 'maintenance')));
@@ -395,6 +435,13 @@ function validGarageBike(bike, day) {
       || !Number.isInteger(bike.condition) || bike.condition < 25 || bike.condition > 100) return false;
   switch (bike.stage) {
     case 'unchecked': case 'inspected': case 'ready': return true;
+    case 'shipping': {
+      const quote = shippingQuote(bike.province);
+      return quote.days > 0 && bike.shipping?.km === quote.km && bike.shipping.fee === quote.fee
+        && bike.shipping.days === quote.days && bike.spent >= quote.fee
+        && Number.isSafeInteger(bike.shipping.arrivalDay) && bike.shipping.arrivalDay > day
+        && bike.shipping.arrivalDay <= day+quote.days;
+    }
     case 'repairing':
       return (Number.isSafeInteger(bike.readyDay) && bike.readyDay > day)
         || (Number.isSafeInteger(bike.remainingHours) && bike.remainingHours > 0
@@ -411,7 +458,7 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 5 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 6 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
       || !Array.isArray(saved.listings) || !saved.listings.every(bike=>validBike(bike)
         && (bike.seller === undefined || validMeeting(bike.seller,'purchase')))
@@ -461,12 +508,13 @@ function validMeeting(meeting,kind) {
 
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const market = raw === null ? storage.getItem(MARKET_STORAGE_KEY) : null;
-  const previous = raw === null && market === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
-  const business = raw === null && market === null && previous === null ? storage.getItem(BUSINESS_STORAGE_KEY) : null;
-  const legacy = raw === null && market === null && previous === null && business === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-  if (raw === null && market === null && previous === null && business === null && legacy === null) return newGame();
-  let state = JSON.parse(raw ?? market ?? previous ?? business ?? legacy);
+  const damage = raw === null ? storage.getItem(DAMAGE_STORAGE_KEY) : null;
+  const market = raw === null && damage === null ? storage.getItem(MARKET_STORAGE_KEY) : null;
+  const previous = raw === null && damage === null && market === null ? storage.getItem(PREVIOUS_STORAGE_KEY) : null;
+  const business = raw === null && damage === null && market === null && previous === null ? storage.getItem(BUSINESS_STORAGE_KEY) : null;
+  const legacy = raw === null && damage === null && market === null && previous === null && business === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
+  if (raw === null && damage === null && market === null && previous === null && business === null && legacy === null) return newGame();
+  let state = JSON.parse(raw ?? damage ?? market ?? previous ?? business ?? legacy);
   if (legacy !== null && state?.version === 1 && Array.isArray(state.garage)) {
     const branch = createBranch(1);
     branch.garage = state.garage.map(bike=>({...bike,condition:100}));
@@ -497,6 +545,20 @@ export function loadGame(storage) {
       // Completed jobs in older versions left their repaired faults in this array.
       if (['ready','listed','rented'].includes(bike.stage)) bike.faults = [];
     }
+  }
+  if (raw === null && state?.version === 5 && Array.isArray(state.listings) && Number.isSafeInteger(state.day)) {
+    state.version = 6;
+    for (const listing of state.listings) if (listing) listing.province ??= ISTANBUL;
+    // Keep the old day's inventory, including its negotiated offers and purchased gaps.
+    // Seed the added provinces so a retry of the migration reconstructs the same market.
+    let seed = state.day >>> 0;
+    const random = () => {
+      seed = (Math.imul(seed,1664525)+1013904223) >>> 0;
+      return seed/4294967296;
+    };
+    const occupied = new Set([...state.listings,...(state.branches ?? []).flatMap(branch=>branch.garage ?? [])]
+      .map(bike=>bike?.id));
+    state.listings.push(...generateMarket(state.day,random,false).filter(bike=>!occupied.has(bike.id)));
   }
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;

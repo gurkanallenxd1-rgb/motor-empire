@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.8
+# MOTOR EMPIRE v0.9
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -24,7 +24,7 @@ GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a
 
 ## Grafikler ve kayıtlar
 
-Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.7.1 kayıtları ilk açılışta v0.8 biçimine aktarılır. Yeni kayıt `motor-empire.v5` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
+Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.8 kayıtları ilk açılışta v0.9 biçimine aktarılır. Yeni kayıt `motor-empire.v6` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
 
 Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahnede iki parmakla yakınlaştırabilirsin. Mobilde varsayılan yakın kadrajdan uzaklaştırarak garajın tüm kenarlarını görebilirsin. Yakınlaştırdıktan sonra sahne içinde sürükle. Motosiklete dokunarak yakın planı aç. Yerel WebP varlıklarının üretim planı [görsel varlık belgesinde](docs/v03-varlik-plani.md) bulunur.
 
@@ -37,7 +37,7 @@ Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahne
 - İsteğe bağlı faizsiz borç için toplam bakiye sınırı 250.000 TL’dir. Zorunlu giderin nakit açığı kadar otomatik borç yazılır ve bu borç bakiyesi sınırı aşabilir. İsteğe bağlı harcamalar yeterli nakit gerektirir.
 - Günlük net, o gün kaydedilen nakit gelirlerinden giderleri çıkarır. Borç alma ve ödeme finansman hareketidir. Toplam varlık nakit, motosiklet stoku ve maliyet bedeliyle şube yatırımlarını içerir. Net varlık borcu düşer.
 
-Oyun kurallarını test etmek için `node --test game.test.mjs trade.test.mjs sprite.test.mjs damage.test.mjs` çalıştır.
+Oyun kurallarını test etmek için `node --test` çalıştır.
 
 GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile tarayıcı modüllerinin tüm içe aktarma adresleri aynı `?v=` sürümünü kullanır. Yeni sürüm yayımlarken bu adresleri birlikte güncelle.
 
@@ -93,3 +93,12 @@ Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve d
 - Temiz değer, marka ve model için katalog değerinden, model yılından ve kilometreden hesaplanır. Mevcut değer için kondisyon kaybı, aktif hasar bandı ve kalıcı geçmiş kaybının en büyüğü alınır. Şase, ağır hasar ve pert gibi aynı yapısal gruptaki geçmiş kayıtları en ağır kayıp üzerinden değerlendirilir. Farklı gruplardaki bağımsız kayıplar kalan değer üzerinden birleşir.
 - Aktif hasar indirimleri `DAMAGE_DISCOUNTS` içinde ayarlanır. Bakımsız %5–20, hafif hasarlı %10–25, orta hasarlı %20–40, ağır hasarlı %40–60 ve pert geçmişli %50–75. Satıcı aciliyeti mevcut piyasa değerinden bağımsız bir ilan fiyatı çarpanı uygular. Alıcı teklifi tahmini satış değerinden farklı olabilir.
 - Eski ilan fiyatları, pazarlık durumu, nakit ve maliyetler korunur. Önceki sürümlerde hazır, ilandaki veya kiradaki motosikletlerde kalan eski arızalar tamamlanmış kabul edilir. Bunun için geçmişe dönük kondisyon artışı veya masraf işlenmez. Devam eden ücretli işler önceki süreleriyle biter.
+
+
+## v0.9 Türkiye motosiklet pazarı
+
+- İstanbul'da günde 30, diğer 80 ilde altışar ilan yenilenir. Pazar şehir filtresini ve Tüm Türkiye görünümünü paylaşır. Yenileme yalnızca oyun günü ilerlediğinde gerçekleşir.
+- İlan fiyatı, hasarlı piyasa değeri ve satıcı aciliyeti üzerinden hesaplanır. Kategori talebi, yerel ilan stoğu ve günlük şehir döngüsü fiyatı en fazla yüzde 5 düşürebilir veya artırabilir.
+- Mevcut şubeler İstanbul'da olduğu için İstanbul içi teslimat ücretsiz ve anındadır. Diğer iller için il merkezleri arasındaki kuş uçuşu mesafe 1,25 ile çarpılarak yaklaşık yol mesafesi bulunur. Nakliye 350 TL + km başına 2,40 TL olarak hesaplanır ve 350 ile 900 km eşiklerine göre 1–3 oyun günü sürer.
+- Nakliye alım gününde ayrı gider olarak kaydedilir, araç maliyetine eklenir ve teslimata kadar satın alan şubenin bir garaj bölmesini ayırır. Tahmini net kâr ekspertiz, tamir ve nakliyeyi içerir.
+- Eski günün ilanları ve açık satıcı görüşmeleri korunur. İstanbul dışı ilanlar ilk açılışta eklenir.

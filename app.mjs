@@ -1,16 +1,17 @@
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.9';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, dailyTotals, estimatedListingProfit, loadGame, newGame, operatingCost,
-  perform, rentalRate, repairCapacity, repairPartCost, realizedSales, roadValue, saveGame,
-} from './game.mjs?v=0.8';
-import { createGarageRenderer } from './art.mjs?v=0.8';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.8';
+  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, realizedSales, roadValue, saveGame,
+} from './game.mjs?v=0.9';
+import { createGarageRenderer } from './art.mjs?v=0.9';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.9';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.8';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.8';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.9';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.9';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  listingForecast, repairForecast } from './damage.mjs?v=0.8';
+  repairForecast } from './damage.mjs?v=0.9';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -19,7 +20,7 @@ const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
 const stages = {
   unchecked: 'Ekspertiz bekliyor', inspected: 'Tamir bekliyor',
-  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada',
+  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada', shipping: 'Yolda',
 };
 
 let state;
@@ -31,6 +32,7 @@ let meetingView;
 let sellerReturn;
 let marketPage = 0;
 const LISTINGS_PER_PAGE = 10;
+const deliveryLabel = delivery => delivery.days ? `${delivery.days} oyun günü` : 'Aynı gün';
 const activeBranch = () => state.branches.find(branch => branch.id === branchId);
 let saveAvailable = true;
 
@@ -118,6 +120,11 @@ function garageCard(slot) {
 
   card.append(element('h3', bike.name), element('p', `${stages[bike.stage]} · ${numeric.format(bike.km)} km · Kondisyon %${bike.condition}`, 'spec'),
     element('p', `Toplam maliyet · ${money(bike.spent)}`, 'spec'));
+  if (bike.stage === 'shipping') {
+    card.append(element('p',`${provinceName(bike.province)} → İstanbul · Teslimat: Gün ${bike.shipping.arrivalDay}`,'spec'),
+      element('p',`Nakliye · ${money(bike.shipping.fee)} · ${numeric.format(bike.shipping.km)} km`,'spec'));
+    return card;
+  }
   const representation = element('span','Temsili görsel','representative-label');
   representation.hidden = Boolean(spriteFor(bike));
   if (representation.hidden) loadSprite(bike).then(asset=>{ representation.hidden = !asset?.representative; });
@@ -223,7 +230,7 @@ function listingClass(listing) {
 function marketCard(listing) {
   const card = actionButton('', 'open-listing',listing.id);
   card.className = 'listing-row';
-  card.setAttribute('aria-label',`${listing.name} · ${money(listing.price)} · İlan detayı`);
+  card.setAttribute('aria-label',`${listing.name} · ${provinceName(listing.province)} · ${money(listing.price)} · İlan detayı`);
   const media = element('span','','listing-media');
   const image = document.createElement('canvas');
   image.hidden = true;
@@ -238,13 +245,16 @@ function marketCard(listing) {
     marketObserver.observe(media);
   } else renderSprite(image,fallback,listing,label);
 
+  const forecast = purchaseForecast(listing);
   const details = element('span','','listing-details');
   details.append(element('strong',listing.name,'listing-name'),
     element('span',`${listing.year} · ${numeric.format(listing.km)} km · ${listing.colorName || 'Renk belirtilmedi'}`,'spec listing-meta'),
+    element('span',provinceName(listing.province),'spec listing-meta'),
     element('span',`Kondisyon %${listing.condition ?? 100} · ${gradeLabel[listingGrade(listing)]}`,'spec listing-meta'));
   const values = element('span','','listing-values');
   values.append(element('strong',money(listing.price),'price'),
-    element('span',`Mevcut değer ${money(roadValue(listing))}`,'spec'));
+    element('span',`Nakliye ${money(forecast.delivery.fee)} · ${deliveryLabel(forecast.delivery)}`,'spec'),
+    element('span',`Tahmini net ${forecast.profit < 0 ? 'zarar' : 'kâr'} ${signed(forecast.profit)}`,'spec'));
   card.append(media,details,values);
   return card;
 }
@@ -255,29 +265,32 @@ function openListing(id) {
   const dialog = byId('listing-detail');
   byId('listing-name').textContent = listing.name;
   byId('listing-class').textContent = listingClass(listing);
-  byId('listing-spec').textContent = bikeSpecs(listing);
+  byId('listing-spec').textContent = `${bikeSpecs(listing)} · ${provinceName(listing.province)}`;
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
-  const forecast = listingForecast(listing,INSPECTION_FEE);
+  const forecast = purchaseForecast(listing);
+  const payable = listing.price + forecast.delivery.fee;
   byId('listing-prices').replaceChildren(
     metric('Temiz piyasa değeri',money(cleanValue(listing))),
     metric('İlan fiyatı',money(listing.price)),
+    metric('Nakliye ücreti',money(forecast.delivery.fee)),
+    metric('Teslimat',forecast.delivery.days ? `${deliveryLabel(forecast.delivery)} · ${numeric.format(forecast.delivery.km)} km` : deliveryLabel(forecast.delivery)),
     metric('Mevcut kondisyon',`%${forecast.beforeCondition}`),
     metric('Mevcut piyasa değeri',money(forecast.beforeValue)),
     metric('Tahmini tamir masrafı',money(forecast.cost)),
     metric('Tamir sonrası kondisyon',`%${forecast.afterCondition}`),
     metric('Tamir sonrası tahmini değer',money(forecast.afterValue)),
     metric('Tahmini toplam maliyet',money(forecast.total)),
-    metric(forecast.profit < 0 ? 'Tahmini zarar' : 'Tahmini kâr',signed(forecast.profit))
+    metric(forecast.profit < 0 ? 'Tahmini net zarar' : 'Tahmini net kâr',signed(forecast.profit))
   );
   const urgency = SELLER_URGENCY[listing.urgency];
   byId('listing-urgency').textContent = urgency ? `Satıcı aciliyeti · ${urgency.label}` : '';
   byId('listing-damage').replaceChildren(issueDetails(listing));
   const branch = activeBranch();
   const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu'
-    : state.cash < listing.price ? 'Yetersiz bakiye' : '';
-  const buy = actionButton(reason || 'Satın al · '+money(listing.price),'buy',id,Boolean(reason));
+    : state.cash < payable ? 'Yetersiz bakiye' : '';
+  const buy = actionButton(reason || 'Satın al · '+money(payable),'buy',id,Boolean(reason));
   buy.classList.add('primary');
   const canNegotiate = !listing.seller || isActive(listing.seller);
   const talk = actionButton(isActive(listing.seller) ? 'Görüşmeye dön'
@@ -295,6 +308,7 @@ function renderMarket() {
     return field.value === '' ? null : field.valueAsNumber;
   };
   const listings = filterListings(state.listings, {
+    province: Number(byId('filter-province').value),
     brand: byId('filter-brand').value,
     modelId: byId('filter-model').value,
     color: byId('filter-color').value,
@@ -340,10 +354,10 @@ function renderGarage(branch, action, bike) {
   byId('bays-prev').disabled = bayPage === 0;
   byId('bays-next').disabled = offset + 2 >= capacity;
   const inFrame = bike => bike.slot >= offset && bike.slot < offset + 2;
-  const visibleBikes = branch.garage.filter(item => inFrame(item) && item.stage !== 'rented');
+  const visibleBikes = branch.garage.filter(item => inFrame(item) && !['rented','shipping'].includes(item.stage));
   byId('garage').dataset.occupied = branch.garage.some(inFrame);
   byId('garage').replaceChildren(garageCard(offset), garageCard(offset + 1));
-  drawGarage(visibleBikes, action, bike && inFrame(bike) ? bike : undefined, offset, branch.id);
+  drawGarage(visibleBikes, action, bike && bike.stage !== 'shipping' && inFrame(bike) ? bike : undefined, offset, branch.id);
 }
 
 function renderBusiness() {
@@ -496,7 +510,7 @@ function runAction(action, id, amount, targetBranch = branchId) {
     }
   }
   const warning = saveAvailable ? '' : ' İlerleme kaydedilemedi.';
-  render(isPurchase ? 'buy' : action, animationBike);
+  render(isPurchase && animationBike.stage !== 'shipping' ? 'buy' : action, animationBike);
   notice(result.message + warning, !saveAvailable);
   return true;
 }
@@ -560,11 +574,13 @@ function updateMeeting() {
   const margin = meeting.price - cost;
   byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
   byId('meeting-price').textContent = money(meeting.price);
-  const profit = Math.round((isSale ? margin : value-meeting.price)*100)/100;
+  const forecast = isSale ? null : purchaseForecast(bike,meeting.price);
+  const profit = isSale ? Math.round(margin*100)/100 : forecast.profit;
   byId('meeting-metrics').replaceChildren(
     metric(isSale ? 'Toplam maliyet' : 'İlan fiyatı',money(cost)),
     metric('Piyasa değeri',money(value)),
-    metric(isSale ? (profit < 0 ? 'Net zarar' : 'Net kâr') : 'Piyasaya göre fark',signed(profit)));
+    metric(`${isSale ? 'Net' : 'Tahmini net'} ${profit < 0 ? 'zarar' : 'kâr'}`,signed(profit)),
+    ...(forecast?.delivery.days ? [metric(`Nakliye · ${deliveryLabel(forecast.delivery)}`,money(forecast.delivery.fee))] : []));
   const scale = Math.max(meeting.price,cost,value,1);
   const bars = byId('meeting-bars');
   const markers = [[isSale ? 'Maliyet' : 'İlan fiyatı',cost],['Piyasa',value],['Teklif',meeting.price]];
@@ -584,7 +600,7 @@ function updateMeeting() {
   byId('meeting-negotiate').disabled = meeting.status !== 'open' || rights <= 0;
   byId('meeting-reject').hidden = !active;
   byId('meeting-confirm').hidden = !active;
-  byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price)}`;
+  byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price+(forecast?.delivery.fee ?? 0))}`;
 }
 
 function meetingAction(action,amount) {
@@ -650,6 +666,10 @@ function resetMarketPage() {
   renderMarket();
 }
 
+const provinceSelect = byId('filter-province');
+provinceSelect.append(...[...PROVINCES].sort((a,b)=>a.name.localeCompare(b.name,'tr'))
+  .map(province=>new Option(province.name,String(province.id))));
+provinceSelect.addEventListener('change',resetMarketPage);
 updateFilterModels();
 byId('filter-toggle').addEventListener('click',()=>{
   const panel = byId('market-filters');
@@ -663,6 +683,7 @@ byId('market-filters').addEventListener('input',event=>{
 });
 byId('market-filters').addEventListener('reset',()=>setTimeout(()=>{
   byId('market-search').value = '';
+  provinceSelect.value = '';
   updateFilterModels();
   resetMarketPage();
 },0));

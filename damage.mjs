@@ -119,9 +119,9 @@ export function completeRepair(bike,day) {
   bike.lastRepair = {...report,day};
 }
 
-export function listingForecast(bike,inspectionFee) {
+export function listingForecast(bike,inspectionFee,shippingFee = 0) {
   const repair = repairForecast(bike);
-  const total = roundMoney(bike.price + inspectionFee + repair.cost);
+  const total = roundMoney(bike.price + inspectionFee + repair.cost + shippingFee);
   return {...repair,total,profit:roundMoney(repair.afterValue-total)};
 }
 
