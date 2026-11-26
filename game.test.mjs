@@ -256,3 +256,35 @@ test('clean inspections pay once and sales profit excludes earlier expenses from
   game.act('advance');
   assert.ok(!game.state.listings.some(item=>item.id==='1-0'));
 });
+
+test('market search, model, colour and inclusive ranges compose without altering saved listings',()=>{
+  const stock=[
+    {id:'a',name:'Yamaha MT-25',year:2022,colorName:'Mavi',price:110000,km:15000,condition:91},
+    {id:'b',name:'Yamaha MT-25',year:2022,colorName:'Siyah',price:112000,km:14000,condition:95},
+    {id:'c',name:'Yamaha R25',year:2021,colorName:'Mavi',price:107000,km:9000,condition:92},
+    {id:'d',name:'Honda CB250R',year:2024,colorName:'Mavi',price:115000,km:5000,condition:99},
+  ];
+  const before=JSON.stringify(stock);
+  const filters={search:'YAMAHA MT25',brand:'Yamaha',modelId:'yamaha-mt25',color:'Mavi',category:'naked',
+    grade:'clean',minPrice:110000,maxPrice:110000,minKm:15000,maxKm:15000,minCc:249,maxCc:249,minYear:2022,maxYear:2022};
+  assert.deepEqual(filterListings(stock,filters).map(bike=>bike.id),['a']);
+  assert.deepEqual(filterListings(stock,{sort:'km-asc'}).map(bike=>bike.id),['d','c','b','a']);
+  assert.deepEqual(filterListings(stock,{sort:'year-desc'}).map(bike=>bike.id),['d','a','b','c']);
+  assert.deepEqual(filterListings(stock,{sort:'condition-desc'}).map(bike=>bike.id),['d','b','c','a']);
+  assert.deepEqual(filterListings(stock,{sort:'profit-desc'},bike=>({a:200,b:-300,c:100,d:500})[bike.id]).map(bike=>bike.id),
+    ['d','a','c','b']);
+  assert.equal(JSON.stringify(stock),before);
+});
+
+test('purchased livery, exact model year and identity are preserved in the existing save format',()=>{
+  const state = newGame();
+  state.listings = [{id:'legacy-livery',name:'KTM Duke 390',year:2023,km:25000,condition:91,price:20000,
+    value:54000,color:'#e86920',colorName:'Turuncu / Mavi-gri',paintAccent:'#526279',faults:['akü']}];
+  const game=play(state);
+  game.act('buy','legacy-livery');
+  game.act('inspect','legacy-livery');
+  const stored=game.bike('legacy-livery');
+  for (const field of ['id','name','year','color','colorName','paintAccent']) assert.equal(stored[field],state.listings[0][field]);
+  const copy=JSON.stringify(game.state);
+  assert.deepEqual(loadGame({getItem:key=>key===STORAGE_KEY?copy:null}),game.state);
+});

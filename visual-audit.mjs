@@ -1,6 +1,7 @@
-import { catalog, paintOptions } from './bikes.mjs?v=0.7';
-import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.7';
-import { renderSprite, spriteFor } from './sprite.mjs?v=0.7';
+import { catalog, paintOptions } from './bikes.mjs?v=0.7.1';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.7.1';
+import { renderSprite, spriteFor } from './sprite.mjs?v=0.7.1';
+import { generationFor } from './generations.mjs?v=0.7.1';
 
 const observations = {
   'honda-cb125f': 'Köşeli ön far seçiliyor. Depo kaplaması, egzoz ve jantın kasa yılı doğrulanamıyor.',
@@ -27,94 +28,106 @@ const observations = {
   'rks-arome125': 'Yuvarlak far ve retro gövde görülüyor. Delight’tan ayrılan kaporta, jant ve egzoz ayrıntıları belirsiz.',
 };
 
-const grid = document.getElementById('audit-grid');
-const color = document.getElementById('audit-color');
-const baseline = document.getElementById('audit-baseline');
-const summary = document.getElementById('audit-summary');
-color.append(...[1,2,3].map(number=>new Option('Fabrika seçeneği '+number,String(number-1))));
+if (new URLSearchParams(location.search).get('dev') === '1') startAudit();
+else location.replace('./');
 
-function element(tag,text = '') {
-  const node = document.createElement(tag);
-  node.textContent = text;
-  return node;
-}
+function startAudit() {
+  const grid = document.getElementById('audit-grid');
+  const color = document.getElementById('audit-color');
+  const baseline = document.getElementById('audit-baseline');
+  const summary = document.getElementById('audit-summary');
+  color.append(...[1,2,3].map(number=>new Option('Fabrika seçeneği '+number,String(number-1))));
 
-const cards = catalog.map(model => {
-  const card = element('article');
-  card.className = 'card audit-card';
-  const title = element('h2',model.name);
-  const year = element('select');
-  year.setAttribute('aria-label',model.name + ' kasa yılı');
-  for (let value=model.lastYear;value>=model.firstYear;value-=1) year.add(new Option(value,value));
-  const note = element('p',observations[model.id] ?? 'Yıl ve üretici ayrıntısı doğrulanmamış model çizimi.');
-  note.className = 'muted';
-  const reference = element('figure');
-  const old = element('img');
-  if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.7`;
-  old.loading = 'lazy';
-  old.alt = model.name + ' için v0.5 inceleme çizimi';
-  reference.append(old,element('figcaption','v0.5 çizimi · Kasa doğrulaması yok'));
-
-  const candidate = element('figure');
-  const canvas = element('canvas');
-  canvas.setAttribute('role','img');
-  canvas.setAttribute('aria-label',model.name + ' kasa görseli');
-  const placeholder = element('p','Görsel yüklenemedi');
-  placeholder.className = 'missing-image';
-  const caption = element('figcaption');
-  const swatch = element('p');
-  swatch.className = 'spec';
-  const label = element('span','Temsili görsel');
-  label.className = 'representative-label';
-  candidate.append(canvas,placeholder,label,swatch,caption);
-  card.append(title,year,note,reference,candidate);
-  grid.append(card);
-  year.addEventListener('change',refresh);
-  return { card,model,year,reference,canvas,placeholder,caption,label,swatch };
-});
-
-const visible = new Set();
-const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries=>{
-  for (const entry of entries) {
-    if (!entry.isIntersecting) continue;
-    visible.add(entry.target);
-    observer.unobserve(entry.target);
-    renderCard(cards.find(item=>item.card === entry.target));
+  function element(tag,text = '') {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    return node;
   }
-},{rootMargin:'150px'}) : null;
 
-function renderCard({model,year,canvas,placeholder,caption,label,swatch}) {
-  const selectedYear = Number(year.value);
-  const options = paintOptions(model,selectedYear);
-  const paint = options[Number(color.value)] ?? options[0];
-  swatch.textContent = paint?.name ?? 'Renk belirtilmedi';
-  const bike = {name:model.name,year:selectedYear,color:paint?.hex};
-  const entry = spriteFor(bike);
-  caption.replaceChildren();
-  if (entry) {
-    const source = element('a',entry.author + ' · Kaynak');
-    source.href = entry.source;
-    const license = element('a',entry.license);
-    license.href = entry.licenseUrl;
-    caption.append(source,' · ',license);
+  const cards = catalog.map(model => {
+    const card = element('article');
+    card.className = 'card audit-card';
+    const title = element('h2',model.name);
+    const year = element('select');
+    year.setAttribute('aria-label',model.name + ' kasa yılı');
+    for (let value=model.lastYear;value>=model.firstYear;value-=1) year.add(new Option(value,value));
+    const note = element('p',observations[model.id] ?? 'Yıl ve üretici ayrıntısı doğrulanmamış model çizimi.');
+    note.className = 'muted';
+    const reference = element('figure');
+    const old = element('img');
+    if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.7.1`;
+    old.loading = 'lazy';
+    old.alt = model.name + ' için v0.5 inceleme çizimi';
+    reference.append(old,element('figcaption','v0.5 çizimi · Kasa doğrulaması yok'));
+
+    const candidate = element('figure');
+    const canvas = element('canvas');
+    canvas.setAttribute('role','img');
+    canvas.setAttribute('aria-label',model.name + ' kasa görseli');
+    const placeholder = element('p','Görsel yüklenemedi');
+    placeholder.className = 'missing-image';
+    const caption = element('figcaption');
+    const swatch = element('p');
+    swatch.className = 'spec';
+    const label = element('span','Temsili görsel');
+    label.className = 'representative-label';
+    candidate.append(canvas,placeholder,label,swatch,caption);
+    card.append(title,year,note,reference,candidate);
+    grid.append(card);
+    year.addEventListener('change',refresh);
+    return { card,model,year,reference,canvas,placeholder,caption,label,swatch };
+  });
+
+  const visible = new Set();
+  const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries=>{
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      visible.add(entry.target);
+      observer.unobserve(entry.target);
+      renderCard(cards.find(item=>item.card === entry.target));
+    }
+  },{rootMargin:'150px'}) : null;
+
+  function renderCard({model,year,canvas,placeholder,caption,label,swatch}) {
+    const selectedYear = Number(year.value);
+    const options = paintOptions(model,selectedYear);
+    const paint = options[Number(color.value)] ?? options[0];
+    swatch.textContent = paint?.name ?? 'Renk belirtilmedi';
+    const bike = {name:model.name,year:selectedYear,color:paint?.hex,paintAccent:paint?.accent};
+    const entry = spriteFor(bike);
+    caption.replaceChildren();
+    if (entry) {
+      const source = element('a',entry.author + ' · Kaynak');
+      source.href = entry.source;
+      const license = element('a',entry.license);
+      license.href = entry.licenseUrl;
+      caption.append(source,' · ',license);
+    } else {
+      const variant = generationFor(model.id,selectedYear);
+      if (variant) {
+        const reference = element('a',variant.label + ' · Üretici referansı');
+        reference.href = variant.source;
+        caption.append(reference);
+      }
+    }
+    renderSprite(canvas,placeholder,bike,label);
   }
-  renderSprite(canvas,placeholder,bike,label);
-}
 
-function refresh() {
-  let covered = 0;
-  let modelArt = 0;
-  for (const item of cards) {
-    const {card,model,year,reference} = item;
-    reference.hidden = !baseline.checked || !legacySprite(model.id);
-    if (spriteFor({name:model.name,year:Number(year.value)})) covered += 1;
-    if (legacySprite(model.id) || atlasFor(model.id)) modelArt += 1;
-    if (!observer || visible.has(card)) renderCard(item);
+  function refresh() {
+    let covered = 0;
+    let modelArt = 0;
+    for (const item of cards) {
+      const {card,model,year,reference} = item;
+      reference.hidden = !baseline.checked || !legacySprite(model.id);
+      if (spriteFor({name:model.name,year:Number(year.value)})) covered += 1;
+      if (legacySprite(model.id) || atlasFor(model.id)) modelArt += 1;
+      if (!observer || visible.has(card)) renderCard(item);
+    }
+    summary.textContent = `${cards.length} model · ${modelArt} modele özel çizim · ${covered} doğrulanmış kasa`;
   }
-  summary.textContent = `${cards.length} model · ${modelArt} modele özel çizim · ${covered} doğrulanmış kasa`;
-}
 
-for (const {card} of cards) observer?.observe(card);
-color.addEventListener('change',refresh);
-baseline.addEventListener('change',refresh);
-refresh();
+  for (const {card} of cards) observer?.observe(card);
+  color.addEventListener('change',refresh);
+  baseline.addEventListener('change',refresh);
+  refresh();
+}

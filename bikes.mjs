@@ -1,4 +1,4 @@
-import { additions } from './catalog-data.mjs?v=0.7';
+import { additions } from './catalog-data.mjs?v=0.7.1';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
@@ -32,6 +32,8 @@ const additionsInLira = additions.map(([id,name,category,cc,hp,first,last,buy,va
 export const PAINT_COLORS = {
   black:{name:'Siyah',hex:'#292b2e'}, grey:{name:'Gri',hex:'#a0a6ae'}, white:{name:'Beyaz',hex:'#eae6da'},
   red:{name:'Kırmızı',hex:'#c93838'}, blue:{name:'Mavi',hex:'#3564ba'}, green:{name:'Yeşil',hex:'#639d34'},
+  duke23orange:{name:'Turuncu / Mavi-gri',hex:'#e86920',accent:'#526279'},
+  duke23grey:{name:'Mat gri / Siyah',hex:'#747c82',accent:'#292b2e'},
   orange:{name:'Turuncu',hex:'#e86920'}, yellow:{name:'Sarı',hex:'#e7b843'}, mirror:{name:'Ayna siyahı',hex:'#383a40'},
 };
 
@@ -47,7 +49,7 @@ const legacyPaints = {
 };
 
 const yearPaints = {
-  'ktm-duke390': [[2017,2020,'white orange'],[2021,2022,'grey white'],[2023,2023,'orange grey black']],
+  'ktm-duke390': [[2017,2020,'white orange'],[2021,2022,'grey white'],[2023,2023,'duke23orange duke23grey']],
   'ktm-duke250': [[2017,2019,'white orange'],[2020,2023,'grey black']],
   'yamaha-mt09': [[2021,2023,'grey blue black'],[2024,2025,'blue black']],
   'bajaj-dominar400': [[2019,2020,'black green'],[2021,2025,'black green']],
@@ -102,18 +104,34 @@ export function normalizePaint(bike) {
   return bike;
 }
 
-export function filterListings(listings, {brand,category,grade,maxPrice=null,maxKm=null,maxCc=null,minYear=null,sort}={}) {
+const searchKey = value => String(value ?? '').toLowerCase().normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/[^a-z0-9]+/g,' ').trim();
+
+export function filterListings(listings, filters = {}, estimatedProfit = () => 0) {
+  const {brand,modelId,color,category,grade,search,sort} = filters;
+  const within = (value,min,max) => (min == null || value >= min) && (max == null || value <= max);
+  const words = searchKey(search).split(' ').filter(Boolean);
   const filtered = listings.filter(listing => {
     const model = modelOf(listing);
+    const specs = specsFor(listing);
+    const text = searchKey(listing.name);
     return (!brand || model?.brand === brand)
+      && (!modelId || model?.id === modelId)
+      && (!color || listing.colorName === color)
       && (!category || model?.category === category)
       && (!grade || listingGrade(listing) === grade)
-      && (maxPrice === null || listing.price <= maxPrice)
-      && (maxKm === null || listing.km <= maxKm)
-      && (maxCc === null || (model && specsFor(listing).cc <= maxCc))
-      && (minYear === null || listing.year >= minYear);
+      && words.every(word=>text.includes(word) || text.replaceAll(' ','').includes(word))
+      && within(listing.price,filters.minPrice,filters.maxPrice)
+      && within(listing.km,filters.minKm,filters.maxKm)
+      && (specs ? within(specs.cc,filters.minCc,filters.maxCc) : filters.minCc == null && filters.maxCc == null)
+      && within(listing.year,filters.minYear,filters.maxYear);
   });
-  if (sort === 'price-asc') filtered.sort((a,b)=>a.price-b.price);
-  if (sort === 'price-desc') filtered.sort((a,b)=>b.price-a.price);
+  const order = {
+    'price-asc': (a,b)=>a.price-b.price, 'price-desc': (a,b)=>b.price-a.price,
+    'km-asc': (a,b)=>a.km-b.km, 'year-desc': (a,b)=>b.year-a.year,
+    'condition-desc': (a,b)=>(b.condition ?? 100)-(a.condition ?? 100),
+    'profit-desc': (a,b)=>estimatedProfit(b)-estimatedProfit(a),
+  }[sort];
+  if (typeof order === 'function') filtered.sort(order);
   return filtered;
 }

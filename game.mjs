@@ -1,5 +1,5 @@
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.7';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.7';
+import { catalog, modelOf, normalizePaint, paintOptions } from './bikes.mjs?v=0.7.1';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.7.1';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -59,7 +59,7 @@ export function generateMarket(day, random = Math.random) {
     const price = Math.max(3000,Math.round((model.price * (value / model.value) * condition / 100
       * integer(94,111) / 100 - serviceDiscount) / 50) * 50);
     return { id:`${day}-${slot}`,name:model.name,year,km,condition,price,value,serviceFactor,
-      color:color.hex,colorName:color.name,faults };
+      color:color.hex,colorName:color.name,...(color.accent ? {paintAccent:color.accent} : {}),faults };
   });
 }
 
@@ -88,6 +88,13 @@ export function repairQuote(bike) {
 
 export function roadValue(bike) {
   return Math.round(bike.value * (bike.condition ?? 100) / 100);
+}
+
+// Disclosed estimate. Purchased bikes still require an inspection for their actual faults.
+export function estimatedListingProfit(bike) {
+  const wear = Math.max(0,100-(bike.condition ?? 100));
+  const reserve = Math.round((modelOf(bike)?.maintenance ?? 1500) * wear / 48);
+  return roadValue(bike) - bike.price - INSPECTION_FEE - reserve;
 }
 
 export function rentalRate(bike) {
