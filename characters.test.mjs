@@ -81,12 +81,12 @@ test('buyers remember answers, can detect damage, and learn contradictory statem
   meeting.request='history';
   Object.assign(meeting.profile,{risk:100,knowledge:0,mechanical:0,skepticism:0});
   bike.meetings=[meeting];
-  state=act(state,'answer-buyer',fixture.id,{meetingId:meeting.id,choice:'deny'});
+  state=act(state,'answer-buyer',fixture.id,{meetingId:meeting.id,topic:'history',choice:'deny'});
   state=reload(state);
   const stored=bikeOf(state).meetings[0];
   const previous=stored.dialogue.suspicion;
   assert.deepEqual(stored.dialogue.answers,[{topic:'history',choice:'deny'}]);
-  state=act(state,'answer-buyer',fixture.id,{meetingId:meeting.id,choice:'disclose'});
+  state=act(state,'answer-buyer',fixture.id,{meetingId:meeting.id,topic:'maintenance',choice:'disclose'});
   assert.ok(bikeOf(state).meetings[0].dialogue.suspicion>previous);
   const expert=createBuyer(bike,1,0,50,roadValue(bike));
   Object.assign(expert.profile,{knowledge:100,mechanical:100,experience:30,risk:50});
@@ -180,4 +180,81 @@ test('elapsed repair still completes and subsequent casco does not cover previou
   state=tick(state,3*HOUR_MS).state;
   assert.equal(bikeOf(state).stage,'ready');
   assert.equal(state.ledger.filter(row=>row.category==='repair').length,1);
+});
+
+test('documented answers can raise the saved quote without using a round, and old topics cannot be replayed',()=>{
+  const state=act(start(),'list-strategy',fixture.id,{strategy:'documented',price:60000});
+  const bike=bikeOf(state);
+  const meeting=createBuyer(bike,1,0,50,roadValue(bike));
+  while (chance(meeting.id,'answer:history:document')>=.8) meeting.id+='x';
+  meeting.request='history';
+  meeting.price=30000;
+  meeting.limit=60000;
+  Object.assign(meeting.profile,{trust:90,mechanical:90,skepticism:10,budget:60000});
+  bike.meetings=[meeting];
+  const send=(source,topic,choice)=>act(source,'answer-buyer',bike.id,{meetingId:meeting.id,topic,choice});
+  let current=reload(send(state,'history','document'));
+  let reply=bikeOf(current).meetings[0];
+  assert.ok(reply.price>meeting.price);
+  assert.deepEqual(reply.priceChange,{from:meeting.price,to:reply.price});
+  assert.ok(reply.dialogue.trust>90);
+  assert.equal(reply.round,meeting.round);
+  assert.equal(reply.patience,meeting.patience);
+  assert.throws(()=>send(current,'history','document'),/cevaplandı/);
+  const first=reply.speech;
+  for (const topic of ['maintenance','inspection','price']) {
+    current=send(current,topic,'disclose');
+    reply=bikeOf(current).meetings[0];
+  }
+  assert.equal(reply.request,null);
+  assert.equal(new Set(reply.dialogue.answers.map(answer=>answer.topic)).size,4);
+  assert.notEqual(reply.speech,first);
+  assert.equal(reply.round,0);
+  assert.throws(()=>send(current,'price','disclose'),/cevaplandı/);
+});
+
+test('conflicting statements lower trust and may drive a buyer away independently of rounds',()=>{
+  const state=act(start(),'list-strategy',fixture.id,{strategy:'conceal',price:60000});
+  const bike=bikeOf(state);
+  const meeting=createBuyer(bike,1,0,50,roadValue(bike));
+  meeting.request='maintenance'; meeting.round=3;
+  meeting.dialogue={answers:[{topic:'history',choice:'deny'}],suspicion:70,trust:60,patience:25};
+  bike.meetings=[meeting];
+  const next=act(state,'answer-buyer',bike.id,{meetingId:meeting.id,topic:'maintenance',choice:'disclose'});
+  const reply=bikeOf(next).meetings[0];
+  assert.equal(reply.status,'left');
+  assert.equal(reply.round,3);
+  assert.ok(reply.dialogue.trust<60);
+  assert.ok(reply.dialogue.suspicion>70);
+  assert.equal(reply.dialogue.patience,0);
+  assert.match(reply.speech,/çelişiyor|Önceki|Az önceki/);
+});
+
+test('truthful answers at the buying limit improve rapport while keeping the same quote',()=>{
+  const state=act(start(),'list-strategy',fixture.id,{strategy:'documented',price:60000});
+  const bike=bikeOf(state);
+  const meeting=createBuyer(bike,1,0,50,roadValue(bike));
+  meeting.request='inspection'; meeting.limit=meeting.price;
+  meeting.dialogue.trust=30;
+  bike.meetings=[meeting];
+  const reply=bikeOf(act(state,'answer-buyer',bike.id,{meetingId:meeting.id,topic:'inspection',choice:'document'})).meetings[0];
+  assert.ok(reply.dialogue.trust>30);
+  assert.equal(reply.price,meeting.price);
+  assert.equal(reply.priceChange,undefined);
+});
+
+test('an evasive answer can reduce the quote without spending remaining bargaining rights',()=>{
+  const state=act(start(),'list-strategy',fixture.id,{strategy:'damaged',price:60000});
+  const bike=bikeOf(state);
+  const meeting=createBuyer(bike,1,0,50,roadValue(bike));
+  while (chance(meeting.id,'answer:history:defer')>=.3) meeting.id+='x';
+  meeting.request='history';
+  Object.assign(meeting.profile,{skepticism:100,trust:80,risk:100});
+  bike.meetings=[meeting];
+  const reply=bikeOf(act(state,'answer-buyer',bike.id,{meetingId:meeting.id,topic:'history',choice:'defer'})).meetings[0];
+  assert.ok(reply.price<meeting.price);
+  assert.equal(reply.priceChange.from,meeting.price);
+  assert.equal(reply.round,0);
+  assert.equal(reply.patience,meeting.patience);
+  assert.ok(reply.dialogue.patience<90);
 });

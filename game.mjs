@@ -1,17 +1,17 @@
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.13';
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.13';
+  setReputation } from './characters.mjs?v=0.13.1';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.13.1';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.13';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.13';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.13';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.13';
-import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.13';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13.1';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.13.1';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.13.1';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.13.1';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.13.1';
+import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.13.1';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.13';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.13';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.13.1';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.13.1';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -511,7 +511,9 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
     case 'answer-buyer': {
       const meeting = activeMeeting(amount?.meetingId);
       if (meeting.kind!=='sale') throw new Error('Bu görüşmede müşteri sorusu yok.');
-      answerBuyer(meeting,bike,amount.choice);
+      const from = meeting.price;
+      answerBuyer(meeting,bike,amount.topic,amount.choice);
+      if (meeting.price!==from) meeting.priceChange = {from,to:meeting.price};
       if (meeting.status==='left') finishTrade(next,meeting,bike,'left');
       message = meeting.speech;
       break;
@@ -528,8 +530,12 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
         throw new Error('Ekspertiz raporu henüz hazır değil.');
       }
       if (meeting.kind==='purchase' && listing.urgency) meeting.urgency ??= listing.urgency;
+      const from = meeting.price;
       negotiate(meeting,offer);
-      if (meeting.kind==='sale') observeBuyer(meeting,bike);
+      if (meeting.kind==='sale') {
+        observeBuyer(meeting,bike);
+        if (meeting.price!==from) meeting.priceChange = {from,to:meeting.price};
+      }
       if (meeting.status === 'left') finishTrade(next,meeting,bike ?? listing,'left');
       message = meeting.speech;
       break;

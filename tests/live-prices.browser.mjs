@@ -5,6 +5,7 @@ import { after, before, test } from 'node:test';
 import { DAY_MS,HOUR_MS } from '../clock.mjs';
 import { newGame,perform,purchaseAnalysis,synchronize } from '../game.mjs';
 import { buyerComplaint } from '../risk.mjs';
+import { chance } from '../characters.mjs';
 import { roadValue } from '../damage.mjs';
 import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
@@ -356,4 +357,30 @@ test('offline concealed sale shows choices after reload and books partial compen
   assert.equal(state.ledger.filter(row=>row.category==='compensation').length,1);
   assert.equal(state.sales[0].complaintResult.outcome,'compensation');
   assert.match(await ui.page.locator('#complaint-list').innerText(),/Tazminat/);
+});
+
+test('customer answer updates previous offer, live profit and saved price on mobile',async t=>{
+  const seed = strategyFixture('documented');
+  const bike = seed.branches[0].garage[0];
+  const meeting = bike.meetings[0];
+  meeting.price=30000;
+  meeting.limit=45000;
+  Object.assign(meeting.profile,{trust:100,mechanical:90,skepticism:0,budget:60000});
+  while (chance(meeting.id,'answer:history:document')>=.8) meeting.id+='x';
+  const ui = await open(t,320,568,seed);
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.tap('[data-action=open-buyer]');
+  await ui.tap('#meeting-questions > summary');
+  await ui.tap('#meeting-answer-actions button:text-is("Belgeyi göster")');
+  await ui.page.waitForFunction(()=>document.querySelector('#buyer-price-change').textContent.includes('Önceki teklif'));
+  const change = await ui.page.locator('#buyer-price-change').innerText();
+  const buyer = (await ui.state()).branches[0].garage[0].meetings[0];
+  assert.ok(buyer.price>meeting.price);
+  assert.match(change,/30\.000 TL/);
+  assert.ok(change.includes(money(buyer.price)) && change.includes('%'));
+  assert.ok((await ui.page.locator('#meeting-metrics').innerText()).includes(money(buyer.price-bike.spent)));
+  assert.equal(buyer.round,0);
+  await ui.page.reload(); await ui.ready();
+  await ui.tap('.bottom-nav [data-page=garage]'); await ui.tap('[data-action=open-buyer]');
+  assert.equal(await ui.page.locator('#buyer-price-change').innerText(),change);
 });

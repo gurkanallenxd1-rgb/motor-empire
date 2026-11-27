@@ -1,25 +1,25 @@
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.13';
-import { purchasePreview } from './valuation.mjs?v=0.13';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.13.1';
+import { purchasePreview } from './valuation.mjs?v=0.13.1';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.13';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.13';
-import { createFinanceView } from './finance-view.mjs?v=0.13';
-import { dailyCashMovement } from './finance.mjs?v=0.13';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.13';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13.1';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.13.1';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.13.1';
+import { createFinanceView } from './finance-view.mjs?v=0.13.1';
+import { dailyCashMovement } from './finance.mjs?v=0.13.1';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.13.1';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.13';
-import { createGarageRenderer } from './art.mjs?v=0.13';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.13';
+} from './game.mjs?v=0.13.1';
+import { createGarageRenderer } from './art.mjs?v=0.13.1';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.13.1';
 
-import { MAX_ROUNDS, avatarForName, isActive, tradeSummary } from './trade.mjs?v=0.13';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.13';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.13.1';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.13.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.13';
+  repairForecast } from './damage.mjs?v=0.13.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -1009,12 +1009,13 @@ function renderQuestions(meeting,isSale) {
   const details = byId('meeting-questions');
   details.hidden = !isSale || !meeting.dialogue;
   if (details.hidden) return;
-  const question = isActive(meeting) && QUESTIONS[meeting.request];
+  const topic = buyerQuestion(meeting);
+  const question = QUESTIONS[topic];
   byId('meeting-question-text').textContent = question || 'Şu anda yeni soru yok.';
   const answers = question ? Object.entries(ANSWERS).map(([choice,label])=>{
     const button = element('button',label);
     button.type = 'button';
-    button.addEventListener('click',()=>meetingAction('answer-buyer',{meetingId:meeting.id,choice}));
+    button.addEventListener('click',()=>meetingAction('answer-buyer',{meetingId:meeting.id,topic,choice}));
     return button;
   }) : [];
   byId('meeting-answer-actions').replaceChildren(...answers);
@@ -1079,6 +1080,7 @@ function updateMeeting() {
   byId('meeting-inspection-summary').hidden = isSale;
   byId('meeting-metrics').hidden = !isSale;
   byId('meeting-bars').hidden = !isSale;
+  if (!isSale) byId('buyer-price-change').hidden = true;
   if (forecast) {
     renderInspectionSummary(byId('meeting-inspection-summary'),forecast,true);
     renderPurchaseAnalysis(byId('meeting-analysis-content'),forecast,true);
@@ -1103,6 +1105,14 @@ function renderSaleMetrics(bike,meeting,value) {
   const profit = Math.round((meeting.price-cost)*100)/100;
   byId('meeting-metrics').replaceChildren(metric('Toplam maliyet',money(cost)),
     metric(profit < 0 ? 'Net zarar' : 'Net kâr',signed(profit)));
+  const change = byId('buyer-price-change');
+  change.hidden = !meeting.priceChange;
+  if (meeting.priceChange) {
+    const {from,to} = meeting.priceChange;
+    change.replaceChildren(priceSummaryRow('Önceki teklif',money(from)),
+      priceSummaryRow('Güncel teklif',money(to)),
+      priceSummaryRow('Teklif farkı',signedRatio(to-from,(to-from)/from)));
+  }
   const scale = Math.max(meeting.price,cost,value,1);
   const bars = byId('meeting-bars');
   const markers = [['Maliyet',cost],['Piyasa',value],['Teklif',meeting.price]];
