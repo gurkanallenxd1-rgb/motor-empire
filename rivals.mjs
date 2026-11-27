@@ -326,10 +326,14 @@ export function rivalOffer(company,amount) {
     roi:price+fees-company.cash+company.debt>0?profit/(price+fees-company.cash+company.debt):null};
 }
 
-export function removeAcquired(world,company) {
+export function removeAcquired(world,company,quote,offices) {
   bounded(world.retired,{id:company.id,name:company.name,day:world.day,status:'acquired',sales:company.totalSold,
     recentSales:company.history.slice(-30).reduce((total,row)=>total+row[3],0),profit:company.profit},80);
-  world.companies=world.companies.filter(c=>c!==company);world.acquired++;
+  (world.takeovers??=[]).push({id:company.id,name:company.name,day:world.day,opening:quote.threshold,
+    accepted:quote.price,fees:quote.fees,total:quote.total,receivedCash:company.cash,debt:company.debt,
+    offices:offices.map(office=>office.id),stock:company.stock.length,
+    staff:company.branches.reduce((sum,branch)=>sum+branch.staff,0),history:company.history});
+  world.companies=world.companies.filter(c=>c.id!==company.id);world.acquired++;
   event(world,company,'acquired',`${company.name} oyuncu tarafından devralındı.`);
 }
 

@@ -924,9 +924,9 @@ function applyAction(next, action, id, amount, branchId, worker) {
       next.cash=decimal(next.cash-quote.total+company.cash);
       next.debt=decimal(next.debt+company.debt);
       next.branches.push(...offices);
-      record('expense',quote.total,`${company.name} şirket devralması`,null,{category:'investment'});
+      record('expense',quote.total,`${company.name} şirket devralması`,null,{category:'company_investment'});
       if(company.cash)record('income',company.cash,'Devralınan kasa',null,{category:'takeover_cash'});
-      removeAcquired(next.competition,company);
+      removeAcquired(next.competition,company,quote,offices);
       notify(next,'competition',now,{title:'Şirket devralındı',body:`${company.name} · ${offices.length} şube`});
       message=`${company.name} devralındı.`;
       break;

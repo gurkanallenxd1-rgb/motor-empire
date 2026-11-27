@@ -2,7 +2,7 @@ import { isRisky } from './characters.mjs?v=0.16.1';
 export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
   inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', training:'Eğitim', staff_transfer:'Personel transferi', overhead:'Şube gideri',
-  investment:'Şube, garaj ve şirket yatırımı',takeover_cash:'Devralınan kasa', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
+  investment:'Şube ve garaj yatırımı',company_investment:'Şirket yatırımı',takeover_cash:'Devralınan kasa', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
   insurance_premium:'Sigorta primi', insurance_payout:'Kasko ödemesi', traffic_payout:'Trafik sigortası ödemesi',
   accident:'Kaza masrafı', cosmetic:'Görsel bakım', complaint_repair:'Şikâyet onarımı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',
   interest:'Faiz gideri', income:'Diğer gelir', expense:'Diğer gider',
@@ -16,6 +16,7 @@ const round = value => Math.round(value*100)/100;
 const cents = value => Math.round(value*100);
 
 export function entryDetails(entry) {
+  if (entry.category==='investment' && entry.label.endsWith(' şirket devralması')) return {category:'company_investment',model:null};
   if (entry.category && Object.prototype.hasOwnProperty.call(FINANCE_CATEGORIES,entry.category)) {
     return {category:entry.category,model:entry.model ?? null};
   }
@@ -117,7 +118,7 @@ export function financeReport(state,worth,period) {
       day.rentalRevenue += cents(row.amount);
     }
     if (row.kind === 'income' && !['sale','insurance_payout','takeover_cash'].includes(row.category)) day.revenue += cents(row.amount);
-    if (row.kind === 'expense' && row.category !== 'investment' && !stockExpenses.has(row.category)) {
+    if (row.kind === 'expense' && !['investment','company_investment'].includes(row.category) && !stockExpenses.has(row.category)) {
       day.operatingCost += cents(row.amount);
     }
     if (row.category==='inspection' && row.allocation==='operating') {

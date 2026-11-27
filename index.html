@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.18">
-  <script type="module" src="./app.mjs?v=0.18"></script>
+  <link rel="stylesheet" href="./style.css?v=0.18.1">
+  <script type="module" src="./app.mjs?v=0.18.1"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.18</span>
+      <span class="version">SÜRÜM 0.18.1</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
       <button id="notification-bell" type="button" aria-label="Bildirim merkezi" aria-haspopup="dialog">
         <span aria-hidden="true">🔔</span><span id="notification-count" hidden>0</span>
@@ -220,6 +220,7 @@
           <label>Büyüklük<select id="rival-size"></select></label>
           <label>Strateji<select id="rival-strategy"></select></label>
         </div>
+        <p id="rival-roster" class="spec"></p>
         <p class="spec" id="rival-count" aria-live="polite"></p><div id="rival-list"></div>
       </section>
       <section id="competition-ranks" role="tabpanel" aria-labelledby="competition-tab-ranks" hidden>
@@ -322,8 +323,8 @@
     <button id="garage-upgrade-confirm" class="primary" type="button">Yükselt</button>
   </dialog>
   <dialog id="rival-detail" aria-labelledby="rival-detail-name">
-    <form method="dialog"><button type="submit" aria-label="Şirket ayrıntısını kapat">×</button></form>
-    <h2 id="rival-detail-name"></h2>
+    <header class="rival-dialog-head"><div><p class="eyebrow">ŞİRKET PROFİLİ</p><h2 id="rival-detail-name"></h2></div>
+      <form method="dialog"><button type="submit" aria-label="Şirket ayrıntısını kapat">×</button></form></header>
     <div id="rival-detail-data"></div>
     <section class="analysis-chart-panel">
       <header><h3>Şirket değeri karşılaştırması</h3><label class="analysis-period-label">Dönem<select id="rival-period">
@@ -448,7 +449,10 @@
     </details>
     <div id="meeting-evidence" hidden></div>
   </dialog>
-  <div id="sale-toasts" role="region" aria-label="Satış bildirimleri" aria-live="polite" aria-relevant="additions"></div>
+  <div id="sale-toasts" role="region" aria-label="Satış bildirimleri" hidden>
+    <button id="sale-dismiss-all" type="button" aria-label="Tüm satış bildirimlerini kapat">Tümünü kapat</button>
+    <div id="sale-toast-list" aria-live="polite" aria-relevant="additions" tabindex="0" aria-label="Canlı satış bildirimleri"></div>
+  </div>
   <dialog id="notification-dialog" aria-labelledby="notification-title">
     <header class="notification-heading">
       <h2 id="notification-title">Bildirim merkezi</h2>
