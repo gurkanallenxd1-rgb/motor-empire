@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { marketRandom,nextEconomy } from './economy.mjs';
 import { rankMarket } from './automation.mjs';
 import { DAY_MS,HOUR_MS } from './clock.mjs';
 import { newGame,generateMarket,loadGame,perform,purchaseForecast,saveGame,synchronize } from './game.mjs';
@@ -39,21 +40,18 @@ function purchaseForecastAdapter(item) {
   return purchaseForecast(item);
 }
 
-test('manager buys the top candidate and accounts for reserve and forecasted costs',t=>{
-  const random = ()=>{
-    let value = 17;
-    return ()=>((value = (Math.imul(1664525,value)+1013904223)>>>0)/2**32);
-  };
+test('manager buys the top candidate and accounts for reserve and forecasted costs',()=>{
   const settings = {...config,buy:true,repair:true};
   let state = hire(initial(),'manager');
   const manager = state.branches[0].workers[0];
-  const {candidates} = rankMarket(generateMarket(2,random()),settings,purchaseForecastAdapter,null,manager);
+  const economy = nextEconomy(state,2);
+  const {candidates} = rankMarket(generateMarket(2,marketRandom(2),true,economy),settings,
+    item=>purchaseForecast(item,item.price,34,economy),null,manager);
   const top = candidates[0];
   assert.ok(top);
   settings.budget = top.total;
   settings.reserve = 20000;
   state = configure({...state,cash:settings.reserve+top.total+1500},settings);
-  t.mock.method(Math,'random',random());
   state = tick(state,DAY_MS);
   assert.equal(getBike(state).id,top.item.id);
   assert.ok(state.cash>=settings.reserve);

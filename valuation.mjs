@@ -1,15 +1,25 @@
-import { activeIssues, cleanValue, historicalIssues, listingForecast, PARTS, roadValue } from './damage.mjs?v=0.15.4';
-import { verifiedFindings, visibleListing } from './risk.mjs?v=0.15.4';
+import { activeIssues, cleanValue, historicalIssues, listingForecast, repairForecast, PARTS, roadValue } from './damage.mjs?v=0.16';
+import { verifiedFindings, visibleListing } from './risk.mjs?v=0.16';
 
 const money = value => Math.round(value*100)/100;
 const ratio = (amount,base) => base ? amount/base : 0;
 
-export function purchaseCosts(bike, price, inspectionFee, delivery) {
+export function purchaseCosts(bike, price, inspectionFee, delivery, resaleBike=bike) {
   const known = visibleListing(bike);
   const reports = bike.inspections ?? [];
   const feesPaid = reports.reduce((sum,report)=>sum+report.cost,0);
   const intakeFee = reports.some(report=>report.package==='full' && report.result) ? 0 : inspectionFee;
-  return {delivery,feesPaid,intakeFee,...listingForecast({...known,price},feesPaid+intakeFee,delivery.fee)};
+  const forecast = listingForecast({...known,price},feesPaid+intakeFee,delivery.fee);
+  if (!resaleBike.marketTerms) return {delivery,feesPaid,intakeFee,...forecast};
+  const afterValue = resaleBike===bike ? forecast.afterValue : repairForecast(visibleListing(resaleBike)).afterValue;
+  const terms = resaleBike.marketTerms;
+  const expectedPrice = Math.round(afterValue*terms.realization);
+  const safeRatio = {urgent:.61,normal:.75,patient:.88}[bike.urgency] ?? .61;
+  // Based entirely on the public valuation. Hidden faults are not disclosed.
+  const lowAsk = price<forecast.beforeValue*safeRatio;
+  const risk = lowAsk ? Math.max(.72,terms.risk) : terms.risk;
+  return {delivery,feesPaid,intakeFee,...forecast,afterValue,expectedPrice,
+    profit:money(expectedPrice-forecast.total),demand:terms.demand,saleDays:terms.days,risk,lowAsk};
 }
 
 export const inspectionBaseline = bike =>
@@ -20,12 +30,12 @@ export function purchasePreview(analysis, amount) {
   const total = money(amount+analysis.feesPaid+analysis.intakeFee+analysis.delivery.fee+analysis.cost);
   const discount = money(analysis.initialPrice-amount);
   const advantage = money(analysis.beforeValue-amount);
-  const profit = money(analysis.afterValue-total);
+  const profit = money((analysis.expectedPrice ?? analysis.afterValue)-total);
   return {amount,total,discount,discountShare:ratio(discount,analysis.initialPrice),
     advantage,advantageShare:ratio(advantage,analysis.beforeValue),profit,profitShare:ratio(profit,total)};
 }
 
-export function purchaseValuation(bike, meeting, inspectionFee, delivery) {
+export function purchaseValuation(bike, meeting, inspectionFee, delivery, resaleBike=bike) {
   const known = visibleListing(bike);
   const verified = verifiedFindings(bike);
   const completed = bike.inspections?.some(report=>report.result) ?? false;
@@ -34,7 +44,7 @@ export function purchaseValuation(bike, meeting, inspectionFee, delivery) {
   const beforeInspection = inspectionBaseline(bike);
   const initialPrice = meeting?.anchor ?? bike.price;
   const offer = meeting?.price ?? bike.price;
-  const costs = purchaseCosts(bike,offer,inspectionFee,delivery);
+  const costs = purchaseCosts(bike,offer,inspectionFee,delivery,resaleBike);
 
   // Restore verified active parts to condition as they are excluded, then add findings
   // back in stable order. Every row is an incremental share of the existing valuation.

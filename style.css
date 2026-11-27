@@ -515,3 +515,20 @@ dialog #sale-toasts { inset:auto 10px calc(13px + env(safe-area-inset-bottom)) a
 [data-tone=loss] { --notice-tone:#ff9a85 }
 [data-tone=even] { --notice-tone:#d0d3cb }
 @media (max-width:360px) { .top-inner .save { font-size:10px } }
+
+#market-analysis-open { margin-bottom:8px }
+#market-analysis { width:min(680px,calc(100% - 20px)); max-height:calc(100% - 24px); overflow:auto;
+  color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px }
+#market-analysis::backdrop { background:#131615dd }
+.market-analysis-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-bottom:8px }
+.market-analysis-controls label { display:grid; gap:3px; color:var(--muted); font-size:12px }
+.market-analysis-controls select { width:100%; min-height:40px; min-width:0; font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:6px }
+#analysis-macro { padding:7px }
+#analysis-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:7px }
+.analysis-chart-panel { margin-block:10px; padding:8px; border-radius:8px; background:#191d1b }
+#analysis-chart { width:100%; height:auto; margin-block:5px }
+#analysis-range-label { font-size:12px; color:var(--muted) }
+#analysis-point { width:100%; accent-color:var(--accent) }
+.analysis-opportunity { margin-top:6px; padding:7px; border-top:1px solid var(--line) }
+.analysis-opportunity button { text-align:left }
+.analysis-selected { color:var(--accent); font-size:12px; font-weight:750 }

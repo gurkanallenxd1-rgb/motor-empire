@@ -1,8 +1,8 @@
-import { modelOf } from './bikes.mjs?v=0.15.4';
-import { availableStaff, firstWorkshopJob, hasManager, workshopRate } from './business.mjs?v=0.15.4';
-import { DAY_MS, gameTime } from './clock.mjs?v=0.15.4';
-import { isYusufListing } from './easter-eggs.mjs?v=0.15.4';
-import { visibleListing } from './risk.mjs?v=0.15.4';
+import { modelOf } from './bikes.mjs?v=0.16';
+import { availableStaff, firstWorkshopJob, hasManager, workshopRate } from './business.mjs?v=0.16';
+import { DAY_MS, gameTime } from './clock.mjs?v=0.16';
+import { isYusufListing } from './easter-eggs.mjs?v=0.16';
+import { visibleListing } from './risk.mjs?v=0.16';
 
 export const AUTO_STEPS = {
   buy:'Alım',inspect:'Ekspertiz',repair:'Tamir',list:'İlan açma',negotiate:'Müşteri görüşmesi',sell:'Satış',
@@ -32,6 +32,10 @@ export function rankMarket(listings,config,forecast,inspector,manager) {
         continue;
       }
       const estimate = forecast(item);
+      if (estimate.lowAsk) {
+        reject('Beyan edilen kondisyona göre sıra dışı düşük fiyat');
+        continue;
+      }
       const total = estimate.total-(inspector ? estimate.intakeFee : 0);
       const profit = estimate.profit+(inspector ? estimate.intakeFee : 0);
       if (profit<config.minProfit) {
@@ -39,10 +43,11 @@ export function rankMarket(listings,config,forecast,inspector,manager) {
         continue;
       }
       const roi = profit/Math.max(1,total);
-      const demand = (model.demand ?? .08)*100;
+      const demand = (model.demand ?? .08)*100+(estimate.demand===undefined ? 0 : (estimate.demand-1)*35);
       const costs = estimate.cost+estimate.delivery.fee;
       const experience = manager ? staffQuality(manager) : .5;
-      const score = profit/1000 + roi*(60+40*experience) + demand + known.condition*.15 - costs/2000;
+      const exposure = (estimate.risk ?? 0)*total/10000+(estimate.saleDays ?? 0)*.45;
+      const score = profit/1000 + roi*(60+40*experience) + demand + known.condition*.15 - costs/2000 - exposure;
       candidates.push({item,total,profit,roi,score});
     }
   }

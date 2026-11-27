@@ -1,23 +1,24 @@
-import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.15.4';
-import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.15.4';
+import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16';
+import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.16';
+import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff, branchProvince, createOffice,
-  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.15.4';
-import { modelOf } from './bikes.mjs?v=0.15.4';
-import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.4';
+  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.16';
+import { modelOf } from './bikes.mjs?v=0.16';
+import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.15.4';
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.15.4';
+  setReputation } from './characters.mjs?v=0.16';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.16';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.4';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.15.4';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.15.4';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.15.4';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.15.4';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.15.4';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.16';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.16';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.16';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.16';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.16';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.15.4';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.15.4';
+  knownPart, repairForecast, repairQuote, roadValue } from './damage.mjs?v=0.16';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.16';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -65,7 +66,7 @@ function marketIssues(model,random) {
   return [];
 }
 
-function generateProvince(day, province, selected, random) {
+function generateProvince(day, province, selected, random, economy) {
   const integer = (min,max) => min + Math.floor(random() * (max - min + 1));
   const stock = new Map();
   for (const model of selected) stock.set(model.category,(stock.get(model.category) ?? 0)+1);
@@ -85,10 +86,20 @@ function generateProvince(day, province, selected, random) {
       color:color.hex,colorName:color.name,...(color.accent ? {paintAccent:color.accent} : {}),faults };
     bike.damageHistory = historicalIssues(bike);
     seedRisk(bike);
+    markToMarket(bike,economy);
     bike.value = cleanValue(bike);
     const baseline = askingPrice(bike,random);
-    const pressure = marketPressure(day,province,model.demand,stock.get(model.category)/selected.length);
-    bike.price = Math.max(Math.ceil(baseline*.95),Math.min(Math.floor(baseline*1.05),Math.round(baseline*(1+pressure))));
+    if (economy) {
+      const repair = faults.length ? repairForecast(bike) : null;
+      const recoverable = repair ? Math.max(0,repair.afterValue-repair.beforeValue-repair.cost) : 0;
+      // Asking prices preserve a negotiable discount, with part of viable restoration value
+      // priced in at the outset so the same workshop margin cannot be harvested without limit.
+      const premium = urgency==='urgent' ? .057 : urgency==='normal' ? .028 : .009;
+      bike.price = Math.max(3000,Math.round((baseline*(1+premium)+recoverable*.66)/50)*50);
+    } else {
+      const pressure = marketPressure(day,province,model.demand,stock.get(model.category)/selected.length);
+      bike.price = Math.max(Math.ceil(baseline*.95),Math.min(Math.floor(baseline*1.05),Math.round(baseline*(1+pressure))));
+    }
     return bike;
   });
 }
@@ -97,17 +108,24 @@ function bySegment(ordered, quotas) {
   return quotas.flatMap(([segment,count])=>ordered.filter(model=>model.segment === segment).slice(0,count));
 }
 
-export function generateMarket(day, random = Math.random, includeIstanbul = true) {
+export function generateMarket(day, random = Math.random, includeIstanbul = true, economy) {
   const models = catalog.filter(model=>!model.eventOnly);
-  const ordered = shuffle(models,random);
+  const weights = economy && new Map(models.map(model=>{
+    const quote = economyQuote(economy,model,model.lastYear,ISTANBUL);
+    // Supply stays within segment quotas, while stocks that clear slowly are offered more often.
+    return [model.id,Math.max(.78,Math.min(1.28,1+(quote.days-8)*.032-(quote.demand-1)*.25))];
+  }));
+  const rotate = ()=>weights ? models.map(model=>({model,key:random()**(1/weights.get(model.id))}))
+    .sort((a,b)=>b.key-a.key).map(row=>row.model) : shuffle(models,random);
+  const ordered = rotate();
   const local = bySegment(ordered,[['budget',8],['mid',14],['premium',6],['rare',2]]);
   const sharedModel = local[0];
-  const market = includeIstanbul ? generateProvince(day,ISTANBUL,local,random) : [];
+  const market = includeIstanbul ? generateProvince(day,ISTANBUL,local,random,economy) : [];
   for (const {id} of PROVINCES) {
     if (id === ISTANBUL) continue;
-    const pool = shuffle(models,random).filter(model=>model !== sharedModel);
+    const pool = rotate().filter(model=>model !== sharedModel);
     const selected = [sharedModel,...bySegment(pool,[['budget',2],['mid',2],[id % 5 === 0 ? 'rare' : 'premium',1]])];
-    market.push(...generateProvince(day,id,selected,random));
+    market.push(...generateProvince(day,id,selected,random,economy));
   }
   return market;
 }
@@ -115,13 +133,25 @@ export function generateMarket(day, random = Math.random, includeIstanbul = true
 function replenishMarket(state,day) {
   if (state.marketDay===day) return;
   state.marketDay = day;
-  const listings = generateMarket(day);
+  const previous = state.economy;
+  const economy = nextEconomy(state,day);
+  const listings = generateMarket(day,marketRandom(day),true,economy);
   if (!state.listings.some(isYusufListing)) {
     const special = yusufListing(day);
     if (special) {
       const slot = listings.findLastIndex(item=>item.province===special.province);
       listings[slot] = special;
     }
+  }
+  state.economy = observeMarket(economy,listings);
+  const story = marketNews(previous,state.economy);
+  if (story) {
+    notify(state,'economy',gameTime(day),story);
+    const box = state.economy;
+    box.lastNews = day;
+    box.newsMacro = box.macro;
+    box.partsNews = box.macro.parts;
+    if (story.model) box.lastModelNews = story.model;
   }
   state.listings.push(...listings);
 }
@@ -131,7 +161,9 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 9, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
+  const economy = createEconomy(1);
+  const listings = generateMarket(1,marketRandom(1),true,economy);
+  return { version: 9, day: 1, cash: 75000, debt: 0, listings, economy:observeMarket(economy,listings), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => branch.tier===undefined ? GARAGE_LEVELS[branch.level-1].capacity : BRANCH_TIERS[branch.tier].capacity;
@@ -143,16 +175,18 @@ export const repairCapacity = branch => 8 * (1 + branch.staff);
 export const operatingCost = branch => DAILY_OVERHEAD + branch.staff*DAILY_WAGE
   +workers(branch).reduce((sum,worker)=>sum+STAFF_ROLES[worker.role].wage,0);
 
-export function purchaseForecast(bike, price = bike.price, destination = ISTANBUL) {
-  return purchaseCosts(bike,price,INSPECTION_FEE,shippingQuote(bike.province,destination));
+export function purchaseForecast(bike, price = bike.price, destination = ISTANBUL, economy) {
+  return purchaseCosts(bike,price,INSPECTION_FEE,shippingQuote(bike.province,destination),
+    economy ? markToMarket({...bike},economy,destination) : bike);
 }
 
-export function purchaseAnalysis(bike, meeting, destination = ISTANBUL) {
-  return purchaseValuation(bike,meeting,INSPECTION_FEE,shippingQuote(bike.province,destination));
+export function purchaseAnalysis(bike, meeting, destination = ISTANBUL, economy) {
+  return purchaseValuation(bike,meeting,INSPECTION_FEE,shippingQuote(bike.province,destination),
+    economy ? markToMarket({...bike},economy,destination) : bike);
 }
 
-export function estimatedListingProfit(bike,destination = ISTANBUL) {
-  return purchaseForecast(bike,bike.price,destination).profit;
+export function estimatedListingProfit(bike,destination = ISTANBUL,economy) {
+  return purchaseForecast(bike,bike.price,destination,economy).profit;
 }
 
 export function rentalRate(bike) {
@@ -204,7 +238,7 @@ export function perform(state, action, id, amount, branchId = 1) {
   return applyAction(JSON.parse(JSON.stringify(state)),action,id,amount,branchId);
 }
 
-function applyAction(next, action, id, amount, branchId, deferMarket = false, worker) {
+function applyAction(next, action, id, amount, branchId, worker) {
   const branch = next.branches.find(item => item.id === branchId);
   if (!branch) throw new Error('Şube bulunamadı.');
   const bike = branch.garage.find(item => item.id === id);
@@ -250,6 +284,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
       finishTrade(next,listing.seller,listing,'bought');
     }
     const { seller, easterEgg, ...vehicle } = listing;
+    markToMarket(vehicle,next.economy,branchProvince(branch));
     const reportIds = new Set(listing.inspections?.map(report=>report.id));
     for (const entry of next.ledger) {
       if (reportIds.has(entry.inspectionId)) entry.allocation = 'stock';
@@ -257,7 +292,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
     const inspected = listing.inspections?.some(report=>report.package==='full');
     const acquiredStage = inspected ? (listing.faults.length ? 'inspected' : 'ready') : 'unchecked';
     const inspectionCost = listing.inspections?.reduce((sum,report)=>sum+report.cost,0) ?? 0;
-    branch.garage.push({...vehicle,noticeCosts:{purchase:price,shipping:delivery.fee,inspection:inspectionCost,repair:0},slot,stage:delivery.days ? 'shipping' : acquiredStage,spent:decimal(spent+inspectionCost),
+    branch.garage.push({...vehicle,stockDay:next.day,noticeCosts:{purchase:price,shipping:delivery.fee,inspection:inspectionCost,repair:0},slot,stage:delivery.days ? 'shipping' : acquiredStage,spent:decimal(spent+inspectionCost),
       ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days,acquiredStage,destination:branchProvince(branch),
         ...(next.clock ? {arrivalMs:gameTime(next.day+delivery.days,next.clock.offset)} : {})}} : {}),
       condition:listing.condition ?? 100});
@@ -393,9 +428,15 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
     const archived = next.inspectionArchive?.find(item=>item.id===id && item.listing);
     if (!archived || listing || (isYusufListing(archived.listing) && next.listings.some(isYusufListing))) return false;
     listing = {...archived.listing,inspectionResumedDay:next.day,inspections:archived.reports};
+    markToMarket(listing,next.economy);
     next.listings.unshift(listing);
     next.inspectionArchive = next.inspectionArchive.filter(item=>item!==archived);
     return true;
+  }
+
+  function nextBuyerDay(item) {
+    const wait = item.marketTerms ? Math.max(2,Math.round(item.marketTerms.days*.44)) : 1;
+    return next.day+wait+Number(item.ask>roadValue(item)*1.22);
   }
 
   function activeMeeting(meetingId) {
@@ -653,7 +694,9 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
       bike.listedFrom = bike.stage;
       bike.stage = 'listed';
       bike.ask = amount.price;
-      bike.nextVisit = next.day+1+Number(bike.ask>roadValue(bike)*1.22);
+      bike.listedDay = next.day;
+      bike.managedAsking = Boolean(worker);
+      bike.nextVisit = nextBuyerDay(bike);
       bike.meetings = [];
       message = 'Motosiklet seçilen yöntemle ilana çıktı.';
       break;
@@ -665,7 +708,9 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
       bike.disclosureMode = action==='list-quiet' ? 'conceal' : 'disclose';
       bike.stage = 'listed';
       bike.ask = amount ?? roadValue(bike);
-      bike.nextVisit = next.day + 1 + (bike.ask > roadValue(bike) * 1.22 ? 1 : 0);
+      bike.listedDay = next.day;
+      bike.managedAsking = Boolean(worker);
+      bike.nextVisit = nextBuyerDay(bike);
       bike.meetings = [];
       message = 'İlan açıldı. Müşteriler sonraki günlerde gelebilir.';
       break;
@@ -676,6 +721,8 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
       delete bike.listedFrom;
       delete bike.meetings;
       delete bike.ask;
+      delete bike.listedDay;
+      delete bike.managedAsking;
       delete bike.nextVisit;
       message = 'Satış ilanı kaldırıldı.';
       break;
@@ -687,6 +734,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
       const saleId = `${meeting.id}:settled`;
       const complaint = meeting.dialogue?.disclosed ? null : buyerComplaint(bike,saleId);
       const sale = {id:saleId,name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
+        ...(bike.listedDay===undefined ? {} : {daysListed:next.day-bike.listedDay}),
         damageRecords:legacyDamageRecords(bike),disclosureMode:bike.disclosureMode ?? 'disclose',
         ...(bike.tradeStrategy ? {strategy:meeting.dialogue?.disclosed && isRisky(bike.tradeStrategy) ? 'damaged' : bike.tradeStrategy,
           customerId:meeting.profile.id,returning:meeting.returning ?? false} : {}),
@@ -785,6 +833,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
         bike.stage = 'shipping';
       }
       branch.garage = branch.garage.filter(item=>item!==bike);
+      markToMarket(bike,next.economy,destination);
       office.garage.push(bike);
       message = 'Transfer kaydedildi ve hedef bölme ayrıldı.';
       break;
@@ -898,14 +947,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
           completed += workRepairs(next,office,tomorrow,0,gameTime(tomorrow));
           delete office.workMs;
         }
-        for (const item of office.garage) {
-          if (item.stage !== 'listed') continue;
-          for (const meeting of item.meetings.filter(isActive)) {
-            if (!meeting.held && !meeting.round && meeting.status !== 'agreed' && tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
-          }
-          item.meetings = item.meetings.filter(isActive);
-          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item),next.trade);
-        }
+
       }
       const complaints = next.clock ? 0 : settleComplaints(gameTime(tomorrow));
       next.financeSnapshots ??= [];
@@ -928,7 +970,20 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
         }
         return false;
       });
-      if (!deferMarket || next.branches.some(office=>office.automation?.buy && hasManager(office))) replenishMarket(next,tomorrow);
+      // Generate and record the same observable market on every elapsed day, online or offline.
+      replenishMarket(next,tomorrow);
+      for (const item of next.listings) if (!item.id.startsWith(`${tomorrow}-`)) markToMarket(item,next.economy);
+      for (const office of next.branches) {
+        for (const item of office.garage) markToMarket(item,next.economy,branchProvince(office));
+        for (const item of office.garage) {
+          if (item.stage !== 'listed') continue;
+          for (const meeting of item.meetings.filter(isActive)) {
+            if (!meeting.held && (!meeting.round || meeting.staffHandled) && meeting.status !== 'agreed' && tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
+          }
+          item.meetings = item.meetings.filter(isActive);
+          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item),next.trade);
+        }
+      }
       automate(next);
       if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
       return {state:next,completed,returned,delivered,visits,accidents,complaints,
@@ -959,7 +1014,7 @@ function automate(state,{daily=true}={}) {
     let performed = false;
     const reserve = config.reserve ?? 0;
     const run = (step,action,bike,worker,arg)=>{
-      applyAction(state,action,bike.id,arg,branch.id,false,worker);
+      applyAction(state,action,bike.id,arg,branch.id,worker);
       report.history.unshift({day:state.day,time,step,id:bike.id,name:bike.name,worker:worker.name});
       report.history.length = Math.min(report.history.length,40);
       performed = true;
@@ -981,16 +1036,23 @@ function automate(state,{daily=true}={}) {
       if (bike.stage==='ready' && !bike.faults.length && stepEnabled(config,'list')) {
         if (!advisor) statuses.add('Satış danışmanı bekleniyor');
         else run('list','list-strategy',bike,advisor,{strategy:hasDocuments(bike) ? 'documented' : 'repaired',
-          price:Math.max(1,roadValue(bike),Math.ceil(bike.spent+config.minProfit))});
+          price:Math.max(1,Math.round(roadValue(bike)*(1-Math.min(.045,Math.max(0,state.day-(bike.stockDay ?? state.day))*.0015))),Math.ceil(bike.spent+config.minProfit))});
       }
       if (!daily || bike.stage!=='listed' || bike.faults.length || bike.disclosureMode!=='disclose' || isRisky(bike.tradeStrategy)) continue;
       if (!stepEnabled(config,'negotiate') && !stepEnabled(config,'sell')) continue;
       if (!advisor) { statuses.add('Satış danışmanı bekleniyor'); continue; }
+      const age = state.day-(bike.listedDay ?? state.day);
+      if (bike.managedAsking && stepEnabled(config,'list') && age>=5 && age%5===0 && !bike.meetings.some(meeting=>isActive(meeting) && meeting.held)) {
+        const value = roadValue(bike);
+        const markdown = Math.min(.10,age*.0035);
+        bike.ask = Math.max(1,Math.ceil(bike.spent+config.minProfit),Math.round(value*(1-markdown)));
+      }
+      const target = bike.spent+config.minProfit;
       const active = bike.meetings.filter(meeting=>isActive(meeting) && !meeting.held && (!meeting.round || meeting.staffHandled));
-      active.sort((a,b)=>b.price-a.price);
+      const stalled = offer=>offer.price<target && (offer.round>=MAX_ROUNDS || !offer.patience);
+      active.sort((a,b)=>Number(stalled(a))-Number(stalled(b)) || b.price-a.price);
       const offer = active[0];
       if (!offer) { statuses.add('Uygun müşteri bekleniyor'); continue; }
-      const target = bike.spent+config.minProfit;
       const question = buyerQuestion(offer);
       if (stepEnabled(config,'negotiate') && question) {
         offer.staffHandled = true;
@@ -1011,7 +1073,7 @@ function automate(state,{daily=true}={}) {
     if (daily) branch.lastAutomationDay = state.day;
     if (daily && stepEnabled(config,'buy')) {
       let budget = config.budget;
-      const {candidates,rejected} = rankMarket(state.listings,config,item=>purchaseForecast(item,item.price,branchProvince(branch)),
+      const {candidates,rejected} = rankMarket(state.listings,config,item=>purchaseForecast(item,item.price,branchProvince(branch),state.economy),
         inspector && stepEnabled(config,'inspect'),manager);
       let bought = 0;
       const addRejection = (item,reason)=>rejected.push({id:item.id,name:item.name,reason});
@@ -1171,6 +1233,13 @@ export function nextRiskEvent(state) {
 }
 
 export function synchronize(state, now) {
+  if (!state.economy) {
+    // A migrated save starts with the visible current market, never fabricated earlier days.
+    const economy = observeMarket(createEconomy(state.day),state.listings);
+    state = {...state,economy,listings:state.listings.map(item=>markToMarket({...item},economy)),
+      branches:state.branches.map(branch=>({...branch,garage:branch.garage.map(item=>
+        markToMarket({...item},economy,branchProvince(branch)))}))};
+  }
   if (!state.clock) {
     return {state:{...state,clock:startClock(now)},summary:null};
   }
@@ -1224,16 +1293,15 @@ export function synchronize(state, now) {
     }
     if (workChanged && clock.offset<DAY_MS) automate(next,{daily:false});
     if (clock.offset === DAY_MS) {
-      const result = applyAction(next,'advance',undefined,undefined,1,true);
+      const result = applyAction(next,'advance',undefined,undefined,1);
       summary.days++;
       for (const key of ['completed','returned','delivered','visits','accidents','complaints']) summary[key] += result[key];
     }
     if (due<=current+step) {
-      const events = applyAction(next,'settle-events',undefined,undefined,1,true);
+      const events = applyAction(next,'settle-events',undefined,undefined,1);
       for (const key of ['inspected','approved','accidents','rides','complaints']) summary[key] += events[key];
     }
   }
-  if (summary.days) replenishMarket(next,next.day);
   for (const row of next.ledger.slice(0,next.ledger.length-ledgerLength)) {
     if (row.kind === 'income') summary.income += row.amount;
     if (row.kind === 'expense') summary.expenses += row.amount;

@@ -1,8 +1,8 @@
-import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.4';
+import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.15.4';
-export { stableNumber } from './characters.mjs?v=0.15.4';
-import { modelOf } from './bikes.mjs?v=0.15.4';
+  setReputation, stableNumber } from './characters.mjs?v=0.16';
+export { stableNumber } from './characters.mjs?v=0.16';
+import { modelOf } from './bikes.mjs?v=0.16';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -73,12 +73,12 @@ export function createBuyer(bike,day,index,reputation,value,legacy,trade) {
   const trust = bike.disclosureMode==='disclose' && bike.damageHistory?.length ? .018 : request && bike.disclosureMode==='conceal' ? -.025 : 0;
   const riskyPremium = enhanced && isRisky(bike.tradeStrategy)
     ? (1-(profile.knowledge+profile.mechanical)/200)*(bike.cosmeticPresentation ? .20 : .11) : 0;
-  const calculatedBudget = roundPrice(value * ((enhanced ? .89+profile.wealth*.0025 : profile.premium) + fit + condition - mileage + trust + riskyPremium + (reputation - 50) * .0018));
-  const budget = enhanced ? Math.min(profile.budget,calculatedBudget) : calculatedBudget;
+  const calculatedBudget = roundPrice(value * (bike.marketTerms?.budget ?? 1) * ((enhanced ? .89+profile.wealth*.0025 : profile.premium) + fit + condition - mileage + trust + riskyPremium + (reputation - 50) * .0018));
+  const budget = enhanced ? Math.min(roundPrice(profile.budget*(bike.marketTerms?.budget ?? 1)),calculatedBudget) : calculatedBudget;
   const price = legacy?.price ?? Math.min(bike.ask,roundPrice(budget * (.76 + (seed % 14) / 100)));
   return { id, kind:'sale', profile, day, price, anchor:bike.ask, limit:Math.max(price,budget), round:0, patience:profile.patience,
     status:'open', ...(request ? {request} : {}),
-    ...(enhanced ? {dialogue:{answers:[],suspicion:0,
+    ...(enhanced ? {budgetCap:roundPrice(profile.budget*(bike.marketTerms?.budget ?? 1)),dialogue:{answers:[],suspicion:0,
       ...(memory ? {memoryTrust:Math.round((memory.satisfaction-50)*.2)+(rememberedProof ? 5 : 0)} : {})},
       returning:Boolean(memory)} : {}),
     speech:memory ? `Geçen alışverişimde ${memory.lastModel} almıştım. ${rememberedProof
@@ -111,7 +111,9 @@ export function arrive(bike,day,reputation,value,trade) {
   const classDemand = (modelOf(bike)?.demand ?? .08) - .07;
   const demand = clamp(.76 + classDemand + (reputation - 50) * .006 + (bike.condition - 85) * .008
     - Math.max(0,bike.ask / value - 1) * .72 - Math.min(.24,bike.km / 250000),.10,1);
-  const visits = (stableNumber(`${bike.id}:${day}:demand`) % 100) / 100 < demand ? 1 + Math.floor(reputation / 35) : 0;
+  const adjusted = clamp(demand*(bike.marketTerms?.demand ?? 1),.05,1);
+  if (bike.marketTerms) bike.nextVisit = day+Math.max(1,Math.round(bike.marketTerms.days/3));
+  const visits = (stableNumber(`${bike.id}:${day}:demand`) % 100) / 100 < adjusted ? 1 + Math.floor(reputation / 35) : 0;
   const count = Math.min(visits,5 - bike.meetings.filter(isActive).length);
   for (let i=0;i<count;i+=1) {
     const meeting = createBuyer(bike,day,i,reputation,value,undefined,trade);
@@ -216,7 +218,7 @@ export function answerBuyer(meeting,bike,topic,choice) {
     meeting.limit = Math.max(meeting.price,Math.min(meeting.limit,roundPrice(meeting.limit*(1-reduction))));
     meeting.speech = speech+' Bu koşullarda teklifimi düşürüyorum.';
   } else if (open && !negative && roll<clamp((dialogue.trust-skeptical*.30+mechanical*.12+memory)/100,.08,.94)) {
-    const cap = Math.min(meeting.anchor,meeting.limit,profile.budget ?? Infinity);
+    const cap = Math.min(meeting.anchor,meeting.limit,meeting.budgetCap ?? profile.budget ?? Infinity);
     const increased = roundPrice(meeting.price*(1+(documented ? .055 : .035)+mechanical*.00015));
     const price = Math.max(meeting.price,Math.min(cap,increased));
     meeting.speech = speech+(price>meeting.price ? ' Teklifimi artırabilirim.' : '');
