@@ -5,7 +5,7 @@
 | `graphics/vendor/three.*.js`, `graphics/vendor/addons.mjs` | [Three.js r180](https://github.com/mrdoob/three.js/tree/r180), MIT. Lisans `graphics/vendor/THREE-LICENSE.txt`. Eklenti paketinde OrbitControls, GLTFLoader, KTX2Loader ve RoomEnvironment bulunur. |
 | `graphics/vendor/basis/` | Three.js r180 ile dağıtılan [Basis Universal transcoder](https://github.com/BinomialLLC/basis_universal), Apache-2.0. Lisans ve kaynak notu aynı klasörde. |
 | `assets/3d/models/showroom-plinth.glb` | Bu değişiklikte üretilen sergileme platformu. Kaynak `tools/build-display-plinth.py`. Üçüncü taraf model veya doku içermez. |
-| Garaj geometrisi, ortam ve yüzey desenleri | `graphics/garage.mjs` içinde üretilir. Harici HDRI veya doku içermez. |
+| Garaj geometrisi, ortam ve yüzey desenleri | `graphics/garage.mjs` içinde üretilir. Harici HDRI veya doku içermez. v0.17.0.1 yuvarlatılmış ekipman, kompresör hattı, tile normal/pürüzlülük, fırçalı metal kanalları ve temas gölgesi kaynakları `graphics/garage.mjs` ve `graphics/surfaces.mjs` içindeki özgün üretimdir. |
 
 Önceki 2D katalog varlıkları özgün dosyalarından okunur. Önceki varlık envanteri grafik bütünlüğü testinde kayıtlıdır.
 

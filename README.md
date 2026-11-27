@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.17
+# MOTOR EMPIRE v0.17.0.1
 
 MOTOR EMPIRE, iPhone Safari ve masaüstü tarayıcılar için Türkçe bir motosiklet işletme oyunudur. HTML, CSS, JavaScript ES modülleri ve Canvas 2D kullanır. Oyun yerelde çalışırken hesap, sunucu API'si veya derleme gerektirmez.
 
@@ -17,6 +17,8 @@ Tarayıcıda [localhost:8000](http://localhost:8000/) adresini aç. Aynı kaydı
 ## Deneysel 3D garaj
 
 Garaj ekranında **Garaj grafik ayarları → Deneysel 3D Garaj** yolunu kullan. Prototip 10 bölmeli şubelerde çalışır. Diğer şubeler ve WebGL 2 desteklemeyen cihazlar 2D garajı kullanır. Grafik ayarları oyun kaydından bağımsızdır. Mevcut motosiklet görselleri üç hedef varyant dahil stokta gösterilir. Lisanslı 3D motosiklet modelleri henüz pakette bulunmuyor.
+
+Sahne içinde tek parmakla döndür, iki parmakla yakınlaştır veya kaydır. Yakın duvarlar gerektiğinde görüşten çıkar. **Kamerayı sıfırla** başlangıç açısını getirir. Grafik ayarları etkin profilin çözünürlük, doku, gölge, yansıma ve FPS sınırını gösterir.
 
 Yerel Three.js ve Basis dosyaları statik olarak sunulur. Testte kullanılan özgün UASTC doku ve aday varlık lisansları belgelenmiştir. [Grafik mimarisi](GRAPHICS_ARCHITECTURE.md) · [Lisanslar](ASSET_LICENSES.md) · [Gereksinim denetimi](docs/v017-audit.md)
 
@@ -60,3 +62,7 @@ GitHub Pages kullanırken depo ayarlarında **Pages → Deploy from a branch** �
 
 - 390×844 mobil ekran emülasyonu, yazılımsal WebGL · [Garaj, varsayılan açı](docs/v017-garage-angle-1.webp) · [Garaj, çevrilmiş açı](docs/v017-garage-angle-2.webp)
 - Mevcut 2D varlıklarla açılan ayrıntılar · [Yamaha MT-25](docs/v017-graphics-yamaha-mt25.webp) · [Kawasaki Z900](docs/v017-graphics-kawasaki-z900.webp) · [KTM 1390 Super Duke R](docs/v017-graphics-ktm-super-duke1390.webp)
+
+## v0.17.0.1 karşılaştırması
+
+Aynı stok ve kamera konumuyla [garaj karşılaştırmaları](docs/v01701-comparison.md). Ölçümler yazılımsal WebGL ve mobil tarayıcı emülasyonundan alınmıştır.

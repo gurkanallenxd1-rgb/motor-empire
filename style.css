@@ -568,5 +568,5 @@ body[data-view="market-analysis"] main { padding-top:13px }
 .graphics-form label:has(input) { display:flex; align-items:center; min-height:44px }
 .graphics-form select { min-width:0; width:100%; min-height:44px; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:6px; font:inherit; font-size:16px }
 .graphics-canvas { background:#191c20; border:1px solid var(--line); border-radius:9px; overflow:hidden }
-.graphics-canvas canvas { display:block; width:100%; aspect-ratio:3/2; max-height:66svh; touch-action:none }
+.graphics-canvas canvas { display:block; width:100%; aspect-ratio:3/2; max-height:66svh; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none }
 .graphics-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-block:6px }

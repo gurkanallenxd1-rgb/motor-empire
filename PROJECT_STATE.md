@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.17 deneysel 3D prototip**. Temel sürüm [v0.16.1, PR #32](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/32). Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
+Bu dalın sürümü **v0.17.0.1 deneysel 3D garaj düzeltmesi**. Temel sürüm [v0.17, PR #33](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/33), main `44e4d16`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -29,11 +29,16 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - Statik, hesapsız kullanım ve GitHub Pages yayını korunur. Kayıtlar tarayıcıya özeldir. Hesaplar ve bulut kayıt v0.20 için planlanıyor.
 - Model çizimleri yerel WebP ve boya maskeleri kullanır. Bütün model ve kasa varyantları üretici düzeyinde doğrulanmış değildir. Görsel denetim sayfası temsilî varlıkları işaretler. Fiziksel iPhone kare hızı ölçümü bu sürümde yapılmadı.
 - Fiyat grafiği Türkiye genelinde tüm model yıllarını kapsar. Şehir karşılaştırması seçilen yılın temiz motosiklet referansıdır ve işlem garantisi içermez.
-- Mevcut doğrulama **127 Node.js + 35 mobil Playwright WebKit = 162 başarılı test**. PR #33 başındaki 160 test korunur. Chromium yazılımsal WebGL’de 6 grafik testi geçti. Fiziksel iPhone testi yapılmadı.
+- Mevcut doğrulama **130 Node.js ve 36 mobil Playwright WebKit testi geçti.** Chromium SwiftShader grafik alt kümesi 7/7. Önceki 127 Node.js, 35 WebKit ve 6 Chromium senaryosu korunur. Düzeltme fiziksel iPhone üzerinde yeniden denenmedi.
 - Sıradaki görev üç prototip modelin ticari kullanım, düzenleme ve açık dağıtım izni, gerçek 3D inceleme, garaj varlık ayrıntıları ve fiziksel iPhone performans ölçümü. KTX2, iki tarayıcıda özgün bir test varlığıyla doğrulandı. Daha geniş 3D dönüşüm kullanıcı onayı gerektirir. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.
 
-## PR #33 devam noktası
+## Son görev ve devam noktası
 
-- Zorunlu gereksinimlerin durumu [v0.17 denetiminde](docs/v017-audit.md). 0/3 lisanslı motosiklet modeli var. Bir sonraki varlık çalışması üç hedef modelle sınırlı.
-- İki farklı 3D garaj açısı ve üç 2D ayrıntı yenilendi. [Görseller](README.md#v017-prototip-ekran-görüntüleri)
-- Çizim çağrıları instancing ile azaltıldı. FPS ve kaynak ölçümünün yöntemi, sınırları ve tekrar komutu [grafik mimarisinde](GRAPHICS_ARCHITECTURE.md#performans-doğrulaması).
+- **Son görev** v0.17.0.1’de kamera kesiti, yumuşak orbit, zoom sınırları, Safari dokunma yalıtımı, özgün ekipman geometrisi ve PBR profil bilgisi.
+- **Kullanıcı bildirimi** fiziksel iPhone’da 3D garaj, kamera ve yakınlaştırma çalıştı. Kamera duvar arkasına geçiyor, duvar veya zemin görüşü kaplıyor ve uzun basmada metin menüsü açılabiliyordu. Ekipmanlar köşeli, aydınlatma/malzemeler ve Ultra yetersiz bulunmuştu. Motosikletler mevcut 2D kartlardı.
+- **Uygulanan çözümler** dinamik duvar kesiti ve fiziksel göz/hedef limitleri, sahneye özgü iOS CSS, jest ayrımı, ayrıntılı servis/galeri/masa ve yüzey kanalları, profil özeti. Lisanslı model bulunana kadar özgün 2D stok kullanılır.
+- **Açık işler** düzeltmenin fiziksel iPhone tekrarı, pil/ısıl durum ve cihaz FPS’i, lisanslı 3D motosikletler, gerçek 3D inceleme, gerçek optik cam kırılması ve çekilmiş HDRI.
+- **Sıradaki görev** 10 bölmeli garajın fiziksel iPhone testi ve üç hedef model için kalite/lisans doğrulaması. Diğer seviyelere ve tüm kataloğa genişleme kullanıcı onayı gerektirir.
+- **Değişiklik sınırları** 98 katalog/2D dosyası, 2D varsayılanı, oyun kaydı, ekonomi, finans, personel, otomasyon, ekspertiz, nakliye, tamir, bildirimler ve Yusuf Belge kuralları.
+- **Performans** yerel SwiftShader Orta profilde 3D başlangıcı 3,655 → 1,833 sn, normal kare 44 → 72 çizim çağrısı ve aygıt sorgusu medyanı 80,42 → 92,45 ms. Yeni geometri maliyeti fiziksel cihazda ölçülmeli.
+- **Kanıtlar** [Karşılaştırma, test ve ölçümler](docs/v01701-comparison.md) · [PR #33 temel denetimi](docs/v017-audit.md)

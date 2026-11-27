@@ -40,6 +40,7 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 - 2D varsayılan açıktır. Kaynak veya WebGL hatasında 2D garaj çalışmaya devam eder. Grafik ayarları oyun kaydından ayrıdır.
 - Katalog ve görsel dosyalarını temel envanterle otomatik karşılaştır. Varlık lisanslarını [ASSET_LICENSES.md](ASSET_LICENSES.md) dosyasına belgele. Mimari için [GRAPHICS_ARCHITECTURE.md](GRAPHICS_ARCHITECTURE.md) dosyasını oku.
 - [v0.17 gereksinim denetimi](docs/v017-audit.md) doğrulanan özellikleri ve açık işleri listeler. Performans karşılaştırmalarında tarayıcı, donanım, profil ve ölçüm yöntemini kaydet. Fiziksel iPhone sonucu diye emülasyon ölçümü kullanma.
+- Kamera ve dokunma değişikliklerini gerçek WebKit emülasyonu ile hem dikey hem yatay dene. Kamera kesit ve etkileşim kurallarını [grafik mimarisinde](GRAPHICS_ARCHITECTURE.md#kamera-ve-dokunma) sürümle.
 - İlk prototip 10 bölme ve üç hedef motosikletle sınırlı. Katalog veya garaj seviyelerini genişletmeden önce kullanıcı onayı al. PR'ı otomatik birleştirme.
 
 ## Git ve teslim
