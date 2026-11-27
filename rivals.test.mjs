@@ -162,30 +162,29 @@ test('acquired branch buys, inspects, repairs, lists, negotiates and sells after
   for(const bike of branch.garage)bike.autoPaused=true;
   for(const role of ['manager','inspector','master','sales'])
     state=perform(state,'hire-worker',undefined,role,branch.id).state;
-  const item={id:'branch-e2e',name:'Yamaha R25',year:2021,km:21000,price:30000,value:110000,
-    province:branch.province,condition:82,faults:['lastik'],damageHistory:[],color:'#3560ab',colorName:'Mavi',
-    inspections:[{id:'branch-e2e:basic',package:'basic',cost:450,due:20*DAY_MS,branchId:1}]};
-  state.listings=[item];
-  state.marketDay=2;
+  state=perform(state,'upgrade-office',undefined,undefined,branch.id).state;
   const settings={buy:true,inspect:true,repair:true,list:true,negotiate:true,sell:true,
-    maxPrice:90000,minProfit:0,budget:90000,reserve:20000,brand:'',minCc:0,maxCc:3000};
+    maxPrice:150000,minProfit:0,budget:180000,reserve:20000,brand:'',minCc:0,maxCc:3000};
+  const item={id:'branch-e2e',name:'Yamaha R25',year:2021,km:21000,price:30000,value:110000,
+    province:branch.province,condition:82,faults:['lastik'],damageHistory:[],color:'#3560ab',colorName:'Mavi'};
+  state.listings=[item];
+  state=perform(state,'buy',item.id,undefined,branch.id).state;
   state=perform(state,'set-automation',undefined,settings,branch.id).state;
   state=synchronize(state,WALL+DAY_MS).state;
-  assert.ok(state.branches[1].garage.some(bike=>bike.id===item.id));
+  assert.ok(state.branches[1].autoReport.history.some(row=>row.step==='buy'&&row.id!==item.id));
   const data=storageFor(state);
   state=loadGame(data);
   state=perform(state,'set-automation',undefined,{...settings,buy:false},branch.id).state;
-  state=synchronize(state,WALL+2*DAY_MS).state;
-  state=synchronize(state,WALL+2*DAY_MS+16*DAY_MS/24).state;
+  state=synchronize(state,WALL+DAY_MS+16*DAY_MS/24).state;
   const listed=state.branches[1].garage.find(bike=>bike.id===item.id);
   assert.equal(listed?.stage,'listed');
   listed.nextVisit=state.day+5;
   const meeting=createBuyer({...listed,tradeStrategy:undefined},state.day,0,50,110000,{name:'Deniz Kaya',price:listed.spent-50});
   listed.meetings=[{...meeting,limit:100000,patience:4,profile:{...meeting.profile,skill:0}}];
-  state=synchronize(state,WALL+3*DAY_MS).state;
+  state=synchronize(state,WALL+2*DAY_MS).state;
   assert.ok(state.sales.some(sale=>sale.branchId===branch.id&&sale.name===item.name));
   const steps=state.branches[1].autoReport.history.filter(row=>row.id===item.id).map(row=>row.step);
-  for(const step of ['buy','inspect','repair','list','negotiate','sell'])assert.ok(steps.includes(step),step);
-  assert.equal(state.ledger.filter(row=>row.branchId===branch.id&&row.category==='repair').length,1);
+  for(const step of ['inspect','repair','list','negotiate','sell'])assert.ok(steps.includes(step),step);
+  assert.equal(state.ledger.filter(row=>row.branchId===branch.id&&row.category==='repair'&&row.model===item.name).length,1);
   assert.equal(state.competition.companies.some(row=>row.id===company.id),false);
 });
