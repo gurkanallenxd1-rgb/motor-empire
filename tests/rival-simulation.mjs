@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import {performance} from 'node:perf_hooks';
+import {createEconomy,marketRandom,nextEconomy,observeMarket} from '../economy.mjs';
+import {generateMarket} from '../game.mjs';
+import {advanceCompetition,createCompetition,rivalValue} from '../rivals.mjs';
+import {BRANCH_TIERS} from '../business.mjs';
+
+export function rivalSimulation(days) {
+  let market=createEconomy(1);
+  market=observeMarket(market,generateMarket(1,marketRandom(1),true,market));
+  const world=createCompetition(1,market);
+  const elapsed=[];
+  const prices=[];
+  for(let day=2;day<=days+1;day++){
+    market=nextEconomy({economy:market,sales:[]},day);
+    market=observeMarket(market,generateMarket(day,marketRandom(day),true,market));
+    const start=performance.now();
+    advanceCompetition(world,day,market);
+    elapsed.push(performance.now()-start);
+    const ids=new Set();
+    for(const company of world.companies) {
+      assert.equal(company.cash,company.openingCash+company.cashIn-company.cashOut);
+      assert.ok(company.cash>=0 && company.debt>=0);
+      assert.equal(company.bookValue,rivalValue(company));
+      assert.ok(company.history.length<=365);
+      assert.ok(company.branches.length<=4);
+      for(const branch of company.branches) {
+        assert.ok(company.stock.filter(bike=>bike.branch===branch.id).length<=BRANCH_TIERS[branch.tier].capacity);
+      }
+      for(const bike of company.stock){
+        assert.ok(!ids.has(bike.id));ids.add(bike.id);
+        assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
+        if(bike.ask)prices.push(bike.ask/bike.value);
+      }
+    }
+    assert.ok(world.companies.length<=64);
+    assert.ok(world.companies.reduce((sum,c)=>sum+c.marketShare,0)<=1.000001);
+  }
+  const list=world.companies;
+  const average=key=>list.reduce((sum,c)=>sum+c[key],0)/Math.max(1,list.length);
+  const shares=list.map(c=>c.marketShare).sort((a,b)=>b-a);
+  assert.ok(shares[0]<.20);
+  assert.ok(Buffer.byteLength(JSON.stringify(world))<1600000);
+  assert.ok(list.every(c=>c.cash<50000000 && c.bookValue<85000000));
+  return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,
+    averageValue:Math.round(average('bookValue')),averageCumulativeNet:Math.round(average('profit')),
+    topShare:+shares[0].toFixed(4),medianShare:+shares[Math.floor(shares.length/2)].toFixed(4),
+    stock:list.reduce((sum,c)=>sum+c.stock.length,0),sales:world.sold,turnover:world.turnover,
+    minAskRatio:+prices.reduce((a,b)=>Math.min(a,b),2).toFixed(3),
+    maxAskRatio:+prices.reduce((a,b)=>Math.max(a,b),0).toFixed(3),
+    bytes:Buffer.byteLength(JSON.stringify(world)),averageMs:+(elapsed.reduce((a,b)=>a+b,0)/elapsed.length).toFixed(2),
+    p95Ms:+elapsed.sort((a,b)=>a-b)[Math.floor(elapsed.length*.95)].toFixed(2)};
+}
+if(process.argv[1]?.endsWith('/rival-simulation.mjs'))for(const days of [30,90,365,1000])console.log(JSON.stringify(rivalSimulation(days)));

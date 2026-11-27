@@ -336,7 +336,8 @@ export function inheritedStock(item,day,province,allocated,slot) {
     price:Math.max(1,allocated),spent:Math.max(allocated,shipping?.fee??0),value:item.reference,
     stage:shipping?'shipping':item.state==='ready'?'ready':item.state==='inspected'?'inspected':'unchecked',
     ...(shipping?{shipping}:{}),faults:item.state==='ready' || !item.repair?[]:['lastik'],
-    color:paint?.hex,colorName:paint?.name,paintAccent:paint?.accent,paintAccentName:paint?.accentName};
+    color:paint.hex,colorName:paint.name,
+    ...(paint.accent?{paintAccent:paint.accent,paintAccentName:paint.accentName}: {})};
 }
 
 export function competitiveChoice(world,meeting,bike,province,reputation,options={}) {

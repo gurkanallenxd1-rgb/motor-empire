@@ -1147,3 +1147,75 @@ test('graphics canvas bounds orbit and dolly, reveals the interior and isolates 
   assert.equal(await page.evaluate(()=>window.orbitSelected),undefined);
   await page.evaluate(()=>{window.orbitTest.renderer.dispose();window.orbitTest.host.remove();});
 });
+
+test('390px competition center filters companies, opens growth details and shows rankings',async t=>{
+  const seed=synchronize(initial(),T+8*DAY_MS).state;
+  const ui=await open(t,390,844,seed);
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  await ui.page.locator('#competition-summary .analysis-hero').waitFor();
+  assert.match(await ui.page.locator('#competition-summary').innerText(),/Pazar payım|Yeni galeri koruması/);
+  const captures=process.env.COMPETITION_SCREENSHOTS;
+  if(captures)await ui.page.screenshot({path:captures+'/summary.png',fullPage:true});
+  await ui.tap('#competition-tab-rivals');
+  assert.equal(await ui.page.locator('#rival-city option').count(),82);
+  if(captures)await ui.page.screenshot({path:captures+'/rivals.png'});
+  await ui.page.fill('#rival-search','Kıvıltaş Viraj');
+  assert.equal(await ui.page.locator('#rival-list .competition-row').count(),1);
+  await ui.tap('#rival-list button');
+  const detail=ui.page.locator('#rival-detail');
+  assert.ok(await detail.isVisible());
+  assert.match(await detail.innerText(),/Kasa · tahmin/);
+  await ui.page.selectOption('#rival-period','7');
+  assert.ok(await ui.page.locator('#rival-history svg').isVisible());
+  await ui.tap('#rival-detail [aria-label="Şirket ayrıntısını kapat"]');
+  await ui.tap('#competition-tab-ranks');
+  assert.ok(await ui.page.locator('#rival-rank-list [data-player]').isVisible());
+  await ui.page.selectOption('#rival-rank-city','34');
+  await ui.page.selectOption('#rival-rank-metric','sold');
+  assert.match(await ui.page.locator('#rival-rank-list').innerText(),/MOTOR EMPIRE/);
+  if(captures)await ui.page.screenshot({path:captures+'/ranks.png'});
+  await ui.tap('#competition-tab-news');
+  assert.match(await ui.page.locator('#competition-news').innerText(),/rekabet haberi|Gün/);
+});
+
+test('320px acquisition requires review and confirmation and commits one deal',async t=>{
+  const player=initial();player.cash=5000000;
+  const ui=await open(t,320,568,player);
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  await ui.tap('#competition-tab-acquisitions');
+  if(process.env.COMPETITION_SCREENSHOTS)await ui.page.screenshot({path:process.env.COMPETITION_SCREENSHOTS+'/acquisitions.png'});
+  await ui.tap('#competition-acquisitions [data-rival-detail]');
+  await ui.page.fill('#rival-price','1');
+  await ui.tap('#rival-review-offer');
+  await ui.page.waitForFunction(()=>document.querySelector('#rival-offer-status').textContent.includes('reddetti'));
+  assert.equal((await ui.state()).cash,player.cash);
+  await ui.tap('#rival-detail form button');
+  await ui.tap('#competition-acquisitions [data-rival-detail]');
+  await ui.tap('#rival-review-offer');
+  assert.ok(await ui.page.locator('#rival-confirm-area').isVisible());
+  assert.equal((await ui.state()).branches.length,1);
+  await ui.tap('#rival-confirm');
+  await ui.page.locator('#rival-detail').waitFor({state:'hidden'});
+  const result=await ui.state();
+  assert.equal(result.competition.acquired,1);
+  assert.equal(result.branches.length,2);
+  assert.equal(result.competition.companies.length,49);
+  await ui.tap('#notification-bell');
+  await ui.page.selectOption('#notification-filter','competition');
+  assert.equal(await ui.page.locator('.notification-row').count(),1);
+});
+
+test('844px competition center keeps business navigation and keyboard tabs',async t=>{
+  const ui=await open(t,844,390,initial());
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  assert.equal(await ui.page.locator('.bottom-nav [data-page=business]').getAttribute('aria-current'),'page');
+  await ui.page.locator('#competition-tab-summary').focus();
+  await ui.page.keyboard.press('ArrowRight');
+  assert.equal(await ui.page.locator('#competition-tab-rivals').getAttribute('aria-selected'),'true');
+  assert.ok(await ui.page.locator('#competition-rivals').isVisible());
+  await ui.tap('#competition-page [data-page=business]');
+  assert.ok(await ui.page.locator('#business-page').isVisible());
+});

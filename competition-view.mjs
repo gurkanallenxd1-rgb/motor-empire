@@ -1,3 +1,5 @@
+import { roadValue } from './damage.mjs?v=0.16.1';
+import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
 import { financeReport } from './finance.mjs?v=0.18';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
@@ -7,6 +9,7 @@ const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
 const level=company=>Math.max(company.branches.length>=4?4:0,...company.branches.map(b=>b.tier));
 const size=company=>SIZES[level(company)];
+const modelNames=new Map(ECONOMY_MODELS.map(model=>[model.id,model.name]));
 const labels={worth:'Şirket değeri',revenue:'30 günlük ciro',profit:'30 günlük net kâr',
   sold:'30 günlük satış',branches:'Şube sayısı',reputation:'İtibar',share:'30 günlük pazar payı'};
 const segment={commuter:'Düşük hacim',premium:'Premium',scooter:'Scooter',sport:'Spor',naked:'Naked',adventure:'Adventure',touring:'Touring'};
@@ -51,7 +54,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const sales=state.sales.filter(s=>s.day>=cutoff&&!s.returnedDay&&(!province||scope.some(b=>b.id===s.branchId)));
     const worth=assets(state);
     const portfolio=province ? scope.reduce((value,branch)=>value+
-      (branch.tier===undefined?0:BRANCH_TIERS[branch.tier].cost)+branch.garage.reduce((sum,bike)=>sum+bike.value,0),
+      (branch.tier===undefined?0:BRANCH_TIERS[branch.tier].cost)+branch.garage.reduce((sum,bike)=>sum+roadValue(bike),0),
       (state.cash-state.debt)*scope.length/state.branches.length):worth.net;
     const finance=province?{...state,ledger:state.ledger.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId)),
       sales:state.sales.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId))}:state;
@@ -221,7 +224,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const branchRows=company.branches.map(b=>element('p',`${cityName(b.province)} · ${company.stock.filter(item=>item.branch===b.id).length}/${BRANCH_TIERS[b.tier].capacity} stok · ${b.staff} çalışan`,'competition-story'));
     const statusNames={ready:'satışa hazır',transit:'nakliyede',inspected:'hazırlıkta'};
     const counts=Object.keys(statusNames).map(key=>`${company.stock.filter(b=>b.state===key).length} ${statusNames[key]}`);
-    const events=[...company.events].reverse().slice(0,5).map(([day,action,,amount])=>element('p',`Gün ${day} · ${actions[action]} · ${money(amount)}`,'competition-story'));
+    const events=[...company.events].reverse().slice(0,5).map(([day,action,model,amount])=>element('p',`Gün ${day} · ${actions[action]} · ${model?modelNames.get(model)+' · ':''}${money(amount)}`,'competition-story'));
     byId('rival-detail-data').replaceChildren(details,element('h3','Şubeler ve stok'),...branchRows,element('p',counts.join(' · '),'spec'),
       element('h3','Son işlemler'),...(events.length?events:[element('p','İşlem kaydı yok.','spec')]));
     byId('rival-offer-area').hidden=!quote.eligible;
