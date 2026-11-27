@@ -1,23 +1,23 @@
-import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.15.2';
-import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.15.2';
+import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.15.3';
+import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.15.3';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff, branchProvince, createOffice,
-  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.15.2';
-import { modelOf } from './bikes.mjs?v=0.15.2';
-import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.2';
+  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.15.3';
+import { modelOf } from './bikes.mjs?v=0.15.3';
+import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.3';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.15.2';
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.15.2';
+  setReputation } from './characters.mjs?v=0.15.3';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.15.3';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.2';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.15.2';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.15.2';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.15.2';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.15.2';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.15.2';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.3';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.15.3';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.15.3';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.15.3';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.15.3';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.15.3';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.15.2';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.15.2';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.15.3';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.15.3';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -728,6 +728,9 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false, wo
     case 'upgrade-office': {
       const plan = nextBranchTier(branch);
       if (!plan) throw new Error('Şube en yüksek seviyede.');
+      if (amount && typeof amount==='object' && (amount.capacity!==plan.capacity || amount.increase!==plan.increase)) {
+        throw new Error('Garaj yükseltmesi değişti. Güncel önizlemeyi kontrol edin.');
+      }
       pay(plan.increase,'Garaj geliştirme');
       branch.tier = plan.tier;
       message = `Şube ${plan.name} seviyesine yükseldi.`;

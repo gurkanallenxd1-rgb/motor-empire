@@ -103,26 +103,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
   user-select: none;
   -webkit-user-select: none;
 }
-.scene canvas { width: 100%; aspect-ratio: 3 / 2; height: auto; }
+.scene canvas { width: 100%; aspect-ratio: 3 / 2; max-height: 66svh; height: auto; }
+.scene canvas:focus-visible { outline:2px solid var(--accent); outline-offset:-2px }
 .scene[data-zoomed=true] { cursor: grab; }
-.scene-status { position: absolute; inset: 50% 0 auto; text-align: center; pointer-events: none; color: var(--muted); }
-.scene[data-ready=true] .scene-status { display: none; }
-.bike-target {
-  position: absolute;
-  left: var(--target-x, -500px);
-  top: var(--target-y, -500px);
-  width: var(--target-width, 44px);
-  height: var(--target-height, 44px);
-  transform: translate(-50%, -50%);
-  border: 0;
-  background: transparent;
-  padding: 0;
-  touch-action: none;
-}
-.scene .bike-target:hover, .scene .bike-target:active { background: transparent; transform: translate(-50%, -50%); }
-.bike-target:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .camera-bar { display: flex; align-items: center; justify-content: flex-end; gap: 5px; padding-top: 5px; }
-.camera-hint { font-size: 11px; color: var(--muted); margin-right: auto; }
+.camera-hint { font-size: 11px; color: var(--muted); }
+.garage-overview { margin-top:7px; font-weight:750 }
+.zoom-value { margin-right:auto; color:var(--muted); font-size:12px }
+.stock-card { min-width:0; overflow-wrap:anywhere }
+.stock-card summary { cursor:pointer; font-size:13px; font-weight:750 }
+.stock-card[open] { grid-column:1/-1 }
+.stock-card .card { margin-top:7px }
+#garage-upgrade { width:min(680px,calc(100% - 22px)); max-height:calc(100% - 24px); overflow:auto;
+  padding:12px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px }
+#garage-upgrade::backdrop { background:#121615d9 }
+#garage-upgrade-art { width:100%; display:block; height:auto; border-radius:7px; margin:8px 0 }
+#garage-upgrade-confirm { width:100% }
 .camera-bar button { min-width: 44px; padding: 3px 8px; background: #242827; font-variant-numeric: tabular-nums; }
 #zoom-in, #zoom-out { font-size: 20px; }
 #zoom-reset { min-width: 55px; font-size: 12px; color: var(--accent); }
@@ -176,7 +172,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
 [hidden] { display: none !important; }
 main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 .dashboard { display: block; }
-.branch-bar, .bay-pages, .quick-actions { display: flex; align-items: center; gap: 8px; }
+.branch-bar, .quick-actions { display: flex; align-items: center; gap: 8px; }
 .branch-bar { margin-bottom: 10px; justify-content: space-between; font-size: 13px; color: var(--muted); }
 .branch-bar select, .credit input {
   color: var(--text); background: #252928; border: 1px solid var(--line);
@@ -190,8 +186,6 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 .overview > .quick-actions, .business-card .quick-actions { margin-top: 10px; }
 .business-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 8px; }
 .quick-actions { flex-wrap: wrap; }
-.bay-pages { justify-content: space-between; margin-top: 7px; font-size: 13px; }
-.bay-pages button { min-width: 44px; font-size: 20px; padding-block: 3px; }
 .rental-rate { margin-block: 8px 4px; }
 .credit { margin-top: 12px; }
 .credit form { display: grid; gap: 6px; margin-top: 9px; justify-items: start; }
