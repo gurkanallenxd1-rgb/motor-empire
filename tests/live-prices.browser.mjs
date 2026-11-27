@@ -1119,12 +1119,11 @@ test('graphics canvas bounds orbit and dolly, reveals the interior and isolates 
   assert.deepEqual(result.reset.target,state.target);
   const canvas=page.locator('.orbit-test');
   const rect=await canvas.boundingBox();
-  for(let i=0;i<3;i++) {
-    await page.mouse.move(rect.x+100,rect.y+100);
-    await page.mouse.down();
-    await page.mouse.move(rect.x+255,rect.y+130,{steps:6});
-    await page.mouse.up();
-  }
+  await page.mouse.move(rect.x+100,rect.y+100);
+  await page.mouse.down();
+  await page.mouse.move(rect.x+190,rect.y+100,{steps:9});
+  await page.mouse.up();
+  await page.evaluate(()=>new Promise(requestAnimationFrame));
   const orbit=await page.evaluate(()=>({pose:window.orbitTest.renderer.cameraState(),selected:window.orbitSelected}));
   assert.notDeepEqual(orbit.pose.eye,state.eye);
   assert.ok(orbit.pose.hidden.length>0,JSON.stringify(orbit.pose));

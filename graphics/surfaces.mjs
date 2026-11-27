@@ -51,3 +51,19 @@ export function contactMap() {
   map.needsUpdate=true;
   return map;
 }
+
+export function brushedMetalMap() {
+  const size=64,data=new Uint8Array(size*size*4);
+  for (let y=0;y<size;y++) for (let x=0;x<size;x++) {
+    const i=(y*size+x)*4;
+    const grain=(y*73+x*5)%23;
+    data[i+1]=135+grain;data[i+2]=229+grain;data[i+3]=255;
+  }
+  const map=new T.DataTexture(data,size,size);
+  map.wrapS=map.wrapT=T.RepeatWrapping;
+  map.minFilter=T.LinearMipmapLinearFilter;
+  map.magFilter=T.LinearFilter;
+  map.generateMipmaps=true;
+  map.needsUpdate=true;
+  return map;
+}

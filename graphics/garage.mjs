@@ -1,4 +1,4 @@
-import { tiledSurface } from './surfaces.mjs?v=0.17.0.1';
+import { brushedMetalMap,tiledSurface } from './surfaces.mjs?v=0.17.0.1';
 import { cutaway } from './camera.mjs?v=0.17.0.1';
 import * as T from './vendor/three.module.min.js';
 import { worldBays } from './config.mjs?v=0.17.0.1';
@@ -40,6 +40,7 @@ export function buildWorkshop(scene) {
   }
   let surface;
   let mapsEnabled=false;
+  let metalMap;
   const box = (x,y,z,w,h,d,m=graphite)=>mesh(boxGeometry,x,y,z,w,h,d,m);
   function mesh(geometry,x,y,z,w,h,d,m) {
     const item = new T.Mesh(geometry,m);
@@ -227,7 +228,13 @@ export function buildWorkshop(scene) {
   box(-6.15,2.17,5.19,2.42,.068,.073,steel);
   for(const x of [-7.13,-5.61]) box(x,1.91,5.17,.16,.22,.074,graphite);
   sign('TESLİM',-6.1,.07,3.6,1.38).rotation.x=-Math.PI/2;
-  sign('SHOWROOM',5.66,1.61,5.1,1.60);
+  equipment(5.66,1.61,5.12,1.66,.48,.065,graphite);
+  sign('SHOWROOM',5.66,1.61,5.16,1.56);
+  for (const x of [-.08,2.42,4.92]) {
+    box(x+.8,.36,-4.32,.035,.68,.05,steel);
+    equipment(x+.8,.70,-4.32,.34,.23,.04,graphite);
+    box(x+.8,.70,-4.295,.282,.174,.014,blue);
+  }
   sign('MÜDÜR',1.47,2.55,-5.34,1.41);
   sign('RESEPSİYON',5.66,1.05,5.20,1.15);
   const batches=new Map();
@@ -254,6 +261,13 @@ export function buildWorkshop(scene) {
     if (surface?.color.image.width===size && mapsEnabled===detail) return;
     if(surface) for(const map of Object.values(surface)) map.dispose();
     surface=tiledSurface(size,detail);
+    if(detail && !metalMap) metalMap=brushedMetalMap();
+    if(!detail && metalMap) {metalMap.dispose();metalMap=undefined;}
+    if(mapsEnabled!==detail) {
+      steel.roughnessMap=steel.metalnessMap=metalMap??null;
+      steel.roughness=detail?.57:.28;
+      steel.needsUpdate=true;
+    }
     mapsEnabled=detail;
     tile.map=surface.color;
     tile.normalMap=detail?surface.normal:null;
@@ -274,6 +288,7 @@ export function buildWorkshop(scene) {
     hiddenWalls:()=>walls.filter(wall=>!wall.group.visible).map(wall=>wall.name),
     textureSize:()=>surface?.color.image.width,dispose(){
     if(surface) for(const map of Object.values(surface)) map.dispose();
+    metalMap?.dispose();
     const mats=new Set(),geos=new Set();
     root.traverse(node=>{if(node.isInstancedMesh)node.dispose();if(node.material)mats.add(node.material);if(node.geometry)geos.add(node.geometry);});
     for(const item of signs) item.material.map.dispose();
