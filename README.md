@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.14
+# MOTOR EMPIRE v0.15
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -6,7 +6,7 @@ iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyu
 
 1. 75.000 TL ile ikinci el pazarından motosiklet al. Garaj iki motosiklet alır.
 2. 450 TL karşılığında ekspertiz yaptır. Arızalı parçalar, fiyatları ve işçilik saatleri garajda görünür.
-3. Parça bedelini ödeyip tamiri başlat. Her şubenin tamir sırası günde sekiz saat işler. İşe alınan her usta bu şubeye sekiz saat daha ekler. Teslim gününe ulaşmak için **Günü ilerlet** düğmesini kullan.
+3. Ekspertizden sonra tamiri başlat. Oyun saati ilerledikçe servis ve nakliye işlemleri tamamlanır.
 4. Tamiri biten motosiklete ilan fiyatı belirle. Sonraki günlerde gelen müşterilerle görüş veya bir teklifi kabul ederek satışı tamamla. Satış geçmişi, alış, ekspertiz ve tamir giderleri düşüldükten sonraki kâr veya zararı gösterir.
 5. Her yeni günde pazar ilanları yenilenir ve satış ilanlarının müşteri talebi hesaplanır. İlerleme tarayıcıdaki localStorage ile kaydedilir.
 
@@ -182,3 +182,11 @@ Müşteri cevapları teklif, güven, şüphe ve görüşme sabrını etkiler. He
 ## v0.14 Yusuf Belge Easter Egg
 
 Yusuf Belge tamamen kurgusal bir oyun karakteridir. İstanbul pazarında 120 oyun günlük her dönemde bir gün karşılaşılabilir. Açık bir Yusuf ilanı varken ikinci ilan eklenmez. Ekspertiz ve pazarlık 1.350.000 TL satış fiyatını değiştirmez.
+
+## v0.15 Şube ve personel yönetimi
+
+- **Şubelerim** ekranından 81 ilde şube açılabilir. Küçük, orta, büyük, premium ve satış merkezi seviyelerinin kapasitesi sırasıyla 2, 5, 10, 20 ve 40 motosiklettir. Yükseltmede önceden ödenen yatırım mahsup edilir.
+- **Personellerim** ekranı aktif şubenin kadrosunu gösterir. Eğitim 1.500 TL tutar ve bir oyun günü sürer. Şehirler arası personel ve stok transferinde mevcut nakliye süreleri ve ücretleri uygulanır. Motosikletin hedef bölmesi transfer başlarken ayrılır.
+- Şirket içi ekspertiz için görevde bir ekspertiz uzmanı, tamir için bir usta gerekir. Teknisyen ve çırak tamir hızına katkıda bulunur. Her iş türü kendi sırasıyla ilerler. Şirket içi tamirde mevcut parça bedelleri tahsil edilir.
+- Müdür otomasyonu şube bazında ve varsayılan olarak kapalıdır. Gün değiştiğinde çalışır. Alım bütçesi nakliye ve tahmini hazırlık maliyetlerini kapsar. Müdür etkin görüşmeleri, riskli satışları ve Yusuf Belge ilanını atlar. Otomatik alım için kredi kullanılmaz.
+- Eski şubelerin kapasitesi ve mevcut kadronun ücretleri korunur. Yeni ücretler yalnızca işe alınan personele uygulanır.

@@ -1,7 +1,7 @@
-import { catalog, paintOptions } from './bikes.mjs?v=0.14';
-import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.14';
-import { renderSprite, spriteFor } from './sprite.mjs?v=0.14';
-import { generationFor } from './generations.mjs?v=0.14';
+import { catalog, paintOptions } from './bikes.mjs?v=0.15';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.15';
+import { renderSprite, spriteFor } from './sprite.mjs?v=0.15';
+import { generationFor } from './generations.mjs?v=0.15';
 
 const observations = {
   'honda-cb125f': 'Köşeli ön far seçiliyor. Depo kaplaması, egzoz ve jantın kasa yılı doğrulanamıyor.',
@@ -55,7 +55,7 @@ function startAudit() {
     note.className = 'muted';
     const reference = element('figure');
     const old = element('img');
-    if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.14`;
+    if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.15`;
     old.loading = 'lazy';
     old.alt = model.name + ' için v0.5 inceleme çizimi';
     reference.append(old,element('figcaption','v0.5 çizimi · Kasa doğrulaması yok'));
