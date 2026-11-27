@@ -27,7 +27,7 @@ test('84 unique templates only enter contexts supported by sale data',()=>{
   for(const group of ['proof','prompt','staff','hidden','support','returning','bargaining'])
     assert.ok(REVIEW_TEMPLATES[group].every(text=>!samples.has(text)),group);
   assert.equal(complaintReview('repair',5)[0],4);
-  assert.match(complaintReview('refund',2)[1],/iade/i);
+  assert.match(complaintReview('refund',2)[1],/[İi]ade/);
   assert.ok(REVIEW_TEMPLATES.hidden.includes(complaintReview('open',5)[1]));
 });
 test('gallery statistics distinguish old reviews, recent ratings, repeat buyers and resolutions',()=>{
