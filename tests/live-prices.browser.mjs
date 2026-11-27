@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { DAY_MS,HOUR_MS } from '../clock.mjs';
 import { newGame,perform,purchaseAnalysis,synchronize } from '../game.mjs';
+import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
 
 const require = createRequire(import.meta.url);
@@ -16,7 +17,7 @@ const fixture = {id:'holiday-prices',name:'Yamaha R25',year:2021,km:22000,price:
 const number = new Intl.NumberFormat('tr-TR');
 const pct = new Intl.NumberFormat('tr-TR',{style:'percent',maximumFractionDigits:2});
 const money = amount=>number.format(amount)+' TL';
-const signed = (amount,share)=>(amount>0?'+':'')+money(amount)+' · '+pct.format(share || 0);
+const signed = (amount,share)=>amount===0 ? money(0) : (amount>0?'+':'')+money(amount)+' · '+pct.format(share || 0);
 const act = (state,...args)=>perform(state,...args).state;
 const initial = ()=>synchronize({...newGame(),listings:[fixture]},T).state;
 const inspected = ()=>{
@@ -80,10 +81,17 @@ test('320×568 WebKit shows stored before and after estimates and both units dir
   const {listings} = await ui.state();
   const bike = listings.find(item=>item.id===fixture.id);
   const analysis = purchaseAnalysis(bike,bike.seller);
-  await ui.text('#live-before-value',money(85000));
   await ui.text('#live-after-value',money(analysis.beforeValue));
   await ui.text('#live-inspection-difference',signed(-analysis.difference,-analysis.differenceShare));
   assert.equal(await ui.page.locator('#meeting-analysis').evaluate(el=>el.open),false);
+  assert.equal(await ui.page.locator('#live-before-value').isVisible(),false);
+  const order = await ui.page.evaluate(()=>['#meeting-bike','#live-seller-price','#meeting-inspection-summary','#meeting-speech','#player-offer','#live-sale-profit']
+    .map(selector=>document.querySelector(selector).getBoundingClientRect().top));
+  assert.deepEqual(order,[...order].sort((a,b)=>a-b));
+  await ui.page.locator('#meeting-image').waitFor();
+  assert.match(await ui.page.locator('#meeting-spec').innerText(),/2021.*km.*Kondisyon/);
+  await ui.tap('#meeting-analysis > summary');
+  await ui.text('#live-before-value',money(85000));
 });
 
 test('390×844 WebKit separates seller and conditional discounts, persists anchor across refresh and save',async t=>{
@@ -95,6 +103,7 @@ test('390×844 WebKit separates seller and conditional discounts, persists ancho
   await ui.row();
   await ui.negotiation();
   await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).listings[0].inspectionBaseline===85000);
+  await ui.tap('#meeting-analysis > summary');
   const input = ui.page.locator('#player-offer');
   await input.fill('30000');
   await ui.text('#live-start-price','48.000 TL');
@@ -113,20 +122,21 @@ test('390×844 WebKit separates seller and conditional discounts, persists ancho
   await ui.page.reload();await ui.ready();await ui.market();
   await ui.tap('#inspection-follow > summary');
   await ui.tap('#inspection-follow [data-action=meet-seller]');
+  await ui.tap('#meeting-analysis > summary');
   await ui.text('#live-start-price','48.000 TL');
   await ui.text('#live-seller-price',money(submitted.price));
   await ui.text('#live-seller-discount',signed(48000-submitted.price,(48000-submitted.price)/48000));
   assert.equal((await ui.state()).listings.find(item=>item.id===fixture.id).seller.round,1);
 });
 
-test('844×390 WebKit number entry and touched slider immediately refresh DOM without a saved offer',async t=>{
+test('844×390 WebKit number entry and discount shortcuts immediately refresh DOM without a saved offer',async t=>{
   const seed = act(inspected(),'meet-seller',fixture.id);
   const ui = await open(t,844,390,seed);
   await ui.market();await ui.row();await ui.negotiation();
   const bike = seed.listings[0];
   const analysis = purchaseAnalysis(bike,bike.seller);
   const numberInput = ui.page.locator('#player-offer');
-  const range = ui.page.locator('#player-offer-range');
+  assert.equal(await ui.page.locator('#player-offer-range').count(),0);
   const check = async amount=>{
     const preview = purchasePreview(analysis,amount);
     await ui.text('#live-potential-discount',signed(preview.discount,preview.discountShare));
@@ -138,14 +148,53 @@ test('844×390 WebKit number entry and touched slider immediately refresh DOM wi
   await check(90000);
   assert.ok(await ui.page.locator('#meeting-negotiate').isDisabled());
   assert.match(await ui.page.locator('#live-sale-profit').getAttribute('class'),/negative/);
-  const rect = await range.boundingBox();
-  await range.tap({position:{x:rect.width*.27,y:rect.height/2}});
-  const sliderAmount = Number(await range.inputValue());
-  assert.notEqual(sliderAmount,90000);
-  assert.equal(Number(await numberInput.inputValue()),sliderAmount);
-  await check(sliderAmount);
+  for (const discount of [5000,10000,20000]) {
+    await ui.tap(`#offer-shortcuts [data-discount="${discount}"]`);
+    const amount = analysis.offer-discount;
+    assert.equal(Number(await numberInput.inputValue()),amount);
+    await check(amount);
+  }
   await numberInput.fill('');
   await ui.text('#live-total-cost','—');
   assert.equal((await ui.state()).listings[0].seller.round,0);
   assert.equal((await ui.state()).listings[0].seller.playerOffer,undefined);
+});
+
+test('zero valuation deltas render as 0 TL and shortcuts cannot produce a nonpositive offer',async t=>{
+  const listing = {...fixture,price:10000,condition:100,faults:[],damageHistory:[],
+    disclosure:{trust:.8,condition:100,hidden:[]}};
+  let seed = synchronize({...newGame(),listings:[listing]},T).state;
+  seed = act(synchronize(act(seed,'pre-inspect',fixture.id,'full'),T+6*HOUR_MS).state,'meet-seller',fixture.id);
+  const ui = await open(t,320,568,seed);
+  await ui.market(); await ui.row();
+  await ui.page.locator('#listing-image').waitFor();
+  assert.equal(await ui.page.locator('#listing-analysis').evaluate(el=>el.open),false);
+  assert.match(await ui.page.locator('#listing-inspection-summary').innerText(),/Ekspertizle bulunan ek kayıp\s+0 TL/);
+  await ui.negotiation();
+  assert.equal(await ui.page.locator('#live-inspection-difference').innerText(),'0 TL');
+  assert.equal(await ui.page.locator('#live-damage-loss').innerText(),'0 TL');
+  assert.ok(await ui.page.locator('[data-discount="10000"]').isDisabled());
+  assert.ok(await ui.page.locator('[data-discount="20000"]').isDisabled());
+  await ui.tap('[data-discount="5000"]');
+  assert.equal(await ui.page.locator('#player-offer').inputValue(),'5000');
+  assert.equal((await ui.state()).listings[0].seller.round,0);
+});
+
+test('mobile customer sales retain the offer and sale controls without showing the purchase editor',async t=>{
+  const seed = initial();
+  seed.listings = [];
+  const bike = {...fixture,stage:'listed',slot:0,spent:30000,ask:65000,nextVisit:1,faults:[]};
+  bike.meetings = [createBuyer(bike,1,0,50,65000)];
+  seed.branches[0].garage = [bike];
+  const ui = await open(t,390,844,seed);
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.tap('[data-action=open-buyer]');
+  await ui.text('#meeting-price-label','Müşteri teklifi');
+  assert.equal(await ui.page.locator('#live-purchase-prices').isVisible(),false);
+  assert.ok(await ui.page.locator('#meeting-metrics').isVisible());
+  await ui.tap('#meeting-confirm');
+  await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).sales.length===1);
+  const state = await ui.state();
+  assert.equal(state.sales[0].price,bike.meetings[0].price);
+  assert.equal(state.branches[0].garage.length,0);
 });

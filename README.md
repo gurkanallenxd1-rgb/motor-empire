@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12.3
+# MOTOR EMPIRE v0.12.4
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -151,3 +151,7 @@ npm install --no-save --package-lock=false playwright
 npx playwright install webkit
 node --test tests/live-prices.browser.mjs
 ```
+
+## v0.12.4 Mobil pazarlık görünümü
+
+İlan ve görüşme aynı motosiklet ve fiyat özetini kullanır. Sayıyla girilen teklifin yanında, satıcının güncel fiyatından 5.000, 10.000 veya 20.000 TL düşüren kısayollar bulunur. Kısayollar sadece taslağı değiştirir. Kâr, maliyet ve alım farkı anında görünür. Formüller ve kayıt anahtarı değişmedi.
