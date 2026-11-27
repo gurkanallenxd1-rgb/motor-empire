@@ -1,24 +1,24 @@
-import { purchasePreview } from './valuation.mjs?v=0.12.6';
+import { purchasePreview } from './valuation.mjs?v=0.12.7';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.6';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.6';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.6';
-import { createFinanceView } from './finance-view.mjs?v=0.12.6';
-import { dailyCashMovement } from './finance.mjs?v=0.12.6';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.6';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.7';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.7';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.7';
+import { createFinanceView } from './finance-view.mjs?v=0.12.7';
+import { dailyCashMovement } from './finance.mjs?v=0.12.7';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.7';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12.6';
-import { createGarageRenderer } from './art.mjs?v=0.12.6';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.6';
+} from './game.mjs?v=0.12.7';
+import { createGarageRenderer } from './art.mjs?v=0.12.7';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.7';
 
-import { MAX_ROUNDS, avatarForName, isActive, tradeSummary } from './trade.mjs?v=0.12.6';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.6';
+import { MAX_ROUNDS, avatarForName, isActive, tradeSummary } from './trade.mjs?v=0.12.7';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.7';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12.6';
+  repairForecast } from './damage.mjs?v=0.12.7';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -554,12 +554,12 @@ function renderInspectionSummary(container,analysis,meeting = false) {
 }
 
 function refreshOfferPreview(view) {
-  const editing = view.canNegotiate && view.offerEditorOpen;
+  const editing = view.canNegotiate && byId('purchase-offer-editor').open;
   const amount = editing ? view.draft : view.analysis.offer;
   const preview = purchasePreview(view.analysis,amount);
   const input = byId('player-offer');
   const offerAccepted = Boolean(preview && input.validity.valid && view.draft<=view.analysis.offer);
-  byId('meeting-negotiate').disabled = !view.canNegotiate || (editing && !offerAccepted);
+  byId('meeting-submit-offer').disabled = !editing || !offerAccepted;
   byId('offer-warning').textContent = editing && preview && view.draft>view.analysis.offer
     ? 'Gönderilecek teklif satıcının fiyatını aşamaz.' : '';
   const range = byId('player-offer-range');
@@ -589,17 +589,14 @@ function showOfferEditor(view,analysis,meeting,canNegotiate) {
   if (meeting.status==='agreed') view.draft = analysis.offer;
   view.analysis = analysis;
   view.canNegotiate = canNegotiate;
-  const editing = canNegotiate && Boolean(view.offerEditorOpen);
-  const button = byId('meeting-negotiate');
-  byId('purchase-offer-editor').hidden = !editing;
-  button.textContent = editing ? 'Teklifi gönder' : 'Pazarlık yap';
-  button.setAttribute('aria-controls','purchase-offer-editor');
-  button.setAttribute('aria-expanded',String(editing));
-  input.disabled = range.disabled = !editing;
-  for (const button of byId('offer-shortcuts').querySelectorAll('button')) {
-    button.disabled = !editing || analysis.offer<=Number(button.dataset.discount);
+  const editor = byId('purchase-offer-editor');
+  editor.hidden = !canNegotiate;
+  if (!canNegotiate) editor.open = false;
+  input.disabled = range.disabled = !canNegotiate;
+  for (const shortcut of byId('offer-shortcuts').querySelectorAll('button')) {
+    shortcut.disabled = !canNegotiate || analysis.offer<=Number(shortcut.dataset.discount);
   }
-  const amount = editing ? view.draft : analysis.offer;
+  const amount = canNegotiate ? view.draft : analysis.offer;
   if (input.valueAsNumber!==amount) input.value = Number.isFinite(amount) ? String(amount) : '';
   syncOfferRange(view,amount);
   refreshOfferPreview(view);
@@ -610,12 +607,15 @@ function syncOfferRange(view,amount) {
 }
 
 function setOfferDraft(view,amount,source) {
-  if (!view?.canNegotiate || !view.offerEditorOpen) return;
+  if (!view?.canNegotiate || !byId('purchase-offer-editor').open) return;
   view.draft = amount;
   if (source!=='input') byId('player-offer').value = String(amount);
   if (source!=='range') syncOfferRange(view,amount);
   refreshOfferPreview(view);
 }
+byId('purchase-offer-editor').addEventListener('toggle',()=>{
+  if (meetingView?.analysis && byId('meeting').open) refreshOfferPreview(meetingView);
+});
 byId('player-offer').addEventListener('input',event=>setOfferDraft(meetingView,event.target.valueAsNumber,'input'));
 byId('player-offer-range').addEventListener('input',event=>setOfferDraft(meetingView,event.target.valueAsNumber,'range'));
 byId('offer-shortcuts').addEventListener('click',event=>{
@@ -944,6 +944,7 @@ document.addEventListener('click', async event => {
 function openMeeting(bikeId,meetingId,kind) {
   meetingView = {bikeId,meetingId,kind,branchId};
   byId('meeting-analysis').open = false;
+  byId('purchase-offer-editor').open = false;
   updateMeeting();
   if (!byId('meeting').open) byId('meeting').showModal();
 }
@@ -1017,10 +1018,7 @@ function updateMeeting() {
   negotiateButton.disabled = !canNegotiate;
   negotiateButton.hidden = !isSale && !canNegotiate;
   byId('meeting-actions').classList.toggle('without-negotiation',negotiateButton.hidden);
-  if (isSale) {
-    negotiateButton.removeAttribute('aria-controls');
-    negotiateButton.removeAttribute('aria-expanded');
-  } else showOfferEditor(view,forecast,meeting,canNegotiate);
+  if (!isSale) showOfferEditor(view,forecast,meeting,canNegotiate);
   byId('meeting-reject').hidden = !active;
   byId('meeting-confirm').hidden = !active;
   byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price+(forecast?.delivery.fee ?? 0))}`;
@@ -1051,18 +1049,24 @@ async function meetingAction(action,amount) {
   const view = meetingView;
   if (!view || !await runAction(action,view.bikeId,amount,view.branchId)) return;
   if (action === 'sell' || action === 'buy-negotiated') byId('meeting').close();
-  else updateMeeting();
+  else {
+    if (action==='negotiate' && view.kind==='purchase') {
+      view.draft = undefined;
+      byId('purchase-offer-editor').open = false;
+    }
+    updateMeeting();
+  }
 }
 
 byId('meeting-negotiate').addEventListener('click',()=>{
   const view = meetingView;
-  if (!view) return;
-  if (view.kind==='sale') meetingAction('negotiate',view.meetingId);
-  else if (!view.offerEditorOpen) {
-    view.offerEditorOpen = true;
-    updateMeeting();
-    byId('purchase-offer-editor').scrollIntoView({block:'nearest'});
-  } else meetingAction('offer-purchase',{meetingId:view.meetingId,price:view.draft});
+  if (view) meetingAction('negotiate',view.meetingId);
+});
+byId('meeting-submit-offer').addEventListener('click',()=>{
+  const view = meetingView;
+  if (view?.canNegotiate && byId('purchase-offer-editor').open) {
+    meetingAction('offer-purchase',{meetingId:view.meetingId,price:view.draft});
+  }
 });
 byId('meeting-reject').addEventListener('click',()=>meetingAction('reject',meetingView.meetingId));
 byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.kind === 'sale' ? 'sell' : 'buy-negotiated',meetingView.meetingId));
