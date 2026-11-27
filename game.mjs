@@ -1,15 +1,17 @@
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.7';
+import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
+  setReputation } from './characters.mjs?v=0.13';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.13';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.7';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.7';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.7';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.7';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.7';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.7';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.13';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.13';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.13';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.13';
+import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.13';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.7';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.7';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.13';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.13';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -164,7 +166,9 @@ export function realizedSales(sales,day) {
   const refunds = sales.filter(sale=>sale.returnedDay !== undefined && (day === undefined || sale.returnedDay===day));
   const revenue = decimal(results.reduce((sum,sale)=>sum+sale.price,0)-refunds.reduce((sum,sale)=>sum+sale.price,0));
   const cost = decimal(results.reduce((sum,sale)=>sum+sale.spent,0)-refunds.reduce((sum,sale)=>sum+sale.spent,0));
-  return { revenue,cost,profit:decimal(revenue-cost) };
+  const afterSaleCost = sales.filter(sale=>day===undefined || (sale.complaintResult?.day ?? sale.complaintDay)===day)
+    .reduce((sum,sale)=>sum+(sale.afterSaleCost ?? sale.compensation ?? 0),0);
+  return { revenue,cost,profit:decimal(revenue-cost-afterSaleCost) };
 }
 
 const decimal = value => Math.round(value * 100) / 100;
@@ -271,7 +275,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
     const slot = Array.from({length:branchCapacity(office)},(_,index)=>index)
       .find(index=>!office.garage.some(bike=>bike.slot===index));
     if (slot === undefined) return false;
-    office.garage.push({...item,slot,stage:'ready'});
+    office.garage.push({...item,slot,stage:item.faults.length ? 'inspected' : 'ready'});
     return true;
   }
 
@@ -282,10 +286,17 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (!pending || complaintTime(pending)>at) continue;
       delete sale.complaint;
       if (sale.complaintResult || sale.returnedDay !== undefined || sale.compensation !== undefined) continue;
+      if (pending.requiresDecision) {
+        sale.openComplaint = {...pending,openedDay:next.day};
+        sale.complaintDay = next.day;
+        reviewComplaint(next,sale,'open');
+        count++;
+        continue;
+      }
       const {item,refund} = pending;
       const office = next.branches.find(branch=>branch.id===sale.branchId);
       const reputation = next.trade.reputation;
-      next.trade.reputation = Math.max(0,reputation-(refund ? 12 : 6));
+      setReputation(next,-(refund ? 12 : 6),'Eski şikâyet sonucu');
       sale.complaintDay = next.day;
       const result = {day:next.day,outcome:refund ? 'refund' : 'compensation',
         reputationLoss:reputation-next.trade.reputation,seen:false};
@@ -309,12 +320,43 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
     return count;
   }
 
+  function resolveComplaint(sale,choice) {
+    const {item} = sale.openComplaint;
+    const office = next.branches.find(branch=>branch.id===sale.branchId);
+    const result = {day:next.day,outcome:choice,amount:0,seen:false};
+    const reputation = next.trade.reputation;
+    if (choice==='refund') {
+      vehiclePay(item,'refund',sale.price,'Satış iadesi',office,true,{saleId:sale.id});
+      sale.returnedDay = next.day;
+      result.amount = sale.price;
+      result.destination = placeReturn(item,office) ? 'garage' : 'waiting';
+      if (result.destination==='waiting') (next.waitingReturns ??= []).push({bike:item,branchId:office.id,saleId:sale.id});
+    } else if (choice==='repair' || choice==='compensation') {
+      const amount = complaintCost(sale,choice,repairQuote);
+      const category = choice==='repair' ? 'complaint_repair' : 'compensation';
+      vehiclePay(item,category,amount,RESOLUTIONS[choice],office,true,{saleId:sale.id});
+      if (choice==='compensation') sale.compensation = amount;
+      sale.afterSaleCost = amount;
+      result.amount = amount;
+    }
+    delete sale.openComplaint;
+    const effect = {repair:-2,compensation:-5,refund:-3,dismiss:-12};
+    setReputation(next,effect[choice],'Müşteri şikâyeti');
+    result.reputationLoss = reputation-next.trade.reputation;
+    sale.complaintResult = result;
+    const outcome = next.trade.history.find(row=>row.saleId===sale.id);
+    if (outcome) outcome.satisfaction = Math.min(outcome.satisfaction,{repair:78,compensation:60,refund:60,dismiss:20}[choice]);
+    reviewComplaint(next,sale,choice);
+  }
+
   function considerEvidence(item) {
     if (item.seller?.status!=='open') return;
     const verified = verifiedFindings(item).filter(code=>item.disclosure?.hidden.includes(code));
     if (!verified.length) return;
     const discount = Math.min(.11,verified.reduce((sum,code)=>sum+PARTS[code].gain*.003,0));
-    item.seller.limit = Math.min(item.seller.limit,Math.max(50,Math.round(item.price*(.84-discount))));
+    const marketFloor = item.seller.profile.id && item.seller.profile.knowledge>=65
+      ? Math.round(roadValue(visibleListing(item))*(item.urgency==='urgent' ? .72 : .84)) : 0;
+    item.seller.limit = Math.min(item.seller.limit,Math.max(50,marketFloor,Math.round(item.price*(.84-discount))));
     item.seller.speech = 'Ekspertiz raporundaki bulguları fiyat görüşmesinde değerlendirelim.';
   }
 
@@ -388,6 +430,16 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       bike.rideSequence = bike.ride.sequence;
       message = 'Test sürüşü başladı · 1 oyun saati.';
       break;
+    case 'resolve-complaint': {
+      const sale = next.sales.find(item=>item.id===id);
+      if (!sale?.openComplaint || !Object.prototype.hasOwnProperty.call(RESOLUTIONS,amount)) {
+        throw new Error('Çözülebilecek açık bir şikâyet bulunamadı.');
+      }
+      if (sale.branchId!==branch.id) throw new Error('Şikâyetin ait olduğu şubeyi seçin.');
+      resolveComplaint(sale,amount);
+      message = 'Şikâyet kararı işlendi.';
+      break;
+    }
     case 'acknowledge-complaint': {
       const result = next.sales.find(sale=>sale.id===id)?.complaintResult;
       if (!result) throw new Error('Şikâyet kaydı bulunamadı.');
@@ -445,7 +497,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (listing.seller && !isActive(listing.seller)) throw new Error('Satıcı bu görüşmeyi kapattı.');
       if (listing.inspections?.length) listing.inspectionBaseline ??= inspectionBaseline(listing);
       if (!listing.seller) {
-        listing.seller = createSeller(listing,next.day);
+        listing.seller = createSeller(listing,next.day,roadValue(visibleListing(listing)));
         considerEvidence(listing);
       }
       message = listing.seller.speech;
@@ -454,6 +506,14 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       const meeting = activeMeeting(amount);
       if (meeting.kind !== 'sale') throw new Error('Geçersiz müşteri görüşmesi.');
       meeting.held = true;
+      break;
+    }
+    case 'answer-buyer': {
+      const meeting = activeMeeting(amount?.meetingId);
+      if (meeting.kind!=='sale') throw new Error('Bu görüşmede müşteri sorusu yok.');
+      answerBuyer(meeting,bike,amount.choice);
+      if (meeting.status==='left') finishTrade(next,meeting,bike,'left');
+      message = meeting.speech;
       break;
     }
     case 'offer-purchase':
@@ -469,6 +529,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       }
       if (meeting.kind==='purchase' && listing.urgency) meeting.urgency ??= listing.urgency;
       negotiate(meeting,offer);
+      if (meeting.kind==='sale') observeBuyer(meeting,bike);
       if (meeting.status === 'left') finishTrade(next,meeting,bike ?? listing,'left');
       message = meeting.speech;
       break;
@@ -521,6 +582,36 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       }
       break;
     }
+    case 'list-strategy': {
+      const strategy = amount?.strategy;
+      if (!bike || !Object.prototype.hasOwnProperty.call(STRATEGIES,strategy) || !validAmount(amount.price)) {
+        throw new Error('Geçerli bir satış yöntemi ve fiyat seçin.');
+      }
+      const damaged = Boolean(bike.faults.length || bike.damageHistory?.length);
+      const ready = bike.stage==='ready';
+      const inspected = bike.stage==='inspected';
+      const allowed = strategy==='damaged' ? inspected
+        : strategy==='repaired' ? ready
+        : strategy==='documented' ? (ready || inspected) && hasDocuments(bike)
+        : (ready || inspected) && damaged;
+      if (!allowed) throw new Error('Bu motosiklet seçilen satış yöntemine uygun değil.');
+      if (strategy==='cosmetic' && !bike.cosmeticPresentation) {
+        const cost = Math.max(450,Math.round(roadValue(bike)*.012));
+        vehiclePay(bike,'cosmetic',cost,'Görsel bakım');
+        bike.spent += cost;
+        bike.cosmeticPresentation = true;
+      }
+      bike.tradeStrategy = strategy;
+      bike.disclosureMode = isRisky(strategy) ? 'conceal' : 'disclose';
+      bike.documented = strategy==='documented';
+      bike.listedFrom = bike.stage;
+      bike.stage = 'listed';
+      bike.ask = amount.price;
+      bike.nextVisit = next.day+1+Number(bike.ask>roadValue(bike)*1.22);
+      bike.meetings = [];
+      message = 'Motosiklet seçilen yöntemle ilana çıktı.';
+      break;
+    }
     case 'list-quiet':
     case 'list':
       if (bike?.stage !== 'ready') throw new Error('Yalnızca satışa hazır motosikletler ilana çıkabilir.');
@@ -535,7 +626,8 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
     case 'unlist':
       if (bike?.stage !== 'listed') throw new Error('Bu motosiklet satışta değil.');
       for (const meeting of bike.meetings.filter(isActive)) finishTrade(next,meeting,bike,'expired');
-      bike.stage = 'ready';
+      bike.stage = bike.listedFrom ?? 'ready';
+      delete bike.listedFrom;
       delete bike.meetings;
       delete bike.ask;
       delete bike.nextVisit;
@@ -547,18 +639,21 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       branch.garage = branch.garage.filter(item=>item.id !== id);
       earn(meeting.price,`${bike.name} satışı`);
       const saleId = `${meeting.id}:settled`;
-      const complaint = buyerComplaint(bike,saleId);
+      const complaint = meeting.dialogue?.disclosed ? null : buyerComplaint(bike,saleId);
       const sale = {id:saleId,name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
         damageRecords:legacyDamageRecords(bike),disclosureMode:bike.disclosureMode ?? 'disclose',
+        ...(bike.tradeStrategy ? {strategy:meeting.dialogue?.disclosed && isRisky(bike.tradeStrategy) ? 'damaged' : bike.tradeStrategy,
+          customerId:meeting.profile.id,returning:meeting.returning ?? false} : {}),
         inspections:[...(bike.inspections ?? []),...(bike.garageInspection ? [bike.garageInspection] : [])]};
       if (complaint) {
         const {meetings,ask,nextVisit,...item} = bike;
         sale.complaint = {item,day:next.day+complaint.delay,
-          due:now+complaint.delay*DAY_MS,refund:complaint.returnBike};
+          due:now+complaint.delay*DAY_MS,refund:complaint.returnBike,requiresDecision:Boolean(bike.tradeStrategy)};
       }
       next.sales.unshift(sale);
       finishTrade(next,meeting,bike,'sold');
       next.trade.history[0].saleId = saleId;
+      rememberSale(next,sale,meeting);
       for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
       message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
       break;
@@ -654,7 +749,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
             if (!meeting.held && !meeting.round && meeting.status !== 'agreed' && tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
           }
           item.meetings = item.meetings.filter(isActive);
-          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item));
+          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item),next.trade);
         }
       }
       const complaints = next.clock ? 0 : settleComplaints(gameTime(tomorrow));

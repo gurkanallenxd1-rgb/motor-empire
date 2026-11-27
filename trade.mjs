@@ -1,8 +1,10 @@
-import { modelOf } from './bikes.mjs?v=0.12.7';
+import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
+  setReputation, stableNumber } from './characters.mjs?v=0.13';
+export { stableNumber } from './characters.mjs?v=0.13';
+import { modelOf } from './bikes.mjs?v=0.13';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
-const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
 const roundPrice = price => Math.max(50,Math.round(price / 50) * 50);
 
 const roles = [
@@ -29,12 +31,6 @@ export function avatarForName(name) {
   return '🧑';
 }
 
-export function stableNumber(key) {
-  let result = 2166136261;
-  for (let i=0;i<key.length;i+=1) result = Math.imul(result ^ key.charCodeAt(i),16777619);
-  return result >>> 0;
-}
-
 function profileFor(key) {
   const seed = stableNumber(key);
   const role = roles[(seed >>> 5) % roles.length];
@@ -56,46 +52,124 @@ function buyerSpeech(bike, profile, category, seed) {
   return lines[seed % lines.length];
 }
 
-export function createBuyer(bike,day,index,reputation,value,legacy) {
+export function createBuyer(bike,day,index,reputation,value,legacy,trade) {
   const id = `buyer:${bike.id}:${day}:${index}`;
   const seed = stableNumber(id);
-  const profile = profileFor(id);
+  const memory = bike.tradeStrategy ? recallCustomer(trade,bike,day,index) : null;
+  const enhanced = bike.tradeStrategy && !legacy;
+  const profile = enhanced ? characterFor(memory?.id ?? `buyer-${stableNumber(id)%2400}`) : profileFor(id);
   if (legacy) profile.name = legacy.name;
   const category = modelOf(bike)?.category;
-  const fit = profile.category === category ? .07 : -.035;
+  const model = modelOf(bike);
+  const fit = (profile.category === category ? .07 : -.035)
+    +(profile.model===model?.id && profile.id ? .06 : profile.brand===model?.brand && profile.id ? .025 : 0);
   const condition = (bike.condition - 90) * .0018;
   const mileage = Math.min(.11,bike.km / 650000);
-  const request = bike.disclosureMode && seed%3!==0 ? (seed%2 ? 'history' : 'inspection') : null;
+  const rememberedProof = memory?.lastAnswers?.some(answer=>answer.choice==='disclose' || answer.choice==='document');
+  const requestChance = enhanced ? clamp(.34-(rememberedProof ? .07 : 0)+(profile.experience<3 ? .11 : 0)+(profile.skepticism-profile.trust)*.002+(60-reputation)*.003,.16,.82) : 0;
+  const topics = Object.keys(QUESTIONS);
+  const request = enhanced ? (chance(id,'ask') < requestChance ? topics[seed%topics.length] : null) : bike.disclosureMode && seed%3!==0 ? (seed%2 ? 'history' : 'inspection') : null;
   const trust = bike.disclosureMode==='disclose' && bike.damageHistory?.length ? .018 : request && bike.disclosureMode==='conceal' ? -.025 : 0;
-  const budget = roundPrice(value * (profile.premium + fit + condition - mileage + trust + (reputation - 50) * .0018));
+  const riskyPremium = enhanced && isRisky(bike.tradeStrategy)
+    ? (1-(profile.knowledge+profile.mechanical)/200)*(bike.cosmeticPresentation ? .20 : .11) : 0;
+  const calculatedBudget = roundPrice(value * ((enhanced ? .89+profile.wealth*.0025 : profile.premium) + fit + condition - mileage + trust + riskyPremium + (reputation - 50) * .0018));
+  const budget = enhanced ? Math.min(profile.budget,calculatedBudget) : calculatedBudget;
   const price = legacy?.price ?? Math.min(bike.ask,roundPrice(budget * (.76 + (seed % 14) / 100)));
   return { id, kind:'sale', profile, day, price, anchor:bike.ask, limit:Math.max(price,budget), round:0, patience:profile.patience,
-    status:'open', ...(request ? {request} : {}), speech:request==='history' ? 'Hasar geçmişini görebilir miyim?'
+    status:'open', ...(request ? {request} : {}),
+    ...(enhanced ? {dialogue:{answers:[],suspicion:0},returning:Boolean(memory)} : {}),
+    speech:memory ? `Geçen alışverişimde ${memory.lastModel} almıştım. ${rememberedProof
+      ? 'O zaman aracın durumunu açıkça anlatmıştınız. ' : ''}${request ? QUESTIONS[request] : 'Yine uğramak istedim.'}`
+      : enhanced && request ? QUESTIONS[request] : request==='history' ? 'Hasar geçmişini görebilir miyim?'
       : request==='inspection' ? 'Ekspertiz ve servis bilgilerini paylaşır mısınız?' : buyerSpeech(bike,profile,category,seed) };
 }
 
-export function createSeller(bike,day) {
+export function createSeller(bike,day,marketValue) {
   const id = 'seller:' + bike.id;
-  const profile = profileFor(id);
+  const profile = bike.characterSeed ? characterFor(`seller-${stableNumber(bike.characterSeed)%1800}`) : profileFor(id);
   const seed = stableNumber(id);
-  const speech = ['İlandaki fiyatı gördünüz. Siz ne teklif ediyorsunuz?','Motoru görmek isteyenler var, ama teklifinizi dinleyebilirim.','Ciddi bir teklif verirseniz fiyatta biraz esneyebilirim.'];
+  const speech = profile.id && profile.knowledge>=70
+    ? ['Ben de emsallerine baktım. Fiyatı ona göre konuşalım.','Rapor ve piyasa değerini karşılaştırabiliriz.']
+    : ['İlandaki fiyatı gördünüz. Siz ne teklif ediyorsunuz?','Motoru görmek isteyenler var, ama teklifinizi dinleyebilirim.','Ciddi bir teklif verirseniz fiyatta biraz esneyebilirim.'];
+  const floor = roundPrice(bike.price * (.78 + (seed % 15) / 100));
+  const informed = profile.id && profile.knowledge>=65 && Number.isFinite(marketValue)
+    ? roundPrice(marketValue*(bike.urgency==='urgent' ? .73 : .85)) : floor;
   return { id, kind:'purchase', profile, day, price:bike.price, anchor:bike.price,
-    limit:Math.min(bike.price,roundPrice(bike.price * (.78 + (seed % 15) / 100))), round:0, patience:profile.patience,
-    ...(bike.urgency ? {urgency:bike.urgency} : {}),
+    limit:Math.min(bike.price,Math.max(floor,informed)), round:0, patience:profile.patience,
+    ...((bike.urgency || profile.urgency) ? {urgency:bike.urgency ?? profile.urgency} : {}),
     status:'open', speech:speech[seed % speech.length] };
 }
 
 export const isActive = meeting => meeting && ['open','agreed'].includes(meeting.status);
 
-export function arrive(bike,day,reputation,value) {
+export function arrive(bike,day,reputation,value,trade) {
   if (day < bike.nextVisit) return 0;
   const classDemand = (modelOf(bike)?.demand ?? .08) - .07;
   const demand = clamp(.76 + classDemand + (reputation - 50) * .006 + (bike.condition - 85) * .008
     - Math.max(0,bike.ask / value - 1) * .72 - Math.min(.24,bike.km / 250000),.10,1);
   const visits = (stableNumber(`${bike.id}:${day}:demand`) % 100) / 100 < demand ? 1 + Math.floor(reputation / 35) : 0;
   const count = Math.min(visits,5 - bike.meetings.filter(isActive).length);
-  for (let i=0;i<count;i+=1) bike.meetings.push(createBuyer(bike,day,i,reputation,value));
+  for (let i=0;i<count;i+=1) {
+    const meeting = createBuyer(bike,day,i,reputation,value,undefined,trade);
+    bike.meetings.push(meeting);
+    if (meeting.profile.id && trade) {
+      const customers = trade.customers ??= {};
+      const id = meeting.profile.id;
+      const member = customers[id] ??= {id,purchases:0,visits:0};
+      member.visits++;
+      if (meeting.returning) member.returningVisits = (member.returningVisits ?? 0)+1;
+    }
+  }
   return count;
+}
+
+function reactToEvidence(meeting,detect) {
+  const {dialogue,profile} = meeting;
+  if (detect) dialogue.discovered = true;
+  if (dialogue.suspicion>=85 || (detect && profile.risk<25)) {
+    meeting.status = 'left';
+    meeting.speech = 'Anlattıklarınızla aracın durumu uyuşmuyor. Görüşmeyi bitiriyorum.';
+    return;
+  }
+  meeting.price = Math.min(meeting.price,roundPrice(meeting.price*.92));
+  meeting.limit = Math.min(meeting.limit,roundPrice(meeting.limit*.93));
+  meeting.price = Math.min(meeting.price,meeting.limit);
+  meeting.speech = detect ? 'Hasarı fark ettim. Bu koşullarda teklifimi düşürüyorum.' : 'Cevaplarınız beni düşündürdü. Teklifimi değiştirdim.';
+}
+
+export function observeBuyer(meeting,bike) {
+  const {dialogue,profile} = meeting;
+  if (meeting.status!=='open' || !dialogue || dialogue.disclosed || dialogue.discovered || !isRisky(bike.tradeStrategy)) return;
+  if (!bike.faults.length && !bike.damageHistory?.length) return;
+  const perception = (profile.knowledge+profile.mechanical+profile.experience*2)/600;
+  const presentation = bike.cosmeticPresentation ? .75 : 1;
+  if (chance(meeting.id,`observe:${meeting.round}`)<perception*presentation) reactToEvidence(meeting,true);
+}
+
+export function answerBuyer(meeting,bike,choice) {
+  if (!meeting.dialogue || !meeting.request || !isActive(meeting) ||
+      !Object.prototype.hasOwnProperty.call(ANSWERS,choice)) throw new Error('Bu soruya şu anda cevap verilemez.');
+  const {dialogue,profile} = meeting;
+  if (dialogue.answers.length>=6) throw new Error('Görüşmedeki sorular tamamlandı.');
+  const topic = meeting.request;
+  const previous = dialogue.answers.findLast(answer=>answer.topic===topic);
+  const denied = dialogue.answers.some(answer=>answer.choice==='deny' && ['history','inspection'].includes(answer.topic));
+  const damaged = Boolean(bike.faults.length || bike.damageHistory?.length);
+  if (previous && previous.choice!==choice && [previous.choice,choice].includes('deny')) dialogue.suspicion += 28;
+  else if (damaged && choice==='disclose' && denied) dialogue.suspicion += 22;
+  else if (choice==='deny' && damaged) dialogue.suspicion += 16;
+  else if (choice==='defer' || (choice==='document' && !hasDocuments(bike))) dialogue.suspicion += 12;
+  else dialogue.suspicion = Math.max(0,dialogue.suspicion-10);
+  dialogue.answers.push({topic,choice});
+  const open = choice==='disclose' || (choice==='document' && hasDocuments(bike));
+  if (open) dialogue.disclosed = true;
+  const detect = !open && isRisky(bike.tradeStrategy) && !dialogue.discovered && damaged
+    && chance(meeting.id,`detect:${dialogue.answers.length}`) < (profile.knowledge+profile.mechanical+profile.skepticism+dialogue.suspicion)/370;
+  if (detect || dialogue.suspicion>=70) reactToEvidence(meeting,detect);
+  else meeting.speech = open ? 'Açıklamanızı dikkate alacağım.' : 'Bu yanıtı not aldım.';
+  if (!isActive(meeting)) return;
+  const topics = Object.keys(QUESTIONS);
+  meeting.request = dialogue.answers.length===6 ? null : topics[(topics.indexOf(topic)+1)%topics.length];
 }
 
 export function negotiate(meeting,offer) {
@@ -109,7 +183,9 @@ export function negotiate(meeting,offer) {
   const gap = Math.abs(meeting.limit - meeting.price);
   const roll = stableNumber(`${meeting.id}:${meeting.round}:automatic`) % 100;
   const urgencyResistance = buyer ? 0 : meeting.urgency==='urgent' ? -7 : meeting.urgency==='patient' ? 9 : 0;
-  const resistance = Math.max(0,meeting.profile.skill * 3 + (meeting.round - 1)*8 + urgencyResistance);
+  const intelligence = meeting.profile.id ? (meeting.profile.skepticism-meeting.profile.trust)*.12
+    +(meeting.dialogue?.suspicion ?? 0)*.3 : 0;
+  const resistance = Math.max(0,meeting.profile.skill * 3 + (meeting.round - 1)*8 + urgencyResistance + intelligence);
   if ((roll < resistance && meeting.patience === 0) || (meeting.round > 1 && roll < 5)) {
     meeting.status = 'left';
     meeting.speech = buyer ? 'Bütçeme uygun başka ilanlara bakacağım.' : 'Bu fiyata daha fazla bekleyemem. Görüşmeyi bitirelim.';
@@ -143,8 +219,8 @@ export function finishTrade(state,meeting,bike,outcome) {
   const sold = outcome === 'sold';
   const satisfaction = sold ? clamp(Math.round(90 - meeting.round * 4
     - Math.max(0,meeting.price / meeting.anchor - 1) * 44 + (meeting.patience - 1) * 2 + (bike.disclosureMode==='disclose' && bike.damageHistory?.length ? 5 : 0)),30,100) : null;
-  if (sold) state.trade.reputation = clamp(state.trade.reputation + (satisfaction >= 80 ? 3 : 1),0,100);
-  if (outcome === 'left' && meeting.kind === 'sale') state.trade.reputation = clamp(state.trade.reputation - 1,0,100);
+  if (sold) setReputation(state,(satisfaction>=80 ? 3 : 1)+(bike.tradeStrategy && !isRisky(bike.tradeStrategy) ? 1 : 0),'Motosiklet satışı');
+  if (outcome==='left' && meeting.kind==='sale') setReputation(state,-1,'Müşteri görüşmeden ayrıldı');
   state.trade.history.unshift({
     day:state.day, kind:meeting.kind, name:bike.name, person:meeting.profile.name, outcome,
     rounds:meeting.round, price:meeting.price, satisfaction,

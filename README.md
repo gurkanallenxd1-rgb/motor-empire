@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12.7
+# MOTOR EMPIRE v0.13
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -167,3 +167,10 @@ Alış görüşmesinde **Pazarlık yap** düğmesi teklif kontrollerini açar. T
 ## v0.12.7 Otomatik alış pazarlığı
 
 **Pazarlık yap** alış ve satış görüşmelerinde tek tur çalıştırır. Manuel teklif kontrolleri varsayılan olarak kapalı **Gelişmiş pazarlık** bölümündedir.
+
+## v0.13 Karakterler, riskli ticaret ve itibar
+
+- Yeni karakterlerin kimliği ve özellikleri deterministiktir. Meslek ve mekanik bilgi bağımsız seçilir. Şüphe, güven, bütçe, aciliyet ve tercihler görüşmeyi etkiler. Açık görüşmeler ve eski kayıt anahtarı korunur.
+- Garajda hasarlı, onarılmış, belgeli ve iki riskli satış yöntemi sunulur. Görsel bakım yalnızca sunumu iyileştirir. Hasar geçmişi kalır. Servis yöntemi ve doğrulanmış belgeler değerlemeyi etkiler.
+- Müşteri soruları, yanıtlar, geri dönen müşteriler, yorumlar ve itibar değişiklikleri saklanır. Eski satışlara yapay yorum eklenmez.
+- Yeni şikâyetler oyun zamanı sonunda karar bekler. Önceki sürümden bekleyen otomatik şikâyetler kendi kurallarıyla tamamlanır. Ücretsiz onarım, müşterinin aracına servis bedelinin ödenmesi olarak modellenir.
