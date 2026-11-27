@@ -14,7 +14,7 @@ export function createGraphicsController({byId,select,refresh}) {
   const stockNote=byId('graphics-stock-note');
   const profileNote=byId('graphics-profile-note');
   function showProfile(p) {
-    profileNote.textContent=`${p.auto?'Otomatik · ':''}${({low:'Düşük',medium:'Orta',high:'Yüksek',ultra:'Ultra'})[p.name]} · Üst piksel oranı ${p.dpr.toLocaleString('tr-TR')} · Doku ${p.texture}² · Gölge ${p.shadow||'kapalı'} · Yansıma %${Math.round(p.reflection*100)} · ${p.detail?'Yüzey ayrıntısı açık':'Temel yüzey'} · ${p.aa?'MSAA açık':'MSAA kapalı'} · ${p.fps} FPS sınırı`;
+    profileNote.textContent=`${p.auto?'Otomatik · ':''}${({low:'Düşük',medium:'Orta',high:'Yüksek',ultra:'Ultra'})[p.name]} · Üst piksel oranı ${p.dpr.toLocaleString('tr-TR')} · Doku ${p.texture}² · Gölge ${p.shadow||'kapalı'} · Yansıma ${p.environment ? p.environment+' px / %'+Math.round(p.reflection*100) : 'kapalı'} · ${p.detail?'Yüzey ayrıntısı açık':'Temel yüzey'} · ${p.aa?'MSAA açık':'MSAA kapalı'} · ${p.fps} FPS sınırı`;
   }
   let storage;
   try {storage=window.localStorage;} catch {}

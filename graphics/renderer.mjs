@@ -51,6 +51,8 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   const rows=new Map();
   scene.add(stock);
   let envTarget;
+  let envSize=0;
+  let measureUntil=0;
   const garageBatches=[];
   const targetMin=new T.Vector3(inspection?-.4:-GARAGE_CAMERA.targetX,inspection?0:.2,inspection?-.4:-GARAGE_CAMERA.targetZ);
   const targetMax=new T.Vector3(inspection?.4:GARAGE_CAMERA.targetX,inspection?1.4:1.2,inspection?.4:GARAGE_CAMERA.targetZ);
@@ -70,17 +72,19 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   const contact=contactMap();
   const shadowMaterial=new T.MeshBasicMaterial({map:contact,color:0x161a21,transparent:true,opacity:.55,depthWrite:false});
 
-  function reflections(enabled) {
-    if (!enabled) {
+  function reflections(size) {
+    if (!size) {
       scene.environment=null;
       envTarget?.dispose();
-      envTarget=undefined;
+      envTarget=undefined;envSize=0;
       return;
     }
-    if (envTarget || lost) return;
+    if (size===envSize || lost) return;
+    envTarget?.dispose();
+    envSize=size;
     const room = new RoomEnvironment();
     const generator = new T.PMREMGenerator(renderer);
-    envTarget = generator.fromScene(room,.06);
+    envTarget = generator.fromScene(room,.06,.1,100,{size});
     scene.environment=envTarget.texture;
     generator.dispose();
     room.dispose();
@@ -101,7 +105,10 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     settings=value;
     const before=profile;
     profile=qualityProfile(settings,automatic);
-    reflections(profile.reflection>0);
+    const environment=profile.reflection<=0 ? 0
+      : profile.name==='ultra' && settings.reflections==='auto' ? 256
+      : profile.name==='low' || settings.reflections==='low' ? 64 : 128;
+    reflections(environment);
     scene.environmentIntensity=profile.reflection;
     renderer.shadowMap.enabled=Boolean(profile.shadow);
     sun.castShadow=Boolean(profile.shadow);
@@ -112,7 +119,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     }
     const detail=profile.name==='high' || profile.name==='ultra';
     workshop?.texture(profile.texture,detail);
-    callbacks.profile?.({...profile,detail,auto:settings.quality==='auto',fps:settings.fps,aa:settings.aa});
+    callbacks.profile?.({...profile,detail,environment,auto:settings.quality==='auto',fps:settings.fps,aa:settings.aa});
     for (const root of rows.values()) {
       const lod=root.userData.lod;
       if (lod) lod.levels[1].distance=profile.lod;
@@ -164,7 +171,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     if (workshop?.cutaway(camera.position,controls.target)) renderer.shadowMap.needsUpdate=true;
     renderer.render(scene,camera);
     const elapsed=now-lastFrame;
-    if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation) && lastFrame>=lastMeasure) {
+    if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation || now<measureUntil) && lastFrame>=lastMeasure) {
       frameMillis+=elapsed;frameCount++;
       if (settings.meter && (frameMillis>=350 || frameCount>=20)) {
         lastMeasure=now;
@@ -324,7 +331,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   for (const [event,listener] of Object.entries(events)) canvas.addEventListener(event,listener);
   controls.addEventListener('change',invalidate);
   controls.addEventListener('start',()=>{measuring=true;lastMeasure=performance.now();frameMillis=0;frameCount=0;targetAnimation=undefined;invalidate();});
-  controls.addEventListener('end',()=>{measuring=false;});
+  controls.addEventListener('end',()=>{measuring=false;measureUntil=performance.now()+450;});
   const observer=new ResizeObserver(resize);observer.observe(canvas);
   const intersection=new IntersectionObserver(([entry])=>{intersecting=entry.isIntersecting;invalidate();});
   intersection.observe(canvas);

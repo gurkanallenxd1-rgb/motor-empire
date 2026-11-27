@@ -13,7 +13,7 @@ export function tiledSurface(size,detail) {
     const u=x%tile,v=y%tile;
     const joint=u<grout||v<grout;
     const shade=joint?82:166+((seed>>>28)*2)+((Math.floor(x/tile)*17+Math.floor(y/tile)*31)%27);
-    color.set([shade,shade*.97,shade*.92,255],i);
+    color[i]=shade;color[i+1]=shade*.97;color[i+2]=shade*.92;color[i+3]=255;
     if (detail) {
       normal[i]=u===grout?101:u===tile-1?155:128;
       normal[i+1]=v===grout?101:v===tile-1?155:128;
@@ -50,5 +50,4 @@ export function contactMap() {
   map.minFilter=T.LinearFilter;
   map.needsUpdate=true;
   return map;
-
 }
