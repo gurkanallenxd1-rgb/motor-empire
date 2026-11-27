@@ -469,3 +469,6 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
   .meeting-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .meeting-actions .primary { grid-column:1/-1; }
 }
+
+.meeting-actions.without-negotiation { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.meeting-actions.without-negotiation .primary { grid-column:auto; }

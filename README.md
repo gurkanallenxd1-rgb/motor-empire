@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12.5
+# MOTOR EMPIRE v0.12.6
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -159,3 +159,7 @@ node --test tests/live-prices.browser.mjs
 ## v0.12.5 Pazarlık kontrolleri
 
 Kaydırıcı, sayı alanı ve üç indirim kısayolu aynı taslağı düzenler. Satıcının verdiği indirim ile talep edilen ek indirim ayrı gösterilir. Pazarlık hakkı bittiğinde önizleme, satın alma düğmesinin kullandığı satıcı fiyatına döner.
+
+## v0.12.6 Alış pazarlığı
+
+Alış görüşmesinde **Pazarlık yap** düğmesi teklif kontrollerini açar. Taslak **Teklifi gönder** ile iletilir. Pazarlık hakkı kalmadığında mevcut fiyatın maliyet ve kâr özeti görünür.

@@ -1,6 +1,6 @@
-import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.5';
-import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.5';
-import { stableNumber } from './trade.mjs?v=0.12.5';
+import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.6';
+import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.6';
+import { stableNumber } from './trade.mjs?v=0.12.6';
 
 export const SYSTEMS = Object.freeze({
   engine:'Motor', gearbox:'Şanzıman', frame:'Şasi', fork:'Ön maşa',

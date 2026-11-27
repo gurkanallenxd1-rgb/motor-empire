@@ -1,6 +1,6 @@
-import { ISTANBUL, provinceName } from './provinces.mjs?v=0.12.5';
-import { additions } from './catalog-data.mjs?v=0.12.5';
-import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.12.5';
+import { ISTANBUL, provinceName } from './provinces.mjs?v=0.12.6';
+import { additions } from './catalog-data.mjs?v=0.12.6';
+import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.12.6';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).

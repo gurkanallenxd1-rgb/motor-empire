@@ -61,9 +61,10 @@ async function open(t,width,height,seed) {
   const market = ()=>tap('.bottom-nav [data-page=market]');
   const row = ()=>tap('.listing-row');
   const negotiation = ()=>tap('#listing-detail-actions [data-action=meet-seller]');
+  const editOffer = ()=>tap('#meeting-negotiate');
   await page.goto('https://motor.test/');
   await ready();
-  return {page,tap,ready,state,jump,text,market,row,negotiation};
+  return {page,tap,ready,state,jump,text,market,row,negotiation,editOffer};
 }
 
 test('320×568 WebKit shows stored before and after estimates and both units directly in negotiation',async t=>{
@@ -85,6 +86,16 @@ test('320×568 WebKit shows stored before and after estimates and both units dir
   await ui.text('#live-inspection-difference',signed(-analysis.difference,-analysis.differenceShare));
   assert.equal(await ui.page.locator('#meeting-analysis').evaluate(el=>el.open),false);
   assert.equal(await ui.page.locator('#live-before-value').isVisible(),false);
+  assert.equal(await ui.page.locator('#purchase-offer-editor').isVisible(),false);
+  await ui.text('#meeting-negotiate','Pazarlık yap');
+  const before = (await ui.state()).listings.find(item=>item.id===fixture.id).seller;
+  await ui.editOffer();
+  await ui.text('#meeting-negotiate','Teklifi gönder');
+  assert.equal(await ui.page.locator('#meeting-negotiate').getAttribute('aria-expanded'),'true');
+  assert.ok(await ui.page.locator('#player-offer').isVisible());
+  assert.ok(await ui.page.locator('#player-offer-range').isVisible());
+  assert.ok(await ui.page.locator('#offer-shortcuts').isVisible());
+  assert.deepEqual((await ui.state()).listings.find(item=>item.id===fixture.id).seller,before);
   const order = await ui.page.evaluate(()=>['#meeting-bike','#live-seller-price','#meeting-inspection-summary','#meeting-speech','#player-offer','#live-sale-profit']
     .map(selector=>document.querySelector(selector).getBoundingClientRect().top));
   assert.deepEqual(order,[...order].sort((a,b)=>a-b));
@@ -107,6 +118,7 @@ test('390×844 WebKit separates seller and conditional discounts, persists ancho
   await ui.text('#meeting-avatar','👩');
   await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).listings[0].inspectionBaseline===85000);
   await ui.tap('#meeting-analysis > summary');
+  await ui.editOffer();
   const input = ui.page.locator('#player-offer');
   await input.fill('30000');
   await ui.text('#live-start-price','48.000 TL');
@@ -138,6 +150,7 @@ test('844×390 WebKit number, slider and discount shortcuts stay synchronized wi
   await ui.market();await ui.row();await ui.negotiation();
   const bike = seed.listings[0];
   const analysis = purchaseAnalysis(bike,bike.seller);
+  await ui.editOffer();
   const numberInput = ui.page.locator('#player-offer');
   const range = ui.page.locator('#player-offer-range');
   const check = async amount=>{
@@ -186,6 +199,7 @@ test('zero valuation deltas render as 0 TL and shortcuts cannot produce a nonpos
   await ui.negotiation();
   assert.equal(await ui.page.locator('#live-inspection-difference').innerText(),'0 TL');
   assert.equal(await ui.page.locator('#live-damage-loss').innerText(),'0 TL');
+  await ui.editOffer();
   assert.ok(await ui.page.locator('[data-discount="10000"]').isDisabled());
   assert.ok(await ui.page.locator('[data-discount="20000"]').isDisabled());
   await ui.tap('[data-discount="5000"]');
@@ -203,6 +217,7 @@ test('mobile customer sales retain the offer and sale controls without showing t
   await ui.tap('.bottom-nav [data-page=garage]');
   await ui.tap('[data-action=open-buyer]');
   await ui.text('#meeting-price-label','Müşteri teklifi');
+  await ui.text('#meeting-negotiate','Pazarlık yap');
   assert.equal(await ui.page.locator('#live-purchase-prices').isVisible(),false);
   assert.ok(await ui.page.locator('#meeting-metrics').isVisible());
   await ui.tap('#meeting-confirm');
@@ -220,6 +235,7 @@ test('zero rounds lock all offer controls and show seller-price costs and profit
   seller.price = 45000;
   const ui = await open(t,320,568,seed);
   await ui.market(); await ui.row(); await ui.negotiation();
+  await ui.editOffer();
   await ui.tap('[data-discount="20000"]');
   await ui.text('#live-extra-discount',signed(20000,20000/45000));
   await ui.tap('#meeting-negotiate');
@@ -241,6 +257,9 @@ test('zero rounds lock all offer controls and show seller-price costs and profit
     '[data-discount="5000"]','[data-discount="10000"]','[data-discount="20000"]']) {
     assert.ok(await ui.page.locator(selector).isDisabled(),selector);
   }
+  assert.equal(await ui.page.locator('#purchase-offer-editor').isVisible(),false);
+  assert.equal(await ui.page.locator('#meeting-negotiate').isVisible(),false);
+  assert.ok(await ui.page.locator('#meeting-reject').isEnabled());
   assert.ok(await ui.page.locator('#meeting-confirm').isEnabled());
   assert.equal(await ui.page.locator('#live-total-cost').evaluate(el=>getComputedStyle(el).textAlign),'right');
   assert.equal(await ui.page.locator('#live-sale-profit').evaluate(el=>getComputedStyle(el).textAlign),'right');
