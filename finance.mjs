@@ -2,7 +2,7 @@ import { isRisky } from './characters.mjs?v=0.16.1';
 export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
   inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', training:'Eğitim', staff_transfer:'Personel transferi', overhead:'Şube gideri',
-  investment:'Şube ve garaj yatırımı', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
+  investment:'Şube, garaj ve şirket yatırımı',takeover_cash:'Devralınan kasa', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
   insurance_premium:'Sigorta primi', insurance_payout:'Kasko ödemesi', traffic_payout:'Trafik sigortası ödemesi',
   accident:'Kaza masrafı', cosmetic:'Görsel bakım', complaint_repair:'Şikâyet onarımı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',
   interest:'Faiz gideri', income:'Diğer gelir', expense:'Diğer gider',
@@ -116,7 +116,7 @@ export function financeReport(state,worth,period) {
       day.rentalDays += 1;
       day.rentalRevenue += cents(row.amount);
     }
-    if (row.kind === 'income' && !['sale','insurance_payout'].includes(row.category)) day.revenue += cents(row.amount);
+    if (row.kind === 'income' && !['sale','insurance_payout','takeover_cash'].includes(row.category)) day.revenue += cents(row.amount);
     if (row.kind === 'expense' && row.category !== 'investment' && !stockExpenses.has(row.category)) {
       day.operatingCost += cents(row.amount);
     }

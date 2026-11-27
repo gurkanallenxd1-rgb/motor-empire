@@ -106,7 +106,7 @@ export function createSeller(bike,day,marketValue) {
 
 export const isActive = meeting => meeting && ['open','agreed'].includes(meeting.status);
 
-export function arrive(bike,day,reputation,value,trade) {
+export function arrive(bike,day,reputation,value,trade,accept) {
   if (day < bike.nextVisit) return 0;
   const classDemand = (modelOf(bike)?.demand ?? .08) - .07;
   const demand = clamp(.76 + classDemand + (reputation - 50) * .006 + (bike.condition - 85) * .008
@@ -115,9 +115,12 @@ export function arrive(bike,day,reputation,value,trade) {
   if (bike.marketTerms) bike.nextVisit = day+Math.max(1,Math.round(bike.marketTerms.days/3));
   const visits = (stableNumber(`${bike.id}:${day}:demand`) % 100) / 100 < adjusted ? 1 + Math.floor(reputation / 35) : 0;
   const count = Math.min(visits,5 - bike.meetings.filter(isActive).length);
+  let arrived=0;
   for (let i=0;i<count;i+=1) {
     const meeting = createBuyer(bike,day,i,reputation,value,undefined,trade);
+    if (accept && !accept(meeting)) continue;
     bike.meetings.push(meeting);
+    arrived++;
     if (meeting.profile.id && trade) {
       const customers = trade.customers ??= {};
       const id = meeting.profile.id;
@@ -126,7 +129,7 @@ export function arrive(bike,day,reputation,value,trade) {
       if (meeting.returning) member.returningVisits = (member.returningVisits ?? 0)+1;
     }
   }
-  return count;
+  return arrived;
 }
 
 function reactToEvidence(meeting,detect) {

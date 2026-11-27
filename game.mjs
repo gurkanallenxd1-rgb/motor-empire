@@ -1,5 +1,6 @@
+import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18';
 import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16.1';
-import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.16.1';
+import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.18';
 import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff, branchProvince, createOffice,
   firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.16.1';
@@ -11,10 +12,10 @@ import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuatio
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
   policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.16.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.16.1';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18';
 import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.16.1';
 import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.16.1';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.16.1';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
   knownPart, repairForecast, repairQuote, roadValue } from './damage.mjs?v=0.16.1';
@@ -893,6 +894,34 @@ function applyAction(next, action, id, amount, branchId, worker) {
       message = `${office.name} açıldı.`;
       break;
     }
+    case 'acquire-rival': {
+      const company=next.competition?.companies.find(item=>String(item.id)===String(id));
+      if(!company || amount?.confirmed!==true || !validAmount(amount.price) || !Number.isSafeInteger(amount.price))
+        throw new Error('Onaylı ve geçerli bir devralma teklifi gerekli.');
+      const quote=rivalOffer(company,amount.price);
+      if(amount.stamp!==next.competition.day)throw new Error('Değerleme değişti. Teklifi tekrar açın.');
+      if(!quote.accepted)throw new Error('Şirket yönetimi teklifi reddetti.');
+      if(next.cash<quote.total)throw new Error('Devralma bedeli için yeterli nakit yok.');
+      const basis=Math.max(0,quote.total-company.cash+company.debt);
+      const offices=company.branches.map((source,index)=>{
+        const office=createOffice(next.branches.length+index+1,source.province,source.tier);
+        office.workers=RIVAL_ROLES.slice(0,source.staff).map((role,index)=>
+          makeEmployee(`r${company.id}-${source.id}-${index}`,role));
+        office.garage=company.stock.filter(item=>item.branch===source.id).map((item,slot)=>
+          inheritedStock(item,next.day,source.province,
+            Math.round(basis*item.value/Math.max(1,quote.assets+quote.stock)),slot));
+        return office;
+      });
+      next.cash=decimal(next.cash-quote.total+company.cash);
+      next.debt=decimal(next.debt+company.debt);
+      next.branches.push(...offices);
+      record('expense',quote.total,`${company.name} şirket devralması`,null,{category:'investment'});
+      if(company.cash)record('income',company.cash,'Devralınan kasa',null,{category:'takeover_cash'});
+      removeAcquired(next.competition,company);
+      notify(next,'competition',now,{title:'Şirket devralındı',body:`${company.name} · ${offices.length} şube`});
+      message=`${company.name} devralındı.`;
+      break;
+    }
     case 'borrow':
       if (!validAmount(amount) || amount > decimal(LOAN_LIMIT - next.debt)) throw new Error('Borç tutarı kredi limitini aşıyor veya geçersiz.');
       next.debt = decimal(next.debt + amount);
@@ -972,6 +1001,28 @@ function applyAction(next, action, id, amount, branchId, worker) {
       });
       // Generate and record the same observable market on every elapsed day, online or offline.
       replenishMarket(next,tomorrow);
+      next.competition ??= createCompetition(tomorrow-1,next.economy);
+      const rivalMarket=next.competition;
+      const oldRank=rivalMarket.rank;
+      const oldCityRank=rivalMarket.cityRank;
+      advanceCompetition(rivalMarket,tomorrow,next.economy,next.sales);
+      const worth=assets(next).net;
+      rivalMarket.rank=1+rivalMarket.companies.filter(company=>company.bookValue>worth).length;
+      const headquarters=branchProvince(next.branches[0]);
+      rivalMarket.cityRank=1+rivalMarket.companies.filter(company=>company.branches.some(office=>office.province===headquarters)
+        && company.bookValue>worth).length;
+      if(tomorrow%7===0 && (rivalMarket.rank<oldRank || rivalMarket.cityRank<oldCityRank)) {
+        const text=rivalMarket.rank<oldRank?`Türkiye sıralamasında ${rivalMarket.rank}. sıraya yükseldiniz.`
+          : `${provinceName(headquarters)} sıralamasında ${rivalMarket.cityRank}. sıraya yükseldiniz.`;
+        rivalMarket.news.push({day:tomorrow,id:null,type:'rank',text});
+        if(rivalMarket.news.length>45)rivalMarket.news.shift();
+      }
+      const latest=rivalMarket.news.at(-1);
+      if(latest?.day===tomorrow && tomorrow-(rivalMarket.lastNotice??0)>=4) {
+        notify(next,'competition',gameTime(tomorrow),{title:'Rekabet haberi',body:latest.text});
+        rivalMarket.lastNotice=tomorrow;
+      }
+
       for (const item of next.listings) if (!item.id.startsWith(`${tomorrow}-`)) markToMarket(item,next.economy);
       for (const office of next.branches) {
         for (const item of office.garage) markToMarket(item,next.economy,branchProvince(office));
@@ -981,7 +1032,12 @@ function applyAction(next, action, id, amount, branchId, worker) {
             if (!meeting.held && (!meeting.round || meeting.staffHandled) && meeting.status !== 'agreed' && tomorrow - meeting.day >= 3) finishTrade(next,meeting,item,'expired');
           }
           item.meetings = item.meetings.filter(isActive);
-          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item),next.trade);
+          const protectedShop=next.sales.length<6 && next.branches.length===1;
+          visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item),next.trade,meeting=>
+            !competitiveChoice(rivalMarket,meeting,item,branchProvince(office),next.trade.reputation,
+              {protected:protectedShop,stock:office.garage.length,service:office.staff+workers(office).length,
+                satisfaction:next.trade.history.filter(row=>row.satisfaction!==null).slice(-10)
+                  .reduce((total,row,_,all)=>total+row.satisfaction/all.length,0)||65}));
         }
       }
       automate(next);
@@ -1240,6 +1296,7 @@ export function synchronize(state, now) {
       branches:state.branches.map(branch=>({...branch,garage:branch.garage.map(item=>
         markToMarket({...item},economy,branchProvince(branch)))}))};
   }
+  if (!state.competition) state={...state,competition:createCompetition(state.day,state.economy)};
   if (!state.clock) {
     return {state:{...state,clock:startClock(now)},summary:null};
   }
