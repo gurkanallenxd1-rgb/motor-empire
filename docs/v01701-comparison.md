@@ -27,3 +27,11 @@ node tests/graphics-captures.cjs
 ```
 
 Tarayıcı için `PLAYWRIGHT_MODULE` ve `CHROMIUM_PATH` ayarlanabilir. Karşılaştırmalar Chromium SwiftShader mobil emülasyonuyla alındı. Fiziksel iPhone’da yeni sürüm, yerleşik uzun basma menüsü, dokunma ve FPS yeniden denenmedi.
+
+## Test kapsamı
+
+- **130 Node.js, 36 mobil Playwright WebKit ve 7 Chromium SwiftShader grafik testi geçti.** PR #33 testleri korunuyor. Maksimum eğim senaryosu iki tarayıcıda ayrıca tekrar çalıştırıldı.
+- Dikey ve yatay emülasyonda orbit, yakın/uzak zoom, maksimum eğim, kamera sıfırlama, görüş kesiti ve yanlış seçim engeli kontrol edildi. Chromium’da iki parmak yakınlaştırma denendi. Node testi dokunma iptali ve uzun basmayı ayırır.
+- Canvas özelindeki iOS CSS hem kaynakta hem emülatörün hesaplanan stillerinde denetlendi. Emülatör işletim sisteminin gerçek menüsünü üretmediğinden fiziksel Safari doğrulaması açık.
+- Profil testleri 128/256/512/1.024 karo çözünürlüğü, 0/512/1.024/2.048 gölge haritası, 64/128/128/256 ortam hedefi ve Yüksek/Ultra malzeme detayını ölçer.
+- Önceki 2D/3D geçişi, bağlam kaybı, eski kayıt, stok/otomasyon ve KTX2 kaynak temizliği testleri çalıştırıldı. 98 eski katalog/2D dosyası SHA-256 ile eşleşir.

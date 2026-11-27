@@ -29,7 +29,7 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - Statik, hesapsız kullanım ve GitHub Pages yayını korunur. Kayıtlar tarayıcıya özeldir. Hesaplar ve bulut kayıt v0.20 için planlanıyor.
 - Model çizimleri yerel WebP ve boya maskeleri kullanır. Bütün model ve kasa varyantları üretici düzeyinde doğrulanmış değildir. Görsel denetim sayfası temsilî varlıkları işaretler. Fiziksel iPhone kare hızı ölçümü bu sürümde yapılmadı.
 - Fiyat grafiği Türkiye genelinde tüm model yıllarını kapsar. Şehir karşılaştırması seçilen yılın temiz motosiklet referansıdır ve işlem garantisi içermez.
-- Mevcut doğrulama **127 Node.js + 35 mobil Playwright WebKit = 162 başarılı test**. PR #33 başındaki 160 test korunur. Chromium yazılımsal WebGL’de 6 grafik testi geçti. Fiziksel iPhone testi yapılmadı.
+- Mevcut doğrulama **130 Node.js ve 36 mobil Playwright WebKit testi geçti.** Chromium SwiftShader grafik alt kümesi 7/7. Önceki 127 Node.js, 35 WebKit ve 6 Chromium senaryosu korunur. Düzeltme fiziksel iPhone üzerinde yeniden denenmedi.
 - Sıradaki görev üç prototip modelin ticari kullanım, düzenleme ve açık dağıtım izni, gerçek 3D inceleme, garaj varlık ayrıntıları ve fiziksel iPhone performans ölçümü. KTX2, iki tarayıcıda özgün bir test varlığıyla doğrulandı. Daha geniş 3D dönüşüm kullanıcı onayı gerektirir. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.
 
 ## Son görev ve devam noktası

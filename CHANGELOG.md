@@ -4,7 +4,8 @@
 
 - 3D garajda göz yüksekliği ve yakınlaştırma sınırları, fiziksel hedef alanı ve görüşe göre duvar kesiti. Sürükleme, çoklu dokunma ve uzun basma seçimden ayrıldı.
 - Cam/metal cephe, yuvarlatılmış servis ekipmanı, hidrolik kollar, kompresör hattı, ofis ve showroom ayrıntıları. Yüksek ve Ultra’da normal/pürüzlülük/metal dokuları. Etkin profil ayarları panelde gösteriliyor.
-- Soft temas gölgesi ve ölçek ayarı mevcut 2D motosikletleri kullanır. Ekonomi ve kayıt şeması korunur. [Görsel karşılaştırma ve ölçümler](docs/v01701-comparison.md)
+- **130 Node.js, 36 mobil Playwright WebKit ve 7 Chromium grafik testi geçti.** Fiziksel iPhone tekrarı açık.
+- Yumuşak temas gölgesi ve ölçek ayarı mevcut 2D motosikletleri kullanır. Ekonomi ve kayıt şeması korunur. [Görsel karşılaştırma ve ölçümler](docs/v01701-comparison.md)
 
 ## v0.17 · Deneysel
 
