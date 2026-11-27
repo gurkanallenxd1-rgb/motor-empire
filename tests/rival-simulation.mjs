@@ -48,6 +48,7 @@ export function rivalSimulation(days) {
   assert.ok(Buffer.byteLength(JSON.stringify(world))<1600000);
   assert.ok(list.every(c=>c.cash<50000000 && c.bookValue<85000000));
   return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,
+    cities:new Set(list.flatMap(c=>c.branches.map(branch=>branch.province))).size,
     averageValue:Math.round(average('bookValue')),averageCumulativeNet:Math.round(average('profit')),
     topShare:+shares[0].toFixed(4),medianShare:+shares[Math.floor(shares.length/2)].toFixed(4),
     stock:list.reduce((sum,c)=>sum+c.stock.length,0),sales:world.sold,turnover:world.turnover,

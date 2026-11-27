@@ -574,8 +574,8 @@ body[data-view="market-analysis"] main { padding-top:13px }
 #competition-open { color:var(--accent); border-color:#845739; background:#332720 }
 body[data-view="competition"] main > :is(.intro,.stats,.branch-bar) { display:none }
 body[data-view="competition"] main { padding-top:13px }
-.competition-tabs { grid-template-columns:repeat(5,minmax(0,1fr)) }
-.competition-tabs button { min-width:0; font-size:clamp(10px,3.15vw,14px); line-height:1.05; overflow-wrap:anywhere }
+.competition-tabs { grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1.26fr) minmax(0,1.23fr) minmax(0,.95fr) }
+.competition-tabs button { min-width:0; font-size:clamp(10px,2.9vw,13px); line-height:1.1; overflow-wrap:anywhere }
 .competition-filters { grid-template-columns:repeat(2,minmax(0,1fr)) }
 .competition-hero { grid-template-columns:1fr 1fr }
 .competition-total { font-size:clamp(16px,5vw,29px); color:var(--accent); overflow-wrap:anywhere }

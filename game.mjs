@@ -162,9 +162,11 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  const economy = createEconomy(1);
-  const listings = generateMarket(1,marketRandom(1),true,economy);
-  return { version: 9, day: 1, cash: 75000, debt: 0, listings, economy:observeMarket(economy,listings), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
+  let economy=createEconomy(1);
+  const listings=generateMarket(1,marketRandom(1),true,economy);
+  economy=observeMarket(economy,listings);
+  return {version:9,day:1,cash:75000,debt:0,listings,economy,competition:createCompetition(1,economy),
+    branches:[createBranch(1)],sales:[],ledger:[],financeSnapshots:[],trade:createTrade()};
 }
 
 export const branchCapacity = branch => branch.tier===undefined ? GARAGE_LEVELS[branch.level-1].capacity : BRANCH_TIERS[branch.tier].capacity;
