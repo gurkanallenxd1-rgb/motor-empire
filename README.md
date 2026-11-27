@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.15.3
+# MOTOR EMPIRE v0.15.4
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -210,3 +210,9 @@ Canlı satış kartı sekiz saniye görünür. Kartı açınca satış anındaki
 Garaj, kapasiteye göre 80, 180, 350, 700 veya 1.400 m² tek bir izometrik kat planı gösterir. Kamera iki parmakla veya düğmelerle yakınlaştırılır. Sürükleme ve ok tuşları sahnede gezinir. **Tüm garajı göster** kamerayı sıfırlar. Motosiklete dokununca yakın plan açılır. Nakliye rezervasyonları stok listesinde takip edilir. Servis ve galeri bölmeleri ihtiyaç olduğunda komşu park yerlerine genişleyebilir.
 
 Yükseltme önizlemesi mevcut fiyatı ve yeni kat planını gösterir. Onay, mevcut şube yükseltmesini kullanır. Garaj kapasiteleri, yatırım bedelleri ve eski stok kayıtları korunur. Ortam ekipmanı ve zemin dokuları oyun için ImageGen ile üretildi ve yerel WebP olarak paketlendi.
+
+## v0.15.4 Garaj grafik revizyonu
+
+İki bölmeli atölyenin özgün görseli korunur. Geniş kat planları servis ve sergileme alanlarını cam bölmelerle ayırır. Ekspertiz, depo, resepsiyon, yönetim ve nakliye alanları kapasiteye göre eklenir. Hidrolik lift, cam kapı, yönetim mobilyası, parça rafı ve sergileme platformları yerel WebP atlasından yüklenir. Mevcut motosiklet, lastik ve kompresör varlıkları kullanılır. Statik mimari ve istasyonlar, kamera hareketinden bağımsız olarak önbelleğe alınır.
+
+Görsel denetim, mobil Playwright WebKit ekran görüntülerini kapsar. [Beş seviye](docs/v0154-garaj-seviyeleri.webp) ve [%100, %200, %300, %500 yakınlaştırma karşılaştırması](docs/v0154-yakinlastirma.webp).

@@ -1,4 +1,4 @@
-import { fitGarage } from './garage-layout.mjs?v=0.15.3';
+import { fitGarage } from './garage-layout.mjs?v=0.15.4';
 
 let original;
 let equipment;
@@ -8,14 +8,14 @@ function loadArt(file) {
     const image = new Image();
     image.onload = ()=>resolve(image);
     image.onerror = ()=>resolve(null);
-    image.src = new URL(`./assets/${file}?v=0.15.3`,import.meta.url);
+    image.src = new URL(`./assets/${file}?v=0.15.4`,import.meta.url);
   });
 }
 
 export const workshopArt = plan=>plan.original
   ? (original ??= loadArt('workshop.webp'))
-  : (equipment ??= Promise.all([loadArt('garage-equipment.webp'),loadArt('garage-surfaces.webp')])
-    .then(([props,surfaces])=>({props,surfaces})));
+  : (equipment ??= Promise.all([loadArt('garage-equipment.webp'),loadArt('garage-surfaces.webp'),loadArt('garage-architecture.webp')])
+    .then(([props,surfaces,architecture])=>({props,surfaces,architecture})));
 
 function polygon(ctx,points,fill,stroke,width=1) {
   ctx.beginPath();
@@ -64,17 +64,21 @@ function floor(ctx,plan,texture) {
   ctx.save();
   face(ctx,plan,[[0,0],[u,0],[u,v],[0,v]],light);
   ctx.clip();
+  const boundary = plan.boundary;
+  face(ctx,plan,[[0,0],[u,0],[u,boundary],[0,boundary]],'#44575a');
   if (texture) {
     const [px,py] = p(0,0);
     ctx.save();
     ctx.transform(.866,.5,-.866,.5,px,py);
     ctx.globalAlpha = stone ? .44 : .60;
-    ctx.fillStyle = ctx.createPattern(textureTile(texture,material),'repeat');
-    ctx.fillRect(0,0,u,v);
+    ctx.fillStyle = ctx.createPattern(textureTile(texture,'center'),'repeat');
+    ctx.fillRect(0,0,u,boundary);
+    ctx.fillStyle = ctx.createPattern(textureTile(texture,stone?'stone':'concrete'),'repeat');
+    ctx.fillRect(0,boundary,u,v-boundary);
     ctx.restore();
   }
   const grid = stone ? 74 : 110;
-  for (let x=0;x<u;x+=grid) for (let y=0;y<v;y+=grid) {
+  for (let x=0;x<u;x+=grid) for (let y=boundary;y<v;y+=grid) {
     const shade = (Math.imul(x+113,y+197)>>>4)%12;
     face(ctx,plan,[[x,y],[x+grid,y],[x+grid,y+grid],[x,y+grid]],
       shade>5 ? `rgba(246,225,204,${shade/260})` : `rgba(16,24,28,${shade/90})`,
@@ -107,13 +111,11 @@ function floor(ctx,plan,texture) {
     ctx.fillRect(x-118,0,236,154);
   }
   ctx.restore();
-  const cross = 112 + plan.serviceRows*202;
+  const cross = boundary-31;
   face(ctx,plan,[[41,cross],[u-47,cross],[u-47,cross+63],[41,cross+63]],'#232a2bb3');
   line(ctx,p(46,cross+7),p(u-52,cross+7),'#ceab6c99',1.9);
   line(ctx,p(46,cross+55),p(u-52,cross+55),'#ceab6c99',1.9);
-  if (stone) {
-    face(ctx,plan,[[u-141,0],[u-22,0],[u-22,v],[u-141,v]],material==='center'?'#353849d9':'#363334d7','#c3aa7966',2);
-  }
+
   ctx.restore();
 }
 
@@ -151,19 +153,77 @@ function wall(ctx,plan,length,axis,glass) {
   }
 }
 
-function propPositions(plan) {
-  const {uSize:u,vSize:v,material} = plan;
-  if (material==='concrete') return [[0,125,48,158],[1,u*.69,38,143],[4,68,v*.46,110],[3,u-54,v-136,108]];
-  if (material==='hybrid') return [[0,146,47,164],[1,u*.45,42,133],[4,u*.65,39,116],[2,u-61,76,128],[3,u-47,v*.72,132]];
-  if (material==='stone') return [[0,143,49,145],[1,u*.41,38,108],[2,u-62,141,146],[5,u-67,v*.54,121],[3,u-57,v-100,130],[5,50,v*.54,92]];
-  return [[0,146,39,152],[1,u*.26,42,132],[4,u*.45,41,132],[0,u*.62,40,151],
-    [2,u-70,125,151],[5,u-69,v*.40,126],[3,u-68,v*.66,130],[5,u-74,v-95,126],[5,58,v*.57,117]];
+const rooms = {
+  inspection:{name:'EKSPERTİZ',color:'#36575b',props:[[0,.42,.55,134],[4,.78,.50,77]]},
+  stock:{name:'DEPO',color:'#615048',objects:[[4,.42,.60,134]],props:[[4,.76,.55,78]]},
+  reception:{name:'RESEPSİYON',color:'#836a52',props:[[2,.29,.57,137],[3,.75,.57,124]]},
+  office:{name:'YÖNETİM',color:'#725c47',objects:[[3,.49,.65,145]],props:[[5,.80,.50,72]]},
+  loading:{name:'NAKLİYE',color:'#5b5c50',objects:[[2,.47,.26,175]],props:[[4,.79,.60,75]]},
+};
+
+function partition(ctx,plan,u,v,x,y,glass,height) {
+  const p = plan.project;
+  const at = (t,z)=>p(u+(x-u)*t,v+(y-v)*t,z);
+  const length = Math.hypot(x-u,y-v);
+  const [dx,dy] = v===y ? [0,8] : [8,0];
+  const finish = ctx.createLinearGradient(...at(.5,height),...at(.5,0));
+  finish.addColorStop(0,glass?'#c6e9e79d':'#beb5a5');
+  finish.addColorStop(.47,glass?'#769b9d57':'#858982');
+  finish.addColorStop(1,glass?'#3f5964bb':'#384448');
+  face(ctx,plan,[[u,v],[x,y],[x+dx+17,y+dy+12],[u+dx+17,v+dy+12]],'#0f16176b');
+  polygon(ctx,[at(0,0),at(1,0),at(1,height),at(0,height)],finish,'#273539',2);
+  polygon(ctx,[at(0,height),at(1,height),p(x+dx,y+dy,height),p(u+dx,v+dy,height)],'#bfb5a2');
+  if (glass) for (let t=0;t<1;t+=80/length) {
+    line(ctx,at(t,0),at(t,height),'#27373d',4);
+    line(ctx,at(t+.013,7),at(t+.013,height-3),'#bbd6d688',1.4);
+  }
+  line(ctx,at(0,7),at(1,7),'#263336',4);
 }
 
-function drawProp(ctx,atlas,cell,x,y,width) {
+function floorLabel(ctx,plan,label,u,v) {
+  const [x,y] = plan.project(u,v);
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(Math.PI/6);
+  ctx.fillStyle = '#f3d8a9';
+  ctx.shadowColor = '#0f191a';
+  ctx.shadowBlur = 4;
+  ctx.font = '800 16px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(label,0,0);
+  ctx.restore();
+}
+
+function stageRooms(ctx,plan,atlas) {
+  for (const [i,room] of plan.rooms.entries()) {
+    const {x,y,width:w,depth:d,type} = room;
+    const decor = rooms[type];
+    face(ctx,plan,[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],decor.color,'#bfac826e',2);
+    const place = (source,[cell,u,v,size])=>{
+      if (source) drawProp(ctx,source,cell,...plan.project(x+w*u,y+d*v),size);
+    };
+    for (const item of decor.objects ?? []) place(atlas?.architecture,item);
+    for (const item of decor.props ?? []) place(atlas?.props,item);
+    if (i) partition(ctx,plan,x,y,x,y+d,type!=='stock',60);
+    if (type==='loading') {
+      for (let u=x+12;u<x+w-29;u+=24)
+        face(ctx,plan,[[u,y+d],[u+13,y+d],[u+27,y+d-20],[u+14,y+d-20]],'#e2ac64bf');
+    } else {
+      partition(ctx,plan,x,y+d,x+w*.38,y+d,type!=='stock',49);
+      partition(ctx,plan,x+w*.67,y+d,x+w,y+d,type!=='stock',49);
+      if (['office','inspection'].includes(type)) place(atlas?.architecture,[1,.53,.99,Math.min(87,w*.30)]);
+    }
+    floorLabel(ctx,plan,decor.name,x+w/2,y+d+21);
+  }
+  if (plan.material!=='concrete') for (const [a,b] of [[.05,.32],[.43,.65],[.76,.95]]) {
+    partition(ctx,plan,plan.uSize*a,plan.boundary,plan.uSize*b,plan.boundary,true,66);
+  }
+}
+
+function drawProp(ctx,atlas,cell,x,y,width,rise=1) {
   const tileWidth = atlas.width/3;
   const tileHeight = atlas.height/2;
-  const height = width*tileHeight/tileWidth;
+  const height = width*tileHeight/tileWidth*rise;
   ctx.save();
   ctx.translate(x,y);
   ctx.scale(width*.44,width*.14);
@@ -185,10 +245,6 @@ export function paintBay(ctx,plan,bay,zone=bay.zone) {
   face(ctx,plan,corners,zone==='service'?'#2d3539':'#333c3b',color,1.8);
   if (zone==='service') {
     for (const a of [-60,60]) line(ctx,plan.project(u+a,v-40),plan.project(u+a,v+40),'#c48a57a6',4);
-    face(ctx,plan,[[u-54,v+19],[u+42,v+19],[u+42,v+19,6],[u-54,v+19,6]],'#1a2023');
-    face(ctx,plan,[[u-54,v-18,6],[u+42,v-18,6],[u+42,v+19,6],[u-54,v+19,6]],'#566068','#94918a',.9);
-    face(ctx,plan,[[u-68,v-18],[u-54,v-18,6],[u-54,v+19,6],[u-68,v+19]],'#40464a','#777976',.8);
-    line(ctx,plan.project(u-50,v+17,7),plan.project(u+41,v+17,7),'#ce874c',1.7);
   } else {
     line(ctx,plan.project(u-59,v+31),plan.project(u+59,v+31),'#d9e0caa8',1.25);
   }
@@ -218,21 +274,26 @@ export function paintWorkshop(ctx,plan,atlas) {
   floor(ctx,plan,atlas?.surfaces);
   wall(ctx,plan,plan.vSize,'v',plan.material==='center');
   wall(ctx,plan,plan.uSize,'u',['stone','center'].includes(plan.material));
+  stageRooms(ctx,plan,atlas);
   for (const bay of plan.bays) paintBay(ctx,plan,bay);
-  if (atlas?.props) for (const [cell,u,v,width] of propPositions(plan)) drawProp(ctx,atlas.props,cell,...plan.project(u,v),width);
-  const label = (name,v)=>{
-    const [x,y] = plan.project(plan.uSize-75,v);
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(-Math.PI/6);
-    ctx.fillStyle = '#e4cfabb5';
-    ctx.font = '750 17px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(name,0,0);
-    ctx.restore();
-  };
-  label('SERVİS',plan.serviceRows*113);
-  label(plan.material==='concrete'?'PARK':'GALERİ',plan.vSize*.60);
+  const props = atlas?.props;
+  if (props) {
+    drawProp(ctx,props,1,...plan.project(plan.uSize-53,plan.rear+48),126);
+    drawProp(ctx,props,0,...plan.project(31,plan.rear+78),120);
+    if (plan.material==='stone'||plan.material==='center') {
+      drawProp(ctx,props,5,...plan.project(plan.uSize-52,plan.vSize-82),101);
+      drawProp(ctx,props,5,...plan.project(38,plan.vSize-71),101);
+    }
+  }
+  floorLabel(ctx,plan,'SERVİS',plan.uSize-81,plan.rear+124);
+  floorLabel(ctx,plan,plan.material==='concrete'?'TESLİM':'SHOWROOM',plan.uSize-95,plan.vSize-49);
+}
+
+export function paintStation(ctx,plan,bay,zone,architecture) {
+  if (!architecture || plan.original) return;
+  if (zone==='service') drawProp(ctx,architecture,0,bay.x,bay.y+23,195,.67);
+  else if ((plan.material==='stone'||plan.material==='center') && bay.index%3===0)
+    drawProp(ctx,architecture,5,bay.x,bay.y+12,178);
 }
 
 const pendingPreviews = new WeakMap();
@@ -249,6 +310,7 @@ export async function drawGaragePreview(canvas,plan) {
     const scale = fitGarage(plan,canvas.width,canvas.height);
     ctx.setTransform(scale,0,0,scale,(canvas.width-plan.width*scale)/2,(canvas.height-plan.height*scale)/2);
     paintWorkshop(ctx,plan,art);
+    for (const bay of plan.bays) paintStation(ctx,plan,bay,bay.zone,art?.architecture);
   };
   draw(null);
   const art = await pending;

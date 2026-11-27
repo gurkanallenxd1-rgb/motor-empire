@@ -1,4 +1,4 @@
-import { DAY_MS } from './clock.mjs?v=0.15.3';
+import { DAY_MS } from './clock.mjs?v=0.15.4';
 
 export const NOTICE_TYPES = Object.freeze({
   purchase:'Motosiklet alımı',sale:'Motosiklet satışı',inspection:'Ekspertiz tamamlandı',repair:'Tamir tamamlandı',

@@ -1,6 +1,6 @@
-import { loadSprite, spriteKey } from './sprite.mjs?v=0.15.3';
-import { bikeBounds, fitGarage, garageBikeAt } from './garage-layout.mjs?v=0.15.3';
-import { paintBay, paintWorkshop, workshopArt } from './garage-scene.mjs?v=0.15.3';
+import { loadSprite, spriteKey } from './sprite.mjs?v=0.15.4';
+import { bikeBounds, fitGarage, garageBikeAt } from './garage-layout.mjs?v=0.15.4';
+import { paintBay, paintStation, paintWorkshop, workshopArt } from './garage-scene.mjs?v=0.15.4';
 
 const clamp = (value,min,max)=>Math.min(max,Math.max(min,value));
 const activeRepair = new Set(['repairing','claiming','internalRepair']);
@@ -19,6 +19,10 @@ export function createGarageRenderer(scene,openBike) {
   let layout;
   let branch;
   let background;
+  let art;
+  let raster = 1;
+  let zones = new Map();
+  let zoneKey = "";
   let parking = [];
   let overview = '';
   let signature = '';
@@ -90,7 +94,7 @@ export function createGarageRenderer(scene,openBike) {
     width = bounds.width;
     height = bounds.height;
     fit = fitGarage(layout,width,height);
-    maxZoom = clamp(156/(layout.bikeWidth*fit),3,16);
+    maxZoom = clamp(156/(layout.bikeWidth*fit),5,16);
     zoom = clamp(zoom,1,maxZoom);
     const dpr = Math.min(devicePixelRatio || 1,3,Math.sqrt(2_000_000/(width*height)));
     canvas.width = Math.round(width*dpr);
@@ -102,15 +106,28 @@ export function createGarageRenderer(scene,openBike) {
 
   function cacheBackground(next) {
     if (!background) background = document.createElement('canvas');
-    background.width = next.width;
-    background.height = next.height;
-    const ctx = background.getContext('2d',{alpha:false});
-    paintWorkshop(ctx,next,null);
+    art = undefined;
+    raster = next.original ? 1 : Math.min(2,Math.sqrt(5_000_000/(next.width*next.height)));
+    background.width = Math.ceil(next.width*raster);
+    background.height = Math.ceil(next.height*raster);
     workshopArt(next).then(asset=>{
       if (layout!==next || !asset) return;
-      paintWorkshop(ctx,next,asset);
+      art = asset;
+      paintBackground();
       invalidate();
     });
+  }
+
+  function paintBackground() {
+    const ctx = background.getContext('2d',{alpha:false});
+    ctx.setTransform(raster,0,0,raster,0,0);
+    ctx.imageSmoothingQuality = 'high';
+    paintWorkshop(ctx,layout,art);
+    if (!layout.original) for (const bay of layout.bays) {
+      const zone = zones.get(bay.index) ?? bay.zone;
+      if (zone!==bay.zone) paintBay(ctx,layout,bay,zone);
+      paintStation(ctx,layout,bay,zone,art?.architecture);
+    }
   }
 
   function loadQueued() {
@@ -130,10 +147,11 @@ export function createGarageRenderer(scene,openBike) {
   function sceneSprite(image) {
     const w = image.naturalWidth ?? image.width;
     const h = image.naturalHeight ?? image.height;
-    if (w<=380) return image;
+    const limit = layout?.bays.length<=5 ? 640 : 480;
+    if (w<=limit) return image;
     const imageCanvas = document.createElement('canvas');
-    imageCanvas.width = 380;
-    imageCanvas.height = Math.round(h*380/w);
+    imageCanvas.width = limit;
+    imageCanvas.height = Math.round(h*limit/w);
     imageCanvas.getContext('2d').drawImage(image,0,0,imageCanvas.width,imageCanvas.height);
     return imageCanvas;
   }
@@ -164,7 +182,8 @@ export function createGarageRenderer(scene,openBike) {
     context.setTransform(s*rx,0,0,s*ry,ox*rx,oy*ry);
     const left = Math.max(0,-ox/s), top = Math.max(0,-oy/s);
     const right = Math.min(layout.width,(width-ox)/s), bottom = Math.min(layout.height,(height-oy)/s);
-    context.drawImage(background,left,top,right-left,bottom-top,left,top,right-left,bottom-top);
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(background,left*raster,top*raster,(right-left)*raster,(bottom-top)*raster,left,top,right-left,bottom-top);
     const progress = motion ? clamp((now-motion.start)/530,0,1) : 1;
     if (progress===1 && motion) {
       motion = undefined;
@@ -173,10 +192,9 @@ export function createGarageRenderer(scene,openBike) {
     const objects = motion?.action==='sell'
       ? [...parking,motion.entry].sort((a,b)=>a.bay.y-b.bay.y) : parking;
     for (const entry of objects) {
-      const {bay,zone,bike,key} = entry;
+      const {bay,bike,key} = entry;
       const bounds = bikeBounds(layout,bay);
       if (!layout.original && (bounds.right<left || bounds.left>right || bounds.bottom<top || bounds.top>bottom)) continue;
-      if (zone!==bay.zone) paintBay(context,layout,bay,zone);
       const moving = motion?.entry.bike.id===bike.id;
       const opacity = moving ? (motion.action==='sell' ? 1-progress : progress) : 1;
       const dx = moving ? (1-opacity)*layout.bikeWidth*.12 : 0;
@@ -261,10 +279,11 @@ export function createGarageRenderer(scene,openBike) {
   }
 
   return (garage,action,animationBike,next,officeId)=>{
-    const changed = layout!==next || branch!==officeId;
+    const floorChanged = layout!==next;
+    const changed = floorChanged || branch!==officeId;
     const last = animationBike && parking.find(entry=>entry.bike.id===animationBike.id);
     if (changed) {
-      if (layout!==next) cacheBackground(next);
+      if (floorChanged) cacheBackground(next);
       layout = next;
       branch = officeId;
       zoom = 1;
@@ -272,12 +291,18 @@ export function createGarageRenderer(scene,openBike) {
       centerY = next.height/2;
       if (width) {
         fit = fitGarage(next,width,height);
-        maxZoom = clamp(156/(next.bikeWidth*fit),3,16);
+        maxZoom = clamp(156/(next.bikeWidth*fit),5,16);
       }
       motion = undefined;
       updateControls();
     }
     parking = garage.map(entry=>({...entry,key:spriteKey(entry.bike)}));
+    zones = new Map(parking.filter(({bay,zone})=>bay.zone!==zone).map(({bay,zone})=>[bay.index,zone]));
+    const nextZoneKey = JSON.stringify([...zones]);
+    if (floorChanged || nextZoneKey!==zoneKey) {
+      zoneKey = nextZoneKey;
+      paintBackground();
+    }
     const fingerprint = JSON.stringify(parking.map(({bike,bay,key})=>[bike.id,bike.stage,bay.index,key]));
     if (animationBike && !reducedMotion.matches) {
       const animated = action==='sell' && !changed ? last : action==='buy' ? parking.find(entry=>entry.bike.id===animationBike.id) : null;
@@ -302,15 +327,24 @@ function drawBike(ctx,image,x,y,width,stage,opacity,original) {
   ctx.save();
   ctx.globalAlpha = opacity;
   ctx.translate(x,y);
-  if (original) ctx.rotate(-.36);
+  ctx.rotate(original ? -.36 : -.13);
   ctx.save();
-  if (!original) ctx.rotate(.19);
-  ctx.scale(width*.47,width*.112);
-  const shadow = ctx.createRadialGradient(0,0,.12,0,0,1);
-  shadow.addColorStop(0,'#0b0d10bf');
-  shadow.addColorStop(1,'#0b0d1000');
-  ctx.fillStyle = shadow;
-  ctx.fillRect(-1,-1,2,2);
+  if (!original) ctx.rotate(.10);
+  function shadow(x,y,w,h,opacity) {
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(w,h);
+    const gradient = ctx.createRadialGradient(0,0,.12,0,0,1);
+    gradient.addColorStop(0,`rgba(5,8,10,${opacity})`);
+    gradient.addColorStop(.52,`rgba(5,8,10,${opacity*.46})`);
+    gradient.addColorStop(1,'#05080a00');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(-1,-1,2,2);
+    ctx.restore();
+  }
+  shadow(width*.065,width*.037,width*.51,width*.137,.58);
+  shadow(-width*.27,width*.02,width*.16,width*.070,.84);
+  shadow(width*.28,width*.035,width*.16,width*.066,.87);
   ctx.restore();
   if (image) {
     const h = Math.min(width*.85,width*(image.naturalHeight ?? image.height)/(image.naturalWidth ?? image.width));

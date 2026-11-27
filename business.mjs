@@ -1,6 +1,6 @@
-import { stableNumber } from './characters.mjs?v=0.15.3';
-import { DAY_MS,HOUR_MS } from './clock.mjs?v=0.15.3';
-import { ISTANBUL, provinceOf } from './provinces.mjs?v=0.15.3';
+import { stableNumber } from './characters.mjs?v=0.15.4';
+import { DAY_MS,HOUR_MS } from './clock.mjs?v=0.15.4';
+import { ISTANBUL, provinceOf } from './provinces.mjs?v=0.15.4';
 
 export const BRANCH_TIERS = Object.freeze([
   {name:'Küçük',capacity:2,cost:250000},{name:'Orta',capacity:5,cost:750000},

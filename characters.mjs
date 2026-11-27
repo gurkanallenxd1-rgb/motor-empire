@@ -1,4 +1,4 @@
-import { catalog, modelOf } from './bikes.mjs?v=0.15.3';
+import { catalog, modelOf } from './bikes.mjs?v=0.15.4';
 
 export const clamp = (value,min,max)=>Math.max(min,Math.min(max,value));
 

@@ -1,5 +1,5 @@
-import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.15.3';
-import { renderSprite } from './sprite.mjs?v=0.15.3';
+import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.15.4';
+import { renderSprite } from './sprite.mjs?v=0.15.4';
 
 export function createNotifications({byId,element,money,signed,dispatch}) {
   const dialog = byId('notification-dialog');

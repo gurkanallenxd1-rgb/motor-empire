@@ -455,7 +455,7 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   await ui.market();
   await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
   const colors = await ui.page.evaluate(async ()=>{
-    const {loadSprite} = await import('/sprite.mjs?v=0.15.3');
+    const {loadSprite} = await import('/sprite.mjs?v=0.15.4');
     const name = 'Vespa Primavera 125';
     const red = await loadSprite({name,year:2024,color:'#c93838'});
     const white = await loadSprite({name,year:2024,color:'#eae6da'});
@@ -582,7 +582,7 @@ function garageFixture(tier,count) {
   return state;
 }
 
-for (const [tier,bays,area,width,height] of [[0,2,80,320,568],[1,5,180,390,844],[2,10,350,844,390],[3,20,700,390,844],[4,40,1400,390,844]]) {
+for (const [tier,bays,area,width,height] of [[0,2,80,320,568],[1,5,180,390,844],[2,10,350,390,844],[3,20,700,390,844],[4,40,1400,390,844]]) {
   test(`mobile WebKit renders all ${bays} garage bays in one scene with tap selection`,async t=>{
     const seed = garageFixture(tier,bays);
     const ui = await open(t,width,height,seed);
@@ -604,8 +604,32 @@ for (const [tier,bays,area,width,height] of [[0,2,80,320,568],[1,5,180,390,844],
       y:bounds.height/2+(bay.y-plan.height/2-plan.bikeWidth*.28)*scale,
     };
     if (process.env.GARAGE_SCREENSHOTS) {
+      const centerScene = ()=>canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
+      await centerScene();
       await page.waitForTimeout(1300);
       await canvas.screenshot({path:`${process.env.GARAGE_SCREENSHOTS}/garage-${bays}.png`});
+      const focus = [...parking].sort((a,b)=>Math.hypot(a.bay.x-plan.width/2,a.bay.y-plan.height/2)-
+        Math.hypot(b.bay.x-plan.width/2,b.bay.y-plan.height/2))[0].bay;
+      const anchor = {x:bounds.width/2+(focus.x-plan.width/2)*scale,y:bounds.height/2+(focus.y-plan.height/2-28)*scale};
+      for (const magnification of [2,3,5]) {
+        await canvas.evaluate((node,{x,y,magnification})=>{
+          const box = node.getBoundingClientRect();
+          const send = (type,id,delta)=>node.dispatchEvent(new PointerEvent(type,{
+            pointerType:'touch',pointerId:id,clientX:box.left+x+delta,clientY:box.top+y,bubbles:true,
+          }));
+          send('pointerdown',1,-12);
+          send('pointerdown',2,12);
+          send('pointermove',1,-12*magnification);
+          send('pointermove',2,12*magnification);
+          send('pointerup',1,-12*magnification);
+          send('pointerup',2,12*magnification);
+        },{...anchor,magnification});
+        await ui.text('.zoom-value',`%${magnification*100}`);
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        await canvas.screenshot({path:`${process.env.GARAGE_SCREENSHOTS}/garage-${bays}-${magnification*100}.png`});
+        await ui.tap('#zoom-reset');
+        await centerScene();
+      }
     }
     await canvas.tap({position:location});
     await ui.text('#detail-name',bike.name);
