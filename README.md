@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12
+# MOTOR EMPIRE v0.12.1
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -125,3 +125,9 @@ Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve d
 - Trafik sigortası üçüncü kişi zararını kapsar. Trafiğe çıkmadan önce alınır ve park halindeki araçlar için prim kesilmez. Kasko ayrı bir poliçedir ve poliçe başladıktan sonraki çarpışmalarda muafiyet ve limit uygulanır. Kasko onarımında servis bedeli başta ödenir, dört oyun saati sonraki onayda kapsam bedeli iade edilir ve net masraf stok maliyetinde kalır.
 - Özel servis ve yetkili servis farklı ücret, süre ve kalıcı değer etkilerine sahiptir. Yeni kaza yalnızca kiralamada veya onaylanan test sürüşünde ortaya çıkabilir.
 - Açık hasar beyanı müşteri memnuniyetini etkiler. Hasarı gizleyen satışlarda şikâyet, tazminat veya iade oluşabilir. İade garaj doluyken teslim kuyruğuna alınır.
+
+## v0.12.1 Düzeltmeleri
+
+- Ücretli ekspertizlerin bağlı ilanı, günlük pazardan kalktıktan sonra arşivden tekrar açılabilir. Açık satıcı görüşmeleri kullanılmış pazarlık haklarıyla korunur. Tamamlanan ekspertizin doğruladığı bulgular görüşme ekranında görünür.
+- Gizli hasar şikâyetleri satıştan sonra kaydedilen oyun saatinde işlenir. İade veya tazminat bildirimi, oyuncu okuyana kadar kalır. Garajda yer bulunmayan iadeler mevcut teslim kuyruğunu kullanır.
+- v0.12 ile aynı kayıt anahtarı sürdürülür. Bu sürümden önce arşivlenmiş ve araç ayrıntısı saklanmamış raporlar okunabilir, ancak orijinal ilan yeniden açılamaz.

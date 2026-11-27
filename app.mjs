@@ -1,23 +1,23 @@
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, visibleListing } from './risk.mjs?v=0.12';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12';
-import { createFinanceView } from './finance-view.mjs?v=0.12';
-import { dailyCashMovement } from './finance.mjs?v=0.12';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.1';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.1';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.1';
+import { createFinanceView } from './finance-view.mjs?v=0.12.1';
+import { dailyCashMovement } from './finance.mjs?v=0.12.1';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.1';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12';
-import { createGarageRenderer } from './art.mjs?v=0.12';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12';
+} from './game.mjs?v=0.12.1';
+import { createGarageRenderer } from './art.mjs?v=0.12.1';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.1';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.1';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12';
+  repairForecast } from './damage.mjs?v=0.12.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -112,7 +112,7 @@ function clockDisplay(now = Date.now()) {
 }
 
 function showOffline(summary) {
-  if (!summary || document.hidden || !(summary.days || summary.completed || summary.delivered || summary.inspected || summary.approved || summary.rides)) return;
+  if (!summary || document.hidden || !(summary.days || summary.completed || summary.delivered || summary.inspected || summary.approved || summary.rides || summary.complaints)) return;
   const dialog = byId('offline-summary');
   byId('offline-totals').replaceChildren(
     metric('Geçen oyun günü',summary.days),metric('Tamamlanan tamir',summary.completed),
@@ -122,6 +122,29 @@ function showOffline(summary) {
     metric('Müşteri şikâyeti',summary.complaints),metric('Gelir',money(summary.income)),metric('Gider',money(summary.expenses)));
   byId('offline-limit').hidden = !summary.capped;
   if (!dialog.open) dialog.showModal();
+}
+
+function renderComplaints() {
+  const panel = byId('complaint-notices');
+  const unread = state.sales.filter(sale=>sale.complaintResult && !sale.complaintResult.seen);
+  const shortcut = byId('complaint-shortcut');
+  shortcut.hidden = !unread.length;
+  shortcut.textContent = `Şikâyetler · ${unread.length}`;
+  const heading = byId('complaint-heading');
+  const header = `Yeni müşteri şikâyeti · ${unread.length}`;
+  if (heading.textContent!==header) heading.textContent = header;
+  panel.hidden = !unread.length;
+  if (!unread.length) return;
+  byId('complaint-list').replaceChildren(...unread.map(sale=>{
+    const {outcome,day,amount,reputationLoss,destination} = sale.complaintResult;
+    const row = element('article','','complaint-entry');
+    const outcomeText = outcome==='refund' ? `İade · ${money(amount)}` : `Tazminat · ${money(amount)}`;
+    const location = destination==='waiting' ? ' · Garaj dolu, teslim bekliyor'
+      : destination==='garage' ? ' · Motosiklet garaja döndü' : '';
+    row.append(element('h3',sale.name),element('p',`Gün ${day} · ${outcomeText} · İtibar −${reputationLoss}${location}`,'spec'),
+      actionButton('Okundu','acknowledge-complaint',sale.id));
+    return row;
+  }));
 }
 
 function acceptTime(next) {
@@ -554,10 +577,24 @@ function openListing(id) {
 }
 
 function renderMarket() {
+  const current = state.listings.filter(listing=>listing.inspections?.some(report=>!report.closed) || isActive(listing.seller));
+  const follow = byId('inspection-follow');
+  follow.hidden = !current.length;
+  byId('inspection-follow-list').replaceChildren(...current.map(listing=>{
+    const group = element('div','','inspection-shortcut');
+    const pending = listing.inspections?.some(report=>!report.result);
+    const status = pending ? 'Ekspertiz sürüyor' : isActive(listing.seller) ? 'Açık satıcı görüşmesi' : 'Ekspertiz raporu hazır';
+    group.append(element('p',`${listing.name} · ${status}`,'spec'),actionButton('İlanı aç','open-listing',listing.id));
+    if (!pending && (!listing.seller || isActive(listing.seller))) group.append(
+      actionButton(isActive(listing.seller) ? 'Görüşmeye dön' : 'Satıcıyla pazarlık','meet-seller',listing.id));
+    return group;
+  }));
   byId('inspection-archive').hidden = !state.inspectionArchive?.length;
   const records = (state.inspectionArchive ?? []).slice(0,archiveLimit).map(item=>{
     const detail = element('details','','risk-panel');
-    detail.append(element('summary',`${item.name} · Gün ${item.day}`),...item.reports.map(reportCard));
+    detail.append(element('summary',`${item.name} · Gün ${item.day}`),...(item.reports ?? []).map(reportCard));
+    if (item.listing) detail.append(actionButton('İlanı yeniden aç','resume-inspection',item.id),
+      actionButton('Satıcıyla pazarlık','meet-seller',item.id));
     return detail;
   });
   byId('inspection-history').replaceChildren(...records);
@@ -672,6 +709,7 @@ function render(action, animationBike) {
   }
   if (currentPage === 'business') renderBusiness();
   if (currentPage === 'finance') renderFinance(state,worth);
+  renderComplaints();
   updateSave();
 }
 
@@ -736,6 +774,10 @@ document.addEventListener('click', async event => {
     showPage(page);
     render();
     if (page === 'market') byId('market-title').scrollIntoView({block:'start'});
+  } else if (action === 'show-complaints') {
+    const panel = byId('complaint-notices');
+    panel.open = true;
+    panel.scrollIntoView({block:'start'});
   } else if (action === 'more-inspections') {
     archiveLimit += 20;
     renderMarket();
@@ -745,16 +787,18 @@ document.addEventListener('click', async event => {
     if (await runAction('hold-buyer',id,index)) openMeeting(id,index,'sale');
   } else if (action === 'meet-seller') {
     if (await runAction(action,id)) {
+      const seller = state.listings.find(item=>item.id===id)?.seller;
+      if (!seller) return;
       sellerReturn = id;
       if (byId('listing-detail').open) byId('listing-detail').close();
-      openMeeting(id,state.listings.find(item=>item.id===id).seller.id,'purchase');
+      openMeeting(id,seller.id,'purchase');
     }
   } else if (action) {
     const isBranchAction = ['hire','fire','upgrade'].includes(action);
     const amount = ['list','list-quiet'].includes(action) ? button.closest('.card').querySelector('.ask-price input').valueAsNumber
       : ['policy','pre-inspect','repair'].includes(action) ? index : Number(index);
     if (await runAction(action,id,amount,isBranchAction ? Number(id) : branchId)
-        && ['pre-inspect','close-inspection'].includes(action)) openListing(id);
+        && ['pre-inspect','close-inspection','resume-inspection'].includes(action)) openListing(id);
   }
 });
 
@@ -781,12 +825,21 @@ function updateMeeting() {
   byId('meeting-speech').textContent = meeting.speech;
   const evidence = byId('meeting-evidence');
   const concealed = isSale && bike.disclosureMode==='conceal';
-  evidence.hidden = !meeting.request && !(isSale && !concealed && historicalIssues(bike).length);
+  const reports = bike.inspections?.filter(report=>report.result) ?? [];
+  const verified = !isSale ? verifiedFindings(bike) : [];
+  evidence.hidden = isSale ? !meeting.request && (concealed || !historicalIssues(bike).length) : !reports.length;
   evidence.replaceChildren();
   if (!evidence.hidden) {
     const details = element('details','','risk-panel');
-    details.append(element('summary',meeting.request==='inspection' ? 'Müşteri ekspertiz istedi' : 'Müşteri hasar kaydını inceliyor'));
-    if (concealed) details.append(element('p','Hasar bilgisi paylaşılmadı.','spec'));
+    const title = !isSale ? 'Pazarlıkta ekspertiz bulguları'
+      : meeting.request==='inspection' ? 'Müşteri ekspertiz istedi' : 'Müşteri hasar kaydını inceliyor';
+    details.append(element('summary',title));
+    if (!isSale) {
+      details.open = true;
+      const findings = verified.map(code=>PARTS[code].name).join(', ');
+      details.append(element('p',findings || 'İncelenen alanlarda hasar tespit edilmedi.','spec'));
+      for (const report of reports) details.append(reportCard(report));
+    } else if (concealed) details.append(element('p','Hasar bilgisi paylaşılmadı.','spec'));
     else {
       details.append(issueDetails(bike,{active:false}));
       for (const report of bike.inspections ?? []) if (report.result) details.append(reportCard(report));
