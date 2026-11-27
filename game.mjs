@@ -756,9 +756,9 @@ function applyAction(next, action, id, amount, branchId, worker) {
       }
       next.sales.unshift(sale);
       notify(next,'sale',now,{title:bike.name,branch:branch.name,sale:saleSnapshot(bike,meeting.price,worker)});
-      finishTrade(next,meeting,bike,'sold');
+      finishTrade(next,meeting,bike,'sold',worker);
       next.trade.history[0].saleId = saleId;
-      rememberSale(next,sale,meeting);
+      rememberSale(next,sale,meeting,bike,worker);
       for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
       message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
       break;
