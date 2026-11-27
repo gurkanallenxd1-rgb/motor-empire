@@ -1,7 +1,7 @@
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.13';
-export { stableNumber } from './characters.mjs?v=0.13';
-import { modelOf } from './bikes.mjs?v=0.13';
+  setReputation, stableNumber } from './characters.mjs?v=0.13.1';
+export { stableNumber } from './characters.mjs?v=0.13.1';
+import { modelOf } from './bikes.mjs?v=0.13.1';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -77,7 +77,9 @@ export function createBuyer(bike,day,index,reputation,value,legacy,trade) {
   const price = legacy?.price ?? Math.min(bike.ask,roundPrice(budget * (.76 + (seed % 14) / 100)));
   return { id, kind:'sale', profile, day, price, anchor:bike.ask, limit:Math.max(price,budget), round:0, patience:profile.patience,
     status:'open', ...(request ? {request} : {}),
-    ...(enhanced ? {dialogue:{answers:[],suspicion:0},returning:Boolean(memory)} : {}),
+    ...(enhanced ? {dialogue:{answers:[],suspicion:0,
+      ...(memory ? {memoryTrust:Math.round((memory.satisfaction-50)*.2)+(rememberedProof ? 5 : 0)} : {})},
+      returning:Boolean(memory)} : {}),
     speech:memory ? `Geçen alışverişimde ${memory.lastModel} almıştım. ${rememberedProof
       ? 'O zaman aracın durumunu açıkça anlatmıştınız. ' : ''}${request ? QUESTIONS[request] : 'Yine uğramak istedim.'}`
       : enhanced && request ? QUESTIONS[request] : request==='history' ? 'Hasar geçmişini görebilir miyim?'
@@ -146,30 +148,79 @@ export function observeBuyer(meeting,bike) {
   if (chance(meeting.id,`observe:${meeting.round}`)<perception*presentation) reactToEvidence(meeting,true);
 }
 
-export function answerBuyer(meeting,bike,choice) {
-  if (!meeting.dialogue || !meeting.request || !isActive(meeting) ||
-      !Object.prototype.hasOwnProperty.call(ANSWERS,choice)) throw new Error('Bu soruya şu anda cevap verilemez.');
-  const {dialogue,profile} = meeting;
-  if (dialogue.answers.length>=6) throw new Error('Görüşmedeki sorular tamamlandı.');
-  const topic = meeting.request;
-  const previous = dialogue.answers.findLast(answer=>answer.topic===topic);
-  const denied = dialogue.answers.some(answer=>answer.choice==='deny' && ['history','inspection'].includes(answer.topic));
-  const damaged = Boolean(bike.faults.length || bike.damageHistory?.length);
-  if (previous && previous.choice!==choice && [previous.choice,choice].includes('deny')) dialogue.suspicion += 28;
-  else if (damaged && choice==='disclose' && denied) dialogue.suspicion += 22;
-  else if (choice==='deny' && damaged) dialogue.suspicion += 16;
-  else if (choice==='defer' || (choice==='document' && !hasDocuments(bike))) dialogue.suspicion += 12;
-  else dialogue.suspicion = Math.max(0,dialogue.suspicion-10);
-  dialogue.answers.push({topic,choice});
-  const open = choice==='disclose' || (choice==='document' && hasDocuments(bike));
-  if (open) dialogue.disclosed = true;
-  const detect = !open && isRisky(bike.tradeStrategy) && !dialogue.discovered && damaged
-    && chance(meeting.id,`detect:${dialogue.answers.length}`) < (profile.knowledge+profile.mechanical+profile.skepticism+dialogue.suspicion)/370;
-  if (detect || dialogue.suspicion>=70) reactToEvidence(meeting,detect);
-  else meeting.speech = open ? 'Açıklamanızı dikkate alacağım.' : 'Bu yanıtı not aldım.';
-  if (!isActive(meeting)) return;
+export function buyerQuestion(meeting) {
+  if (!meeting.dialogue || !Object.prototype.hasOwnProperty.call(QUESTIONS,meeting.request) || !isActive(meeting)) return null;
   const topics = Object.keys(QUESTIONS);
-  meeting.request = dialogue.answers.length===6 ? null : topics[(topics.indexOf(topic)+1)%topics.length];
+  const position = topics.indexOf(meeting.request);
+  const answered = new Set(meeting.dialogue.answers.map(answer=>answer.topic));
+  return [...topics.slice(position),...topics.slice(0,position)].find(topic=>!answered.has(topic)) ?? null;
+}
+
+const reply = {
+  history:['Geçmişini açıkça söylemeniz önemli.','Hasar kaydını bu açıklamayla daha iyi değerlendirebilirim.'],
+  maintenance:['Yapılan bakımı bilmek işime yaradı.','Parçalarla ilgili söylediklerinizi not ettim.'],
+  inspection:['Bu bilgiler ekspertiz riskini azaltıyor.','Servis geçmişi benim için önemliydi.'],
+  price:['Fiyatın dayanağını anladım.','Emsallerle karşılaştırırken bunu dikkate alırım.'],
+  document:['Belgeler söylediklerinizi destekliyor.','Yazılı kayıtlar daha rahat karar vermemi sağlıyor.'],
+  missing:['Belgeyi görmeden bunu doğrulayamam.','Bahsettiğiniz kaydı göremedim.'],
+  deny:['Söylediğiniz durumla hasar geçmişi uyuşmuyor.','Bu hasarı yok sayamam.'],
+  clean:['Bu alanda belirgin bir sorun görmüyorum.','Bu konuyu ayrıca kontrol edeceğim.'],
+  defer:['Bu soru cevapsızken temkinli olacağım.','Karar vermeden önce bu noktayı netleştirmek isterim.'],
+  conflict:['Önceki yanıtınızla bu açıklama çelişiyor.','Az önceki açıklamanızı yeniden düşünmem gerekiyor.'],
+  detect:['Hasarın izlerini fark ettim.','Araçtaki izler anlatılan tabloya uymuyor.'],
+};
+
+export function answerBuyer(meeting,bike,topic,choice) {
+  if (topic!==buyerQuestion(meeting) || !topic || !Object.prototype.hasOwnProperty.call(ANSWERS,choice)) {
+    throw new Error('Bu soru cevaplandı veya artık açık değil.');
+  }
+  const {dialogue,profile} = meeting;
+  const evidence = Boolean(bike.faults.length || bike.damageHistory?.length || bike.damageRecords?.length);
+  const documented = choice==='document' && hasDocuments(bike);
+  const open = choice==='disclose' || documented;
+  const conflict = evidence && open && dialogue.answers.some(answer=>answer.choice==='deny');
+  const negative = conflict || choice==='defer' || (choice==='document' && !documented) || (choice==='deny' && evidence);
+  const mechanical = profile.mechanical ?? 50;
+  const skeptical = profile.skepticism ?? 50;
+  const memory = dialogue.memoryTrust ?? (meeting.returning ? 12 : 0);
+  const severity = Math.min(20,(bike.faults.length+(bike.damageHistory?.length ?? 0))*3);
+  const reaction = conflict ? 'conflict' : documented ? 'document' : open ? topic
+    : choice==='defer' ? 'defer' : choice==='document' ? 'missing' : evidence ? 'deny' : 'clean';
+
+  dialogue.trust ??= clamp((profile.trust ?? 50)+memory,0,100);
+  dialogue.patience ??= 70+Math.min(30,(profile.patience ?? 3)*5);
+  const trustDelta = documented ? 16 : open ? 11 : 0;
+  const penalty = conflict ? 28 : evidence && choice==='deny' ? 12+severity : negative ? 12 : 0;
+  dialogue.trust = clamp(dialogue.trust+(negative ? -penalty : trustDelta),0,100);
+  dialogue.suspicion = clamp(dialogue.suspicion+(negative ? penalty : open ? -10 : 0),0,100);
+  dialogue.patience = clamp(dialogue.patience+(negative ? -penalty : open ? 5 : 0),0,100);
+  dialogue.answers.push({topic,choice});
+  if (open) dialogue.disclosed = true;
+
+  const detect = !open && !dialogue.discovered && evidence && isRisky(bike.tradeStrategy)
+    && chance(meeting.id,`detect:${topic}`) < (mechanical+skeptical+severity)/340;
+  if (detect) dialogue.discovered = true;
+  const roll = chance(meeting.id,`answer:${topic}:${choice}`);
+  const lines = reply[detect ? 'detect' : reaction];
+  const selected = Math.floor(roll*lines.length);
+  const speech = lines[meeting.speech?.startsWith(lines[selected]) ? (selected+1)%lines.length : selected];
+  if ((negative || detect) && (dialogue.patience===0 || dialogue.suspicion>=85 || (detect && profile.risk<25))) {
+    meeting.status = 'left';
+    meeting.speech = speech+' Bu yüzden görüşmeden çekiliyorum.';
+  } else if (detect || (negative && roll<(dialogue.suspicion+skeptical*.35)/125)) {
+    const reduction = .025+penalty/850+(detect ? .035 : 0);
+    const floor = roundPrice(meeting.price*(1-reduction));
+    meeting.price = Math.min(meeting.price,floor);
+    meeting.limit = Math.max(meeting.price,Math.min(meeting.limit,roundPrice(meeting.limit*(1-reduction))));
+    meeting.speech = speech+' Bu koşullarda teklifimi düşürüyorum.';
+  } else if (open && !negative && roll<clamp((dialogue.trust-skeptical*.30+mechanical*.12+memory)/100,.08,.94)) {
+    const cap = Math.min(meeting.anchor,meeting.limit,profile.budget ?? Infinity);
+    const increased = roundPrice(meeting.price*(1+(documented ? .055 : .035)+mechanical*.00015));
+    const price = Math.max(meeting.price,Math.min(cap,increased));
+    meeting.speech = speech+(price>meeting.price ? ' Teklifimi artırabilirim.' : '');
+    meeting.price = price;
+  } else meeting.speech = speech;
+  meeting.request = buyerQuestion(meeting);
 }
 
 export function negotiate(meeting,offer) {
