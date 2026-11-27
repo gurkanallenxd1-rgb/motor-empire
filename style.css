@@ -438,3 +438,10 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 .risk-panel button { margin-top:4px; max-width:100%; }
 #meeting-evidence .risk-panel { margin-block:3px; }
 #garage-returns:not(:empty) { margin-top:7px; }
+
+#complaint-notices { border-color:#ba765e; background:#332822; }
+.complaint-entry { margin-block:6px; }
+.inspection-shortcut { margin-block:7px; }
+.inspection-shortcut button + button { margin-inline-start:5px; }
+#complaint-shortcut { grid-column:1/-1; color:var(--accent); background:#332822; }
+#complaint-notices { scroll-margin-top:120px; }

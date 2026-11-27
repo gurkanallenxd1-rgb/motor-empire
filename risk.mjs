@@ -1,6 +1,6 @@
-import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12';
-import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12';
-import { stableNumber } from './trade.mjs?v=0.12';
+import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.1';
+import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.1';
+import { stableNumber } from './trade.mjs?v=0.12.1';
 
 export const SYSTEMS = Object.freeze({
   engine:'Motor', gearbox:'Şanzıman', frame:'Şasi', fork:'Ön maşa',
@@ -59,14 +59,18 @@ export function seedRisk(bike) {
   return bike;
 }
 
+export function verifiedFindings(bike) {
+  return [...new Set((bike.inspections ?? []).flatMap(report=>
+    (report.result ?? []).filter(area=>area.checked).flatMap(area=>area.codes)))];
+}
+
 export function visibleListing(bike) {
   if (!bike.disclosure) return bike;
-  const detected = bike.inspections?.filter(report=>report.result)
-    .flatMap(report=>report.result.flatMap(area=>area.codes)) ?? [];
+  const detected = verifiedFindings(bike);
   const known = code=>!bike.disclosure.hidden.includes(code) || detected.includes(code);
   const evidence = bike.inspections?.some(report=>report.package==='full' && report.result);
   const condition = evidence ? bike.condition : Math.max(bike.condition,bike.disclosure.condition
-    - detected.filter((code,index)=>bike.disclosure.hidden.includes(code) && bike.faults.includes(code) && detected.indexOf(code)===index)
+    - detected.filter(code=>bike.disclosure.hidden.includes(code) && bike.faults.includes(code))
       .reduce((sum,code)=>sum+PARTS[code].gain,0));
   return {...bike,disclosure:undefined,condition,faults:bike.faults.filter(known),damageHistory:history(bike).filter(known),
     damageRecords:bike.damageRecords?.map(row=>({...row,codes:row.codes.filter(known)})).filter(row=>row.codes.length)};
