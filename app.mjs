@@ -1,23 +1,23 @@
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.1';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.1';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.1';
-import { createFinanceView } from './finance-view.mjs?v=0.12.1';
-import { dailyCashMovement } from './finance.mjs?v=0.12.1';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.1';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.2';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.2';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.2';
+import { createFinanceView } from './finance-view.mjs?v=0.12.2';
+import { dailyCashMovement } from './finance.mjs?v=0.12.2';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.2';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
-  perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12.1';
-import { createGarageRenderer } from './art.mjs?v=0.12.1';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.1';
+  perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
+} from './game.mjs?v=0.12.2';
+import { createGarageRenderer } from './art.mjs?v=0.12.2';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.2';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.1';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.1';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.2';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.2';
 
-import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12.1';
+import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, historicalIssues,
+  repairForecast } from './damage.mjs?v=0.12.2';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -525,6 +525,53 @@ function marketCard(listing) {
   return card;
 }
 
+const percentage = new Intl.NumberFormat('tr-TR',{style:'percent',maximumFractionDigits:2});
+
+function renderPurchaseAnalysis(container, analysis) {
+  const pair = (label,value,tone = '')=>{
+    const row = element('div','','valuation-row');
+    row.append(element('dt',label),element('dd',value,tone));
+    return row;
+  };
+  const share = ratio=>percentage.format(ratio);
+  const loss = (amount,ratio)=>`${money(amount)} · ${share(ratio)}`;
+  const delta = amount=>amount ? signed(amount) : money(0);
+  const advantage = analysis.advantage > 0 ? 'Teklif avantajı' : analysis.advantage < 0 ? 'Teklif dezavantajı' : 'Piyasayla fiyat farkı';
+  const comparison = element('dl','','valuation-list');
+  comparison.append(
+    pair('Hasarsız piyasa değeri',money(analysis.clean)),
+    pair('Satıcının başlangıç fiyatı',money(analysis.initialPrice)),
+    pair('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection)),
+    pair('Ekspertiz sonrası güncellenmiş piyasa değeri',analysis.completed ? money(analysis.beforeValue) : analysis.pending ? 'Rapor bekleniyor' : 'Ekspertiz yapılmadı'),
+    pair('Ekspertiz öncesi ve sonrası fark',analysis.completed ? delta(-analysis.difference) : '—'),
+    pair('Satıcının güncel teklifi',money(analysis.offer)),
+    pair('Pazarlık indirimi',loss(analysis.discount,analysis.discountShare)),
+    pair(advantage,loss(Math.abs(analysis.advantage),Math.abs(analysis.advantageShare)),
+      analysis.advantage < 0 ? 'negative' : analysis.advantage > 0 ? 'positive' : ''));
+
+  const damage = element('details','','valuation-group');
+  const depreciation = element('dl','','valuation-list');
+  depreciation.append(...analysis.findings.map(item=>pair(PARTS[item.code].name,loss(item.loss,item.share))));
+  depreciation.append(pair('Diğer beyan edilen hasar ve yıpranma',money(analysis.otherLoss)),
+    pair('Toplam değer kaybı',loss(analysis.totalLoss,analysis.totalLossShare)),
+    pair('Onarım sonrası kalıcı değer kaybı',loss(analysis.permanentLoss,analysis.permanentLossShare)));
+  damage.append(element('summary','Hasar bazında değer kaybı'),depreciation,
+    element('p','Bulguların katkısı birlikte hesaplanır. Bir hasarın etkisi başka bir bulgunun içinde kalıyorsa satırda 0 TL gösterilir.','spec'));
+
+  const costs = element('dl','','valuation-list');
+  const margin = analysis.profit < 0 ? 'Tahmini satış zararı' : 'Tahmini satış kârı';
+  costs.append(pair('Ödenen ekspertiz',money(analysis.feesPaid)),
+    pair('Garaj ekspertizi tahmini',money(analysis.intakeFee)),
+    pair('Nakliye ücreti',money(analysis.delivery.fee)),
+    pair('Tahmini tamir maliyeti',money(analysis.cost)),
+    pair('Tamir sonrası tahmini piyasa değeri',money(analysis.afterValue)),
+    pair('Tahmini toplam maliyet',money(analysis.total)),
+    pair(margin,`${delta(analysis.profit)} · ${share(analysis.profitShare)}`,analysis.profit < 0 ? 'negative' : 'positive'));
+  const preserveExpanded = container.querySelector('.valuation-group')?.open;
+  damage.open = Boolean(preserveExpanded);
+  container.replaceChildren(comparison,damage,costs);
+}
+
 function openListing(id) {
   const listing = state.listings.find(item=>item.id === id);
   if (!listing) return;
@@ -538,22 +585,17 @@ function openListing(id) {
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
-  const forecast = purchaseForecast(listing);
-  const payable = listing.price + forecast.delivery.fee;
+  const analysis = purchaseAnalysis(listing,isActive(listing.seller) ? listing.seller : undefined);
+  const payable = listing.price + analysis.delivery.fee;
   byId('listing-prices').replaceChildren(
-    metric('Temiz piyasa değeri',money(cleanValue(listing))),
     metric('İlan fiyatı',money(listing.price)),
-    metric('Nakliye ücreti',money(forecast.delivery.fee)),
-    metric('Teslimat',forecast.delivery.days ? `${deliveryLabel(forecast.delivery)} · ${numeric.format(forecast.delivery.km)} km` : deliveryLabel(forecast.delivery)),
+    metric('Bilinen piyasa değeri',money(analysis.beforeValue)),
+    metric('Nakliye ücreti',money(analysis.delivery.fee)),
+    metric('Teslimat',deliveryLabel(analysis.delivery)),
     metric('Beyan edilen kondisyon',`%${listing.disclosure?.condition ?? listing.condition ?? 100}`),
-    metric('Bilinen kondisyon',`%${forecast.beforeCondition}`),
-    metric('Mevcut piyasa değeri',money(forecast.beforeValue)),
-    metric('Tahmini tamir masrafı',money(forecast.cost)),
-    metric('Tamir sonrası kondisyon',`%${forecast.afterCondition}`),
-    metric('Tamir sonrası tahmini değer',money(forecast.afterValue)),
-    metric('Tahmini toplam maliyet',money(forecast.total)),
-    metric(forecast.profit < 0 ? 'Tahmini net zarar' : 'Tahmini net kâr',signed(forecast.profit))
+    metric('Bilinen kondisyon',`%${analysis.beforeCondition}`)
   );
+  renderPurchaseAnalysis(byId('listing-analysis-content'),analysis);
   const urgency = SELLER_URGENCY[listing.urgency];
   byId('listing-urgency').textContent = urgency ? `Satıcı aciliyeti · ${urgency.label}` : '';
   const trust = listing.disclosure?.trust;
@@ -603,7 +645,7 @@ function renderMarket() {
     const field = byId(id);
     return field.value === '' ? null : field.valueAsNumber;
   };
-  const listings = filterListings(state.listings.map(visibleListing), {
+  const listings = filterListings(state.listings.map(listing=>visibleListing(listing)), {
     province: Number(byId('filter-province').value),
     brand: byId('filter-brand').value,
     modelId: byId('filter-model').value,
@@ -861,8 +903,10 @@ function updateMeeting() {
   const margin = meeting.price - cost;
   byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
   byId('meeting-price').textContent = money(meeting.price);
-  const forecast = isSale ? null : purchaseForecast(bike,meeting.price);
+  const forecast = isSale ? null : purchaseAnalysis(bike,meeting);
   const profit = isSale ? Math.round(margin*100)/100 : forecast.profit;
+  byId('meeting-analysis').hidden = isSale;
+  if (forecast) renderPurchaseAnalysis(byId('meeting-analysis-content'),forecast);
   byId('meeting-metrics').replaceChildren(
     metric(isSale ? 'Toplam maliyet' : 'İlan fiyatı',money(cost)),
     metric('Piyasa değeri',money(value)),

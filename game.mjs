@@ -1,14 +1,15 @@
+import { purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.2';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.1';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.1';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.1';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.1';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.1';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.2';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.2';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.2';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.2';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.2';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.2';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.12.1';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.1';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.2';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.2';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -115,11 +116,11 @@ export const repairCapacity = branch => 8 * (1 + branch.staff);
 export const operatingCost = branch => DAILY_OVERHEAD + branch.staff * DAILY_WAGE;
 
 export function purchaseForecast(bike, price = bike.price) {
-  const delivery = shippingQuote(bike.province);
-  const reports = bike.inspections ?? [];
-  const inspected = reports.some(report=>report.package==='full' && report.result);
-  const fees = reports.reduce((sum,report)=>sum+report.cost,0);
-  return {delivery,...listingForecast({...visibleListing(bike),price},(inspected ? 0 : INSPECTION_FEE)+fees,delivery.fee)};
+  return purchaseCosts(bike,price,INSPECTION_FEE,shippingQuote(bike.province));
+}
+
+export function purchaseAnalysis(bike, meeting) {
+  return purchaseValuation(bike,meeting,INSPECTION_FEE,shippingQuote(bike.province));
 }
 
 export function estimatedListingProfit(bike) {
@@ -454,6 +455,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
     }
     case 'negotiate': {
       const meeting = activeMeeting(amount);
+      if (meeting.kind==='purchase' && listing.urgency) meeting.urgency ??= listing.urgency;
       negotiate(meeting);
       if (meeting.status === 'left') finishTrade(next,meeting,bike ?? listing,'left');
       message = meeting.speech;
