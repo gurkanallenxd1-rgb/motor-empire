@@ -103,3 +103,12 @@ test('short one-finger taps select but drag, multi-touch, cancellation and long 
   gesture.down(p(1,'pointerdown'));
   assert.equal(gesture.up(p(1,'pointercancel',50)),false);
 });
+
+test('iOS selection and callout rules apply specifically to the WebGL canvas',async()=>{
+  const css=await readFile(new URL('./style.css',import.meta.url),'utf8');
+  const canvasRule=css.match(/\.graphics-canvas canvas\s*\{([^}]+)\}/)?.[1];
+  assert.ok(canvasRule);
+  for(const declaration of ['touch-action:none','user-select:none','-webkit-user-select:none','-webkit-touch-callout:none']) {
+    assert.ok(canvasRule.includes(declaration),declaration);
+  }
+});

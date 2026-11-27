@@ -1096,7 +1096,7 @@ test('graphics canvas bounds orbit and dolly, reveals the interior and isolates 
   const styles=await page.locator('.orbit-test').evaluate(canvas=>{
     const css=getComputedStyle(canvas);
     const prevented=canvas.dispatchEvent(new Event('contextmenu',{cancelable:true}));
-    return [css.touchAction,css.userSelect,css.getPropertyValue('-webkit-touch-callout'),prevented,
+    return [css.touchAction,css.getPropertyValue('user-select')||css.getPropertyValue('-webkit-user-select'),css.getPropertyValue('-webkit-touch-callout'),prevented,
       getComputedStyle(document.body).userSelect];
   });
   assert.deepEqual(styles.slice(0,2),['none','none']);
