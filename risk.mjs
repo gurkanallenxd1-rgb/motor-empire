@@ -1,6 +1,6 @@
-import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.1';
-import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.1';
-import { stableNumber } from './trade.mjs?v=0.12.1';
+import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.2';
+import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.2';
+import { stableNumber } from './trade.mjs?v=0.12.2';
 
 export const SYSTEMS = Object.freeze({
   engine:'Motor', gearbox:'Şanzıman', frame:'Şasi', fork:'Ön maşa',
@@ -64,12 +64,12 @@ export function verifiedFindings(bike) {
     (report.result ?? []).filter(area=>area.checked).flatMap(area=>area.codes)))];
 }
 
-export function visibleListing(bike) {
+export function visibleListing(bike,{beforeInspection=false} = {}) {
   if (!bike.disclosure) return bike;
-  const detected = verifiedFindings(bike);
+  const detected = beforeInspection ? [] : verifiedFindings(bike);
   const known = code=>!bike.disclosure.hidden.includes(code) || detected.includes(code);
-  const evidence = bike.inspections?.some(report=>report.package==='full' && report.result);
-  const condition = evidence ? bike.condition : Math.max(bike.condition,bike.disclosure.condition
+  const evidence = !beforeInspection && bike.inspections?.some(report=>report.package==='full' && report.result);
+  const condition = evidence ? bike.condition : Math.max(25,bike.disclosure.condition
     - detected.filter(code=>bike.disclosure.hidden.includes(code) && bike.faults.includes(code))
       .reduce((sum,code)=>sum+PARTS[code].gain,0));
   return {...bike,disclosure:undefined,condition,faults:bike.faults.filter(known),damageHistory:history(bike).filter(known),

@@ -1,4 +1,4 @@
-import { modelOf } from './bikes.mjs?v=0.12.1';
+import { modelOf } from './bikes.mjs?v=0.12.2';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -71,6 +71,7 @@ export function createSeller(bike,day) {
   const speech = ['İlandaki fiyatı gördünüz. Siz ne teklif ediyorsunuz?','Motoru görmek isteyenler var, ama teklifinizi dinleyebilirim.','Ciddi bir teklif verirseniz fiyatta biraz esneyebilirim.'];
   return { id, kind:'purchase', profile, day, price:bike.price, anchor:bike.price,
     limit:Math.min(bike.price,roundPrice(bike.price * (.78 + (seed % 15) / 100))), round:0, patience:profile.patience,
+    ...(bike.urgency ? {urgency:bike.urgency} : {}),
     status:'open', speech:speech[seed % speech.length] };
 }
 
@@ -96,7 +97,8 @@ export function negotiate(meeting) {
   const buyer = meeting.kind === 'sale';
   const gap = Math.abs(meeting.limit - meeting.price);
   const roll = stableNumber(`${meeting.id}:${meeting.round}:automatic`) % 100;
-  const resistance = meeting.profile.skill * 3 + (meeting.round - 1) * 8;
+  const urgencyResistance = buyer ? 0 : meeting.urgency==='urgent' ? -7 : meeting.urgency==='patient' ? 9 : 0;
+  const resistance = Math.max(0,meeting.profile.skill * 3 + (meeting.round - 1)*8 + urgencyResistance);
   if ((roll < resistance && meeting.patience === 0) || (meeting.round > 1 && roll < 5)) {
     meeting.status = 'left';
     meeting.speech = buyer ? 'Bütçeme uygun başka ilanlara bakacağım.' : 'Bu fiyata daha fazla bekleyemem. Görüşmeyi bitirelim.';

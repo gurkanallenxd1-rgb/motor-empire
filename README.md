@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12.1
+# MOTOR EMPIRE v0.12.2
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -131,3 +131,9 @@ Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve d
 - Ücretli ekspertizlerin bağlı ilanı, günlük pazardan kalktıktan sonra arşivden tekrar açılabilir. Açık satıcı görüşmeleri kullanılmış pazarlık haklarıyla korunur. Tamamlanan ekspertizin doğruladığı bulgular görüşme ekranında görünür.
 - Gizli hasar şikâyetleri satıştan sonra kaydedilen oyun saatinde işlenir. İade veya tazminat bildirimi, oyuncu okuyana kadar kalır. Garajda yer bulunmayan iadeler mevcut teslim kuyruğunu kullanır.
 - v0.12 ile aynı kayıt anahtarı sürdürülür. Bu sürümden önce arşivlenmiş ve araç ayrıntısı saklanmamış raporlar okunabilir, ancak orijinal ilan yeniden açılamaz.
+
+## v0.12.2 Ekspertiz fiyat analizi
+
+- İlan ve pazarlık aynı değerlemeyi kullanır. Rapor öncesi fiyat, ilan beyanından hesaplanır. Sonraki değerlemeye yalnızca beyan edilen ve seçilen paketlerin doğruladığı bilgiler girer.
+- Bulgu başına TL ve yüzde kaybı, hasarsız piyasa değerine göre verilir. Aynı değeri etkileyen bulguların marjinal katkıları paylaştırılır. Tamir gideri yalnızca toplam maliyete girer.
+- Teklif avantajı güncel piyasa tahminine, satış kâr yüzdesi ise ekspertiz, nakliye ve tamir dahil toplam maliyete göre hesaplanır. Rapor, satıcının mevcut fiyatını değiştirmez.
