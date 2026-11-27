@@ -1,5 +1,5 @@
-import { stableNumber } from './characters.mjs?v=0.14';
-import { ISTANBUL } from './provinces.mjs?v=0.14';
+import { stableNumber } from './characters.mjs?v=0.15';
+import { ISTANBUL } from './provinces.mjs?v=0.15';
 
 export const YUSUF_ID = 'yusuf-belge';
 export const YUSUF_PRICE = 1_350_000;
@@ -21,7 +21,7 @@ export function yusufListing(day) {
   const block = Math.floor(day/120);
   if (day%120 !== 65+stableNumber(`yusuf-market:${block}`)%45) return null;
   return {id:`${YUSUF_ID}:${day}`,easterEgg:YUSUF_ID,province:ISTANBUL,name:YUSUF_MODEL,
-    year:2025,color:'#e86920',paintAccent:'#292b2e',colorName:'Turuncu-siyah',condition:100,
+    year:2024,color:'#e86920',paintAccent:'#292b2e',colorName:'Turuncu-siyah',condition:100,
     km:1390,price:YUSUF_PRICE,value:YUSUF_PRICE,faults:[],damageHistory:[],urgency:'patient'};
 }
 

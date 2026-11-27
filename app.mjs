@@ -1,25 +1,28 @@
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.14';
-import { purchasePreview } from './valuation.mjs?v=0.14';
+import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
+  workshopRate } from './business.mjs?v=0.15';
+import { financeReport } from './finance.mjs?v=0.15';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15';
+import { purchasePreview } from './valuation.mjs?v=0.15';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.14';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.14';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.14';
-import { createFinanceView } from './finance-view.mjs?v=0.14';
-import { dailyCashMovement } from './finance.mjs?v=0.14';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.14';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.15';
+import { createFinanceView } from './finance-view.mjs?v=0.15';
+import { dailyCashMovement } from './finance.mjs?v=0.15';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.15';
 import {
-  BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
-  assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
+  DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
+  assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.14';
-import { createGarageRenderer } from './art.mjs?v=0.14';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.14';
+} from './game.mjs?v=0.15';
+import { createGarageRenderer } from './art.mjs?v=0.15';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.14';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.14';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.14';
+  repairForecast } from './damage.mjs?v=0.15';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -28,7 +31,7 @@ const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
 const stages = {
   unchecked: 'Ekspertiz bekliyor', inspected: 'Tamir bekliyor',
-  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada', shipping: 'Yolda', claiming:'Kasko onayı bekliyor', riding:'Test sürüşünde',
+  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada', shipping: 'Yolda', claiming:'Kasko onayı bekliyor', riding:'Test sürüşünde', internalInspection:'Şirket içi ekspertiz', internalRepair:'Şirket içi tamir',
 };
 
 let state;
@@ -72,10 +75,19 @@ function timedText(bike) {
   if (bike.stage === 'shipping') {
     const remaining = Math.max(0,deliveryTime(bike)-gameTime(state.day,projectedOffset(state.clock,Date.now())));
     const hours = Math.ceil(remaining/HOUR_MS);
-    return `${provinceName(bike.province)} → İstanbul · Kalan ${Math.floor(hours/24)} gün ${hours%24} sa · Teslimat: Gün ${bike.shipping.arrivalDay}`;
+    return `${provinceName(bike.shipping.origin ?? bike.province)} → ${provinceName(bike.shipping.destination)} · Kalan ${Math.floor(hours/24)} gün ${hours%24} sa · Teslimat: Gün ${bike.shipping.arrivalDay}`;
   }
   if (bike.stage==='claiming' || bike.stage==='riding') {
     return countdownText(bike.claim?.due ?? bike.ride.end);
+  }
+  if (['internalInspection','internalRepair'].includes(bike.stage)) {
+    const branch = activeBranch();
+    const rate = workshopRate(branch,bike.stage);
+    if (!rate) return 'Uygun personel bekleniyor.';
+    const queued = firstWorkshopJob(branch,bike.stage)?.id!==bike.id;
+    const work = branch.garage.filter(item=>item.stage===bike.stage && item.internalJob.order<=bike.internalJob.order)
+      .reduce((sum,item)=>sum+item.internalJob.remaining,0);
+    return `${queued ? 'Sırada · ' : ''}${countdownText(gameTime(state.day,state.clock.offset)+Math.ceil(work/rate))}`;
   }
   if (bike.readyDay) return `Teslim · Gün ${bike.readyDay}`;
   const branch = activeBranch();
@@ -109,7 +121,7 @@ function clockDisplay(now = Date.now()) {
   if (inspection) inspection.textContent = countdownText(Number(inspection.dataset.due));
   if (currentPage === 'garage') for (const node of byId('garage').querySelectorAll('[data-timed-bike]')) {
     const bike = activeBranch().garage.find(item=>item.id === node.dataset.timedBike);
-    if (bike && ['shipping','repairing','claiming','riding'].includes(bike.stage)) node.textContent = timedText(bike);
+    if (bike && ['shipping','repairing','claiming','riding','internalInspection','internalRepair'].includes(bike.stage)) node.textContent = timedText(bike);
   }
 }
 
@@ -428,6 +440,7 @@ function garageCard(slot) {
   if (bike.stage === 'unchecked') {
     if (historicalIssues(bike).length) card.append(issueDetails(bike,{active:false}));
     card.append(actionButton(`Ekspertiz · ${money(INSPECTION_FEE)}`, 'inspect', bike.id, state.cash < INSPECTION_FEE));
+    if (workshopRate(activeBranch(),'internalInspection')) card.append(actionButton('Şirket içi ekspertiz','internal-inspect',bike.id));
   } else if (bike.stage === 'inspected') {
     const quote = repairForecast(bike);
     const options = element('details','','risk-panel');
@@ -440,8 +453,12 @@ function garageCard(slot) {
         element('p',`${service.hours} sa işçilik${id==='private' ? '' : ' · Daha az kalıcı değer kaybı'}${service.payout
           ? ` · 4 sa onay · ${money(service.payout)} ödeme · Net ${money(service.cost-service.payout)}` : ''}`,'spec'));
     }
+    if (workshopRate(activeBranch(),'internalRepair')) {
+      const cost = Math.round(quote.cost*.75);
+      options.append(actionButton(`Şirket içi tamir · ${money(cost)}`,'internal-repair',bike.id,state.cash<cost));
+    }
     card.append(issueDetails(bike),repairComparison(quote,'Tamir tahmini'),options,saleOptions(bike));
-  } else if (bike.stage === 'claiming' || bike.stage === 'riding') {
+  } else if (['claiming','riding','internalInspection','internalRepair'].includes(bike.stage)) {
     const countdown = element('p',timedText(bike),'spec');
     countdown.dataset.timedBike = bike.id;
     card.append(countdown);
@@ -484,6 +501,9 @@ function garageCard(slot) {
     card.append(issueDetails(bike,{active:false}));
   }
   card.append(insuranceControls(bike));
+  if (state.branches.length>1 && ['unchecked','inspected','ready'].includes(bike.stage)) {
+    card.append(destinationForm('transfer-bike',bike.id,activeBranch().id));
+  }
   return card;
 }
 
@@ -539,7 +559,7 @@ function marketCard(listing) {
     marketObserver.observe(media);
   } else renderSprite(image,fallback,listing,label);
 
-  const forecast = purchaseForecast(listing);
+  const forecast = purchaseForecast(listing,listing.price,branchProvince(activeBranch()));
   const details = element('span','','listing-details');
   details.append(element('strong',listing.name,'listing-name'),
     element('span',`${listing.year} · ${numeric.format(listing.km)} km · ${listing.colorName || 'Renk belirtilmedi'}`,'spec listing-meta'),
@@ -709,7 +729,7 @@ function openListing(id) {
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
-  const analysis = purchaseAnalysis(listing,isActive(listing.seller) ? listing.seller : undefined);
+  const analysis = purchaseAnalysis(listing,isActive(listing.seller) ? listing.seller : undefined,branchProvince(activeBranch()));
   const payable = listing.price + analysis.delivery.fee;
   byId('listing-prices').replaceChildren(
     metric('İlan fiyatı',money(listing.price)),
@@ -786,7 +806,7 @@ function renderMarket() {
     maxKm: readLimit('filter-km'),
     minCc: readLimit('filter-cc-min'),
     maxCc: readLimit('filter-cc'),
-  },estimatedListingProfit);
+  },bike=>estimatedListingProfit(bike,branchProvince(activeBranch())));
   byId('market-count').textContent = `${listings.length} / ${state.listings.length} İLAN`;
   const pages = Math.max(1,Math.ceil(listings.length / LISTINGS_PER_PAGE));
   marketPage = Math.min(marketPage,pages - 1);
@@ -812,39 +832,135 @@ function renderGarage(branch, action, bike) {
   const offset = bayPage * 2;
   const capacity = branchCapacity(branch);
   byId('bay-pages').hidden = capacity <= 2;
-  byId('bay-range').textContent = `Bölmeler ${offset + 1}–${offset + 2} / ${capacity}`;
+  byId('bay-range').textContent = `Bölmeler  ${offset + 1}–${Math.min(offset + 2,capacity)} / ${capacity}`;
   byId('bays-prev').disabled = bayPage === 0;
   byId('bays-next').disabled = offset + 2 >= capacity;
   const inFrame = bike => bike.slot >= offset && bike.slot < offset + 2;
   const visibleBikes = branch.garage.filter(item => inFrame(item) && !['rented','shipping'].includes(item.stage));
   byId('garage').dataset.occupied = branch.garage.some(inFrame);
-  byId('garage').replaceChildren(garageCard(offset), garageCard(offset + 1));
+  byId('garage').replaceChildren(garageCard(offset),...(offset+1<capacity ? [garageCard(offset+1)] : []));
   byId('garage-returns').replaceChildren(...(state.waitingReturns ?? []).filter(item=>item.branchId===branch.id)
     .map(item=>actionButton(`İade bekliyor · ${item.bike.name}`,'take-return',item.bike.id,branch.garage.length>=capacity)));
   drawGarage(visibleBikes, action, bike && bike.stage !== 'shipping' && inFrame(bike) ? bike : undefined, offset, branch.id);
 }
 
+function field(label,input) {
+  const node = element('label',label);
+  node.append(input);
+  return node;
+}
+
+function submitButton(label) {
+  const button = element('button',label);
+  button.type = 'submit';
+  return button;
+}
+
+function destinationForm(action,id,source) {
+  const form = element('form','','office-form');
+  form.dataset.officeAction = action;
+  form.dataset.item = id;
+  form.dataset.branch = source;
+  const select = element('select','');
+  select.name = 'destination';
+  for (const branch of state.branches) if (branch.id!==source) select.append(new Option(branch.name,String(branch.id)));
+  form.append(field('Hedef şube',select),submitButton('Transfer et'));
+  return form;
+}
+
+function automationForm(branch) {
+  const details = element('details','','risk-panel');
+  details.append(element('summary','Müdür otomasyonu'));
+  const form = element('form','','office-form');
+  form.dataset.officeAction = 'set-automation';
+  form.dataset.branch = branch.id;
+  const settings = branch.automation ?? {maxPrice:0,minProfit:0,budget:0,brand:'',minCc:0,maxCc:3000,buy:false,sell:false};
+  for (const [name,label] of [['maxPrice','En yüksek alış (TL)'],['minProfit','En düşük kâr (TL)'],
+    ['budget','Günlük bütçe (TL)'],['minCc','En az cc'],['maxCc','En çok cc']]) {
+    const input = element('input','');
+    Object.assign(input,{name,type:'number',min:'0',step:'1',required:true,value:String(settings[name])});
+    form.append(field(label,input));
+  }
+  const brand = element('select','');
+  brand.name = 'brand';
+  brand.append(new Option('Tüm markalar',''),...[...new Set(catalog.map(model=>model.brand))].sort().map(name=>new Option(name,name)));
+  brand.value = settings.brand;
+  form.append(field('Marka tercihi',brand));
+  for (const [name,label] of [['buy','Otomatik alım'],['sell','Otomatik satış']]) {
+    const input = element('input','');
+    Object.assign(input,{name,type:'checkbox',checked:settings[name],disabled:!hasManager(branch)});
+    form.append(field(label,input));
+  }
+  if (!hasManager(branch)) form.append(element('p','Görevde müdür gerekli.','spec'));
+  form.append(submitButton('Ayarları kaydet'));
+  details.append(form);
+  return details;
+}
+
 function renderBusiness() {
-  const cards = state.branches.map(branch => {
-    const card = element('article', '', 'card business-card');
-    const upgrade = GARAGE_LEVELS[branch.level];
-    const controls = element('div', '', 'quick-actions');
-    controls.append(actionButton('Usta işe al', 'hire', branch.id),
-      actionButton('Ustayı çıkar', 'fire', branch.id, branch.staff === 0));
-    card.append(element('h3', branch.name),
-      element('p', `Seviye ${branch.level} · ${branch.garage.length} / ${branchCapacity(branch)} motosiklet`, 'spec'),
-      element('p', `${branch.staff} usta · ${repairCapacity(branch)} saat/gün · ${money(operatingCost(branch))}/gün`, 'spec'),
-      controls, upgrade
-        ? actionButton(`${upgrade.capacity} bölmeye yükselt · ${money(upgrade.cost)}`, 'upgrade', branch.id, state.cash < upgrade.cost)
-        : element('p', 'En yüksek garaj seviyesi', 'spec'));
+  const cards = state.branches.map(branch=>{
+    const card = element('article','','card business-card');
+    const plan = nextBranchTier(branch);
+    const scoped = {...state,ledger:state.ledger.filter(row=>row.branchId===branch.id),
+      sales:state.sales.filter(row=>row.branchId===branch.id),financeSnapshots:[]};
+    const summary = financeReport(scoped,assets(state),1);
+    const today = summary.today;
+    card.append(element('h3',branch.name),
+      element('p',`${provinceName(branchProvince(branch))} · ${BRANCH_TIERS[branch.tier]?.name ?? 'Mevcut şube'} · ${branch.garage.length}/${branchCapacity(branch)} motosiklet · ${staffCount(branch)} çalışan`,'spec'),
+      element('p',`Günlük sabit gider ${money(operatingCost(branch))}`,'spec'),
+      element('p',`Bugün gelir ${money(today.revenue)} · gider ${money(today.operatingCost)} · net kâr ${signed(today.profit)}`,'spec'),
+      element('p',`Satış ${summary.totals.salesCount} · Toplam gelir ${money(summary.totals.revenue)} · Net kâr ${signed(summary.totals.profit)}`,'spec'),
+      plan ? actionButton(`${plan.name} seviyesine yükselt · ${money(plan.increase)}`,'upgrade-office',branch.id,state.cash<plan.increase)
+        : element('p','En yüksek şube seviyesi','spec'),automationForm(branch));
     return card;
   });
-  const expansion = element('article', '', 'card business-card');
-  expansion.append(element('h3', 'İstanbul’da yeni şube'),
-    element('p', `Seviye 1 ile başlar · Usta maaşı ${money(DAILY_WAGE)}/gün`, 'spec'),
-    actionButton(`Şube aç · ${money(BRANCH_COST)}`, 'open-branch', undefined, state.cash < BRANCH_COST));
-  byId('business').replaceChildren(...cards, expansion);
+  byId('business').replaceChildren(...cards);
 }
+
+function renderPersonnel() {
+  const branch = activeBranch();
+  byId('staff-branch').textContent = branch.name;
+  const cards = workers(branch).map(worker=>{
+    const card = element('article','','card business-card');
+    const role = STAFF_ROLES[worker.role];
+    const disabled = Boolean(worker.training || worker.travel);
+    card.append(element('h3',worker.name),element('p',`${role.name} · ${money(role.wage)}/gün`,'spec'),
+      element('p',`Deneyim ${worker.experience} · Beceri ${worker.skill} · Motivasyon ${worker.motivation}`,'spec'),
+      element('p',`Hız ${worker.speed} · Kalite ${worker.quality}`,'spec'),
+      element('p',worker.travel ? 'Transferde' : worker.training ? 'Eğitimde' : 'Görevde','spec'),
+      actionButton(`Eğitim · ${money(TRAINING_COST)}`,'train-worker',worker.id,disabled || state.cash<TRAINING_COST),
+      actionButton('İşten çıkar','fire-worker',worker.id,disabled));
+    if (!disabled && state.branches.length>1) card.append(destinationForm('transfer-worker',worker.id,branch.id));
+    return card;
+  });
+  if (branch.staff) {
+    const legacy = element('article','','card business-card');
+    legacy.append(element('p',`${branch.staff} mevcut usta · ${money(DAILY_WAGE)}/gün`,'spec'),
+      actionButton('Bir ustayı çıkar','fire',branch.id));
+    cards.unshift(legacy);
+  }
+  byId('staff-list').replaceChildren(...cards);
+}
+
+byId('office-province').append(...PROVINCES.map(province=>new Option(province.name,String(province.id))));
+byId('office-tier').append(...BRANCH_TIERS.map((tier,index)=>
+  new Option(`${tier.name} · ${tier.capacity} motosiklet · ${money(tier.cost)}`,String(index))));
+byId('staff-role').append(...Object.entries(STAFF_ROLES).map(([id,role])=>new Option(`${role.name} · ${money(role.wage)}/gün`,id)));
+document.addEventListener('submit',event=>{
+  const form = event.target;
+  const action = form.dataset.officeAction;
+  if (!action) return;
+  event.preventDefault();
+  const data = new FormData(form);
+  const branch = Number(form.dataset.branch) || branchId;
+  const value = name=>Number(data.get(name));
+  const amount = action==='open-office' ? {province:value('province'),tier:value('tier')}
+    : action==='hire-worker' ? data.get('role')
+    : action==='set-automation' ? {maxPrice:value('maxPrice'),minProfit:value('minProfit'),budget:value('budget'),
+      minCc:value('minCc'),maxCc:value('maxCc'),brand:data.get('brand'),buy:data.has('buy'),sell:data.has('sell')}
+    : value('destination');
+  runAction(action,form.dataset.item,amount,branch);
+});
 
 const renderFinance = createFinanceView({byId,element,metric,money,signed,repairForecast,
   inspectionFee:INSPECTION_FEE,loanLimit:LOAN_LIMIT,tradeSummary,issueDetails,reportCard});
@@ -886,6 +1002,7 @@ function render(action, animationBike) {
     renderMarket();
   }
   if (currentPage === 'business') renderBusiness();
+  if (currentPage === 'staff') renderPersonnel();
   if (currentPage === 'finance') renderFinance(state,worth);
   renderComplaints();
   updateSave();
@@ -972,7 +1089,7 @@ document.addEventListener('click', async event => {
       openMeeting(id,seller.id,'purchase');
     }
   } else if (action) {
-    const isBranchAction = ['hire','fire','upgrade'].includes(action);
+    const isBranchAction = ['hire','fire','upgrade','upgrade-office'].includes(action);
     const targetBranch = action==='resolve-complaint' ? state.sales.find(sale=>sale.id===id)?.branchId
       : isBranchAction ? Number(id) : branchId;
     const amount = action==='list-strategy' ? {strategy:index,price:button.closest('.card').querySelector('.ask-price input').valueAsNumber}
@@ -1072,7 +1189,7 @@ function updateMeeting() {
   byId('meeting-spec').textContent = bikeSpecs(isSale ? bike : visibleListing(bike));
   byId('meeting-image').setAttribute('aria-label',bike.name);
   renderSprite(byId('meeting-image'),byId('meeting-image-missing'),bike,byId('meeting-representative'));
-  const forecast = isSale ? null : purchaseAnalysis(bike,meeting);
+  const forecast = isSale ? null : purchaseAnalysis(bike,meeting,branchProvince(state.branches.find(branch=>branch.id===view.branchId)));
   const value = isSale ? roadValue(bike) : forecast.beforeValue;
   byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
   byId('live-seller-price').textContent = money(meeting.price);

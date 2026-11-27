@@ -1,7 +1,7 @@
-import { isRisky } from './characters.mjs?v=0.14';
+import { isRisky } from './characters.mjs?v=0.15';
 export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
-  inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', overhead:'Şube gideri',
+  inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', training:'Eğitim', staff_transfer:'Personel transferi', overhead:'Şube gideri',
   investment:'Şube ve garaj yatırımı', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
   insurance_premium:'Sigorta primi', insurance_payout:'Kasko ödemesi', traffic_payout:'Trafik sigortası ödemesi',
   accident:'Kaza masrafı', cosmetic:'Görsel bakım', complaint_repair:'Şikâyet onarımı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',

@@ -382,5 +382,37 @@ test('customer answer updates previous offer, live profit and saved price on mob
   assert.equal(buyer.round,0);
   await ui.page.reload(); await ui.ready();
   await ui.tap('.bottom-nav [data-page=garage]'); await ui.tap('[data-action=open-buyer]');
+  await ui.page.locator("#buyer-price-change").waitFor({state:"visible"});
   assert.equal(await ui.page.locator('#buyer-price-change').innerText(),change);
+});
+
+test('320×568 WebKit opens a branch, hires a manager and saves optional trading limits',async t=>{
+  const ui = await open(t,320,568,{...initial(),cash:1000000});
+  const {page} = ui;
+  await ui.tap('.bottom-nav [data-page=business]');
+  assert.equal(await page.locator('#business-title').innerText(),'Şubelerim');
+  await ui.tap('#business-page > details > summary');
+  assert.equal(await page.locator('#office-province option').count(),81);
+  await page.selectOption('#office-province','6');
+  await page.selectOption('#office-tier','1');
+  await ui.tap('#open-office-form button');
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).branches.length===2);
+  await page.waitForFunction(()=>document.querySelector('#branch option[value="2"]'));
+  await page.selectOption('#branch','2');
+  await ui.tap('#business-page [data-page=staff]');
+  assert.match(await page.locator('#staff-branch').innerText(),/Ankara/);
+  await page.selectOption('#staff-role','manager');
+  await ui.tap('#hire-worker-form button');
+  await page.waitForFunction(()=>document.querySelector('#staff-list').textContent.includes('Müdür'));
+  await ui.tap('#staff-page [data-page=business]');
+  await ui.tap('.business-card:nth-child(2) .risk-panel summary');
+  const settings = page.locator('form[data-office-action=set-automation][data-branch="2"]');
+  await settings.locator('[name=maxPrice]').fill('60000');
+  await settings.locator('[name=budget]').fill('70000');
+  await settings.locator('[name=buy]').check();
+  await settings.locator('button').tap();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).branches[1].automation?.buy);
+  const branch = (await ui.state()).branches[1];
+  assert.equal(branch.tier,1);
+  assert.equal(branch.automation.budget,70000);
 });

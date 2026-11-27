@@ -20,9 +20,9 @@ test('Yusuf appears once per period in Istanbul without changing the daily quota
   assert.equal(state.listings.length,510);
   const [listing] = state.listings.filter(isYusufListing);
   assert.deepEqual([listing.name,listing.year,listing.km,listing.condition,listing.colorName,listing.price],
-    [YUSUF_MODEL,2025,1390,100,'Turuncu-siyah',YUSUF_PRICE]);
+    [YUSUF_MODEL,2024,1390,100,'Turuncu-siyah',YUSUF_PRICE]);
   assert.equal(modelOf(listing).brand,'KTM');
-  assert.equal(paintOptions(modelOf(listing),2025)[0].accent,listing.paintAccent);
+  assert.equal(paintOptions(modelOf(listing),2024)[0].accent,listing.paintAccent);
   const held = act(state,'meet-seller',listing.id).listings.find(isYusufListing);
   assert.equal(spawn(days[1],[held]).listings.filter(isYusufListing).length,1);
   const blocked = {...spawn(days[1]),inspectionArchive:[{id:listing.id,listing,reports:[]}]};
