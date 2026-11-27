@@ -743,7 +743,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
       earn(meeting.price,`${bike.name} satışı`);
       const saleId = `${meeting.id}:settled`;
       const complaint = meeting.dialogue?.disclosed ? null : buyerComplaint(bike,saleId);
-      const sale = {id:saleId,name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
+      const sale = {id:saleId,name:bike.name,day:next.day,handedOverDay:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
         ...(bike.listedDay===undefined ? {} : {daysListed:next.day-bike.listedDay}),
         damageRecords:legacyDamageRecords(bike),disclosureMode:bike.disclosureMode ?? 'disclose',
         ...(bike.tradeStrategy ? {strategy:meeting.dialogue?.disclosed && isRisky(bike.tradeStrategy) ? 'damaged' : bike.tradeStrategy,

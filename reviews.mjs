@@ -19,8 +19,8 @@ export const REVIEW_TEMPLATES=Object.freeze({
     'Belgelenmiş ekspertiz önemli bir artıydı.','Ekspertiz raporu kararımda etkili oldu.','Motosikleti bir raporla değerlendirebildim.','Ekspertizin kayıtlı olması benim için değerliydi.',
   ],
   prompt:[
-    'Teslim beklediğimden kısa sürdü.','Motosikleti gecikme olmadan teslim aldım.','Teslim süreci hızlıydı.',
-    'Teslimat için uzun süre beklemedim.','Aracın hızlı teslim edilmesi işime yaradı.','Teslim zamanlamasından memnun kaldım.','Motosiklet kısa sürede bana ulaştı.',
+    'Motosikleti satışın yapıldığı gün teslim aldım.','Satış ve teslim aynı gün tamamlandı.','Motosikleti teslim almak için başka bir gün beklemedim.',
+    'Satış tamamlanınca aracı teslim aldım.','Teslim alma işlemini aynı gün yaptım.','İşlemin ardından motosikleti teslim alabildim.','Motosiklet satış günü teslim edildi.',
   ],
   bargaining:[
     'Pazarlık sonunda anlaşabileceğimiz bir fiyat bulduk.','Fiyatı konuşup bir orta yol bulabildik.','Pazarlığın sonucu içime sindi.',
@@ -80,7 +80,7 @@ export function saleReview(bike,meeting,sale,score,worker,seed) {
   if(fair<=1.02 && score>=75)categories.push('value');
   if(condition.visual>=94 && condition.mechanical>=90 && condition.structural>=90 && score>=75)categories.push('clean');
   if(meeting.round && score>=75)categories.push('bargaining');
-  if(Number.isInteger(sale.deliveredDay)&&sale.deliveredDay<=sale.day+1)categories.push('prompt');
+  if(sale.handedOverDay===sale.day && score>=75)categories.push('prompt');
   if(!categories.length)categories.push('mixed');
   const group=categories[seed%categories.length];
   return REVIEW_TEMPLATES[group][(seed>>>9)%7];

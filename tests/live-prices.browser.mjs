@@ -1203,6 +1203,9 @@ test('320px acquisition requires review and confirmation and commits one deal',a
   assert.equal(result.competition.acquired,1);
   assert.equal(result.branches.length,2);
   assert.equal(result.competition.companies.length,49);
+  await ui.tap('#competition-tab-rivals');
+  assert.match(await ui.page.locator('#rival-roster').innerText(),/49 aktif · 50 kurulmuş · 1 devralınmış/);
+
   await ui.tap('#notification-bell');
   await ui.page.selectOption('#notification-filter','competition');
   assert.equal(await ui.page.locator('.notification-row').count(),1);
