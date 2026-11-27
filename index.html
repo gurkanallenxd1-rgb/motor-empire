@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.12.2">
-  <script type="module" src="./app.mjs?v=0.12.2"></script>
+  <link rel="stylesheet" href="./style.css?v=0.12.3">
+  <script type="module" src="./app.mjs?v=0.12.3"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.12.2</span>
+      <span class="version">SÜRÜM 0.12.3</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
@@ -217,6 +217,32 @@
       <div><p class="eyebrow" id="meeting-role"></p><h2 id="meeting-title">Müşteri görüşmesi</h2></div>
       <form method="dialog"><button type="submit" aria-label="Görüşmeyi kapat">×</button></form>
     </header>
+    <section id="live-purchase-prices" class="live-purchase-prices" aria-label="Canlı alım analizi" hidden>
+      <dl class="live-price-key">
+        <div><dt>Ekspertiz farkı</dt><dd id="live-inspection-difference">—</dd></div>
+        <div><dt>Satıcı indirimi</dt><dd id="live-seller-discount">—</dd></div>
+        <div><dt>Alım avantajı / dezavantajı</dt><dd id="live-advantage">—</dd></div>
+      </dl>
+      <dl class="live-price-grid">
+        <div><dt>Başlangıç ilan fiyatı</dt><dd id="live-start-price">—</dd></div>
+        <div><dt>Satıcının güncel fiyatı</dt><dd id="live-seller-price">—</dd></div>
+        <div><dt>Ekspertiz öncesi değer</dt><dd id="live-before-value">—</dd></div>
+        <div><dt>Ekspertiz sonrası değer</dt><dd id="live-after-value">—</dd></div>
+        <div><dt>Hasar kaynaklı değer kaybı</dt><dd id="live-damage-loss">—</dd></div>
+      </dl>
+      <div class="offer-editor">
+        <label for="player-offer">Oyuncunun güncel teklifi (TL)</label>
+        <input id="player-offer" type="number" inputmode="decimal" min="0.01" step="0.01" required
+          aria-describedby="offer-warning">
+        <input id="player-offer-range" type="range" min="0.01" step="0.01" aria-label="Teklif tutarını ayarla">
+        <p id="offer-warning" class="spec negative" role="status"></p>
+      </div>
+      <dl class="live-price-grid">
+        <div><dt>Teklif kabul edilirse toplam indirim</dt><dd id="live-potential-discount">—</dd></div>
+        <div><dt>Ekspertiz, nakliye ve tamir dahil maliyet</dt><dd id="live-total-cost">—</dd></div>
+        <div><dt>Tahmini satış kârı / zararı</dt><dd id="live-sale-profit">—</dd></div>
+      </dl>
+    </section>
     <div class="meeting-grid">
       <section class="meeting-person" aria-label="Görüşme profili">
         <div class="meeting-profile"><span id="meeting-avatar" aria-hidden="true"></span>
@@ -244,7 +270,7 @@
       </section>
     </div>
     <details id="meeting-analysis" class="risk-panel valuation-panel" hidden>
-      <summary>Ekspertiz fiyat analizi</summary><div id="meeting-analysis-content"></div>
+      <summary>Ekspertiz fiyat analizi</summary><p class="spec">Satıcının güncel fiyatıyla hesaplanır.</p><div id="meeting-analysis-content"></div>
     </details>
     <p id="meeting-error" class="notice" role="status" data-error="true" hidden></p>
     <div class="meeting-actions">
