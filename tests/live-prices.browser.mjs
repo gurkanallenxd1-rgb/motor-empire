@@ -1132,5 +1132,18 @@ test('graphics canvas bounds orbit and dolly, reveals the interior and isolates 
   assert.ok(orbit.pose.hidden.length>0,JSON.stringify(orbit.pose));
   assert.ok(orbit.pose.eye[1]>=4.5);
   assert.equal(orbit.selected,undefined);
+  await page.mouse.move(rect.x+130,rect.y+150);
+  await page.mouse.down();
+  await page.mouse.move(rect.x+130,rect.y+18,{steps:8});
+  await page.mouse.up();
+  const shallow=await page.evaluate(async ()=>{
+    const {renderer,canvas}=window.orbitTest;
+    for (let i=0;i<45;i++) canvas.dispatchEvent(new WheelEvent('wheel',{deltaY:-140,cancelable:true}));
+    await new Promise(requestAnimationFrame);
+    return renderer.cameraState();
+  });
+  assert.ok(shallow.eye[1]>=4.5,JSON.stringify(shallow));
+  assert.ok(Math.abs(shallow.distance-10.5)<.15,JSON.stringify(shallow));
+  assert.equal(await page.evaluate(()=>window.orbitSelected),undefined);
   await page.evaluate(()=>{window.orbitTest.renderer.dispose();window.orbitTest.host.remove();});
 });
