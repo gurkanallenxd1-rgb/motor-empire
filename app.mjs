@@ -1,24 +1,24 @@
-import { purchasePreview } from './valuation.mjs?v=0.12.3';
+import { purchasePreview } from './valuation.mjs?v=0.12.4';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.3';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.3';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.3';
-import { createFinanceView } from './finance-view.mjs?v=0.12.3';
-import { dailyCashMovement } from './finance.mjs?v=0.12.3';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.3';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.4';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.4';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.4';
+import { createFinanceView } from './finance-view.mjs?v=0.12.4';
+import { dailyCashMovement } from './finance.mjs?v=0.12.4';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.4';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12.3';
-import { createGarageRenderer } from './art.mjs?v=0.12.3';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.3';
+} from './game.mjs?v=0.12.4';
+import { createGarageRenderer } from './art.mjs?v=0.12.4';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.4';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.3';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.3';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.4';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.4';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12.3';
+  repairForecast } from './damage.mjs?v=0.12.4';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -529,18 +529,37 @@ function marketCard(listing) {
 const percentage = new Intl.NumberFormat('tr-TR',{style:'percent',maximumFractionDigits:2});
 
 function signedRatio(amount,ratio) {
-  return `${signed(amount)} · ${percentage.format(ratio || 0)}`;
+  if (amount===0) return money(0);
+  return `${signed(amount)} · ${percentage.format(Math.abs(ratio)<.00005 ? 0 : ratio)}`;
+}
+
+function priceSummaryRow(label,value,id) {
+  const row = element('div','','valuation-row');
+  const output = element('dd',value);
+  if (id) output.id = id;
+  row.append(element('dt',label),output);
+  return row;
+}
+
+function renderInspectionSummary(container,analysis,meeting = false) {
+  const summary = element('dl','','price-summary-rows inspection-summary');
+  const status = analysis.pending ? 'Ekspertiz sürüyor' : analysis.completed ? 'Ekspertiz tamamlandı' : 'Ekspertiz yapılmadı';
+  summary.append(
+    priceSummaryRow('Ekspertizle bulunan ek kayıp',analysis.completed
+      ? signedRatio(-analysis.difference,-analysis.differenceShare) : status,meeting ? 'live-inspection-difference' : ''),
+    priceSummaryRow('Hasar kaynaklı toplam kayıp',signedRatio(-analysis.damageLoss,-analysis.damageLossShare),
+      meeting ? 'live-damage-loss' : ''),
+    priceSummaryRow('Tahmini tamir maliyeti',money(analysis.cost)));
+  container.replaceChildren(summary);
 }
 
 function refreshOfferPreview(view) {
   const preview = purchasePreview(view.analysis,view.draft);
   const input = byId('player-offer');
-  const range = byId('player-offer-range');
   const offerAccepted = Boolean(preview && input.validity.valid && view.draft<=view.analysis.offer);
   byId('meeting-negotiate').disabled = !view.canNegotiate || !offerAccepted;
   byId('offer-warning').textContent = preview && view.draft>view.analysis.offer
     ? 'Gönderilecek teklif satıcının fiyatını aşamaz.' : '';
-  range.setAttribute('aria-valuetext',money(range.valueAsNumber));
   for (const [id,amount,ratio,colored] of [
     ['live-advantage',preview?.advantage,preview?.advantageShare,true],
     ['live-potential-discount',preview?.discount,preview?.discountShare,true],
@@ -556,64 +575,57 @@ function refreshOfferPreview(view) {
 
 function showOfferEditor(view,analysis,meeting,canNegotiate) {
   const input = byId('player-offer');
-  const range = byId('player-offer-range');
   const maximum = Math.min(Number.MAX_SAFE_INTEGER/100,Math.max(analysis.initialPrice,analysis.offer)*2);
-  input.max = range.max = String(maximum);
+  input.max = String(maximum);
   if (view.draft === undefined) {
     view.draft = meeting.playerOffer ?? analysis.offer;
     input.value = String(view.draft);
-    range.value = String(view.draft);
   }
   view.analysis = analysis;
   view.canNegotiate = canNegotiate;
-  input.disabled = range.disabled = meeting.status!=='open';
+  input.disabled = meeting.status!=='open';
+  for (const button of byId('offer-shortcuts').querySelectorAll('button')) {
+    button.disabled = input.disabled || analysis.offer<=Number(button.dataset.discount);
+  }
   if (meeting.status==='agreed' && view.draft!==analysis.offer) {
     view.draft = analysis.offer;
-    input.value = range.value = String(analysis.offer);
+    input.value = String(analysis.offer);
   }
-  const values = {
-    'live-start-price':money(analysis.initialPrice),
-    'live-seller-price':money(analysis.offer),
-    'live-before-value':money(analysis.beforeInspection),
-    'live-after-value':analysis.completed ? money(analysis.beforeValue) : '—',
-    'live-inspection-difference':analysis.completed ? signedRatio(-analysis.difference,-analysis.differenceShare) : '—',
-    'live-seller-discount':signedRatio(analysis.discount,analysis.discountShare),
-    'live-damage-loss':signedRatio(-analysis.damageLoss,-analysis.damageLossShare),
-  };
-  for (const [id,value] of Object.entries(values)) byId(id).textContent = value;
   refreshOfferPreview(view);
 }
 
-for (const id of ['player-offer','player-offer-range']) {
-  byId(id).addEventListener('input',event=>{
-    if (!meetingView?.analysis) return;
-    const amount = event.target.valueAsNumber;
-    if (id==='player-offer-range') byId('player-offer').value = event.target.value;
-    else if (Number.isFinite(amount)) byId('player-offer-range').value = event.target.value;
-    meetingView.draft = amount;
-    refreshOfferPreview(meetingView);
-  });
-}
+byId('player-offer').addEventListener('input',event=>{
+  if (!meetingView?.analysis) return;
+  meetingView.draft = event.target.valueAsNumber;
+  refreshOfferPreview(meetingView);
+});
+byId('offer-shortcuts').addEventListener('click',event=>{
+  const button = event.target.closest('button[data-discount]');
+  if (!button || button.disabled || !meetingView?.analysis) return;
+  const offer = meetingView.analysis.offer;
+  meetingView.draft = (Math.round(offer*100)-Number(button.dataset.discount)*100)/100;
+  byId('player-offer').value = String(meetingView.draft);
+  refreshOfferPreview(meetingView);
+});
 
-function renderPurchaseAnalysis(container, analysis) {
+function renderPurchaseAnalysis(container, analysis, meeting = false) {
   const pair = (label,value,tone = '')=>{
     const row = element('div','','valuation-row');
     row.append(element('dt',label),element('dd',value,tone));
     return row;
   };
   const share = ratio=>percentage.format(ratio);
-  const loss = (amount,ratio)=>`${money(amount)} · ${share(ratio)}`;
+  const loss = (amount,ratio)=>amount===0 ? money(0) : `${money(amount)} · ${share(ratio)}`;
   const delta = amount=>amount ? signed(amount) : money(0);
   const advantage = analysis.advantage > 0 ? 'Teklif avantajı' : analysis.advantage < 0 ? 'Teklif dezavantajı' : 'Piyasayla fiyat farkı';
   const comparison = element('dl','','valuation-list');
   comparison.append(
     pair('Hasarsız piyasa değeri',money(analysis.clean)),
-    pair('Satıcının başlangıç fiyatı',money(analysis.initialPrice)),
-    pair('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection)),
-    pair('Ekspertiz sonrası güncellenmiş piyasa değeri',analysis.completed ? money(analysis.beforeValue) : analysis.pending ? 'Rapor bekleniyor' : 'Ekspertiz yapılmadı'),
-    pair('Ekspertiz öncesi ve sonrası fark',analysis.completed ? signedRatio(-analysis.difference,-analysis.differenceShare) : '—'),
-    pair('Satıcının güncel teklifi',money(analysis.offer)),
-    pair('Satıcının pazarlık indirimi',loss(analysis.discount,analysis.discountShare)),
+    priceSummaryRow('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection),meeting ? 'live-before-value' : ''),
+    priceSummaryRow('Satıcının pazarlık indirimi',signedRatio(analysis.discount,analysis.discountShare),meeting ? 'live-seller-discount' : ''));
+  if (meeting) comparison.prepend(priceSummaryRow('Başlangıç ilan fiyatı',money(analysis.initialPrice),'live-start-price'));
+  else if (analysis.offer!==analysis.initialPrice) comparison.append(pair('Satıcının güncel teklifi',money(analysis.offer)));
+  if (!meeting) comparison.append(
     pair(advantage,loss(Math.abs(analysis.advantage),Math.abs(analysis.advantageShare)),
       analysis.advantage < 0 ? 'negative' : analysis.advantage > 0 ? 'positive' : ''));
 
@@ -631,10 +643,10 @@ function renderPurchaseAnalysis(container, analysis) {
   costs.append(pair('Ödenen ekspertiz',money(analysis.feesPaid)),
     pair('Garaj ekspertizi tahmini',money(analysis.intakeFee)),
     pair('Nakliye ücreti',money(analysis.delivery.fee)),
-    pair('Tahmini tamir maliyeti',money(analysis.cost)),
-    pair('Tamir sonrası tahmini piyasa değeri',money(analysis.afterValue)),
-    pair('Tahmini toplam maliyet',money(analysis.total)),
-    pair(margin,`${delta(analysis.profit)} · ${share(analysis.profitShare)}`,analysis.profit < 0 ? 'negative' : 'positive'));
+    pair('Tamir sonrası tahmini piyasa değeri',money(analysis.afterValue)));
+  if (!meeting) costs.append(pair('Tahmini toplam maliyet',money(analysis.total)),
+    pair(margin,analysis.profit===0 ? money(0) : `${delta(analysis.profit)} · ${share(analysis.profitShare)}`,
+      analysis.profit < 0 ? 'negative' : 'positive'));
   const preserveExpanded = container.querySelector('.valuation-group')?.open;
   damage.open = Boolean(preserveExpanded);
   container.replaceChildren(comparison,damage,costs);
@@ -657,12 +669,11 @@ function openListing(id) {
   const payable = listing.price + analysis.delivery.fee;
   byId('listing-prices').replaceChildren(
     metric('İlan fiyatı',money(listing.price)),
-    metric('Bilinen piyasa değeri',money(analysis.beforeValue)),
-    metric('Nakliye ücreti',money(analysis.delivery.fee)),
-    metric('Teslimat',deliveryLabel(analysis.delivery)),
-    metric('Beyan edilen kondisyon',`%${listing.disclosure?.condition ?? listing.condition ?? 100}`),
-    metric('Bilinen kondisyon',`%${analysis.beforeCondition}`)
+    metric('Piyasa değeri',money(analysis.beforeValue))
   );
+  renderInspectionSummary(byId('listing-inspection-summary'),analysis);
+  if (analysis.delivery.days) byId('listing-inspection-summary').append(element('p',
+    `Teslimat · ${deliveryLabel(analysis.delivery)}`,'spec'));
   renderPurchaseAnalysis(byId('listing-analysis-content'),analysis);
   const urgency = SELLER_URGENCY[listing.urgency];
   byId('listing-urgency').textContent = urgency ? `Satıcı aciliyeti · ${urgency.label}` : '';
@@ -681,6 +692,7 @@ function openListing(id) {
     : canNegotiate ? 'Satıcıyla pazarlık' : pending ? 'Ekspertiz bekleniyor' : 'Görüşme kapandı','meet-seller',id,!canNegotiate);
   byId('listing-detail-actions').replaceChildren(talk,buy);
   if (!dialog.open) {
+    byId('listing-analysis').open = false;
     dialog.showModal();
     dialog.scrollTop = 0;
   }
@@ -914,6 +926,7 @@ document.addEventListener('click', async event => {
 
 function openMeeting(bikeId,meetingId,kind) {
   meetingView = {bikeId,meetingId,kind,branchId};
+  byId('meeting-analysis').open = false;
   updateMeeting();
   if (!byId('meeting').open) byId('meeting').showModal();
 }
@@ -945,7 +958,6 @@ function updateMeeting() {
       : meeting.request==='inspection' ? 'Müşteri ekspertiz istedi' : 'Müşteri hasar kaydını inceliyor';
     details.append(element('summary',title));
     if (!isSale) {
-      details.open = true;
       const findings = verified.map(code=>PARTS[code].name).join(', ');
       details.append(element('p',findings || 'İncelenen alanlarda hasar tespit edilmedi.','spec'));
       for (const report of reports) details.append(reportCard(report));
@@ -966,34 +978,19 @@ function updateMeeting() {
   byId('meeting-spec').textContent = bikeSpecs(isSale ? bike : visibleListing(bike));
   byId('meeting-image').setAttribute('aria-label',bike.name);
   renderSprite(byId('meeting-image'),byId('meeting-image-missing'),bike,byId('meeting-representative'));
-  const value = roadValue(isSale ? bike : visibleListing(bike));
-  const cost = isSale ? bike.spent : bike.price;
-  const margin = meeting.price - cost;
-  byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
-  byId('meeting-price').textContent = money(meeting.price);
   const forecast = isSale ? null : purchaseAnalysis(bike,meeting);
-  const profit = isSale ? Math.round(margin*100)/100 : forecast.profit;
+  const value = isSale ? roadValue(bike) : forecast.beforeValue;
+  byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
+  byId('live-seller-price').textContent = money(meeting.price);
+  byId('live-after-value').textContent = money(value);
   byId('meeting-analysis').hidden = isSale;
-  if (forecast) renderPurchaseAnalysis(byId('meeting-analysis-content'),forecast);
-  byId('meeting-metrics').replaceChildren(
-    metric(isSale ? 'Toplam maliyet' : 'İlan fiyatı',money(cost)),
-    metric('Piyasa değeri',money(value)),
-    metric(`${isSale ? 'Net' : 'Tahmini net'} ${profit < 0 ? 'zarar' : 'kâr'}`,signed(profit)),
-    ...(forecast?.delivery.days ? [metric(`Nakliye · ${deliveryLabel(forecast.delivery)}`,money(forecast.delivery.fee))] : []));
-  const scale = Math.max(meeting.price,cost,value,1);
-  const bars = byId('meeting-bars');
-  const markers = [[isSale ? 'Maliyet' : 'İlan fiyatı',cost],['Piyasa',value],['Teklif',meeting.price]];
-  bars.setAttribute('aria-label',markers.map(([name,amount])=>`${name} ${money(amount)}`).join(' · '));
-  const axis = element('div','','price-axis');
-  const legend = element('div','','price-legend');
-  markers.forEach(([name,amount],index)=>{
-    const marker = element('span','','price-marker marker-' + index);
-    marker.style.left = `${Math.max(2,Math.min(98,amount / scale * 100))}%`;
-    axis.append(marker);
-    const key = element('span',name,'legend-' + index);
-    legend.append(key);
-  });
-  bars.replaceChildren(axis,legend);
+  byId('meeting-inspection-summary').hidden = isSale;
+  byId('meeting-metrics').hidden = !isSale;
+  byId('meeting-bars').hidden = !isSale;
+  if (forecast) {
+    renderInspectionSummary(byId('meeting-inspection-summary'),forecast,true);
+    renderPurchaseAnalysis(byId('meeting-analysis-content'),forecast,true);
+  } else renderSaleMetrics(bike,meeting,value);
   byId('meeting-error').hidden = true;
   const active = isActive(meeting);
   const canNegotiate = meeting.status==='open' && rights>0 && (isSale || !bike.inspections?.some(report=>!report.result));
@@ -1005,6 +1002,27 @@ function updateMeeting() {
   byId('meeting-reject').hidden = !active;
   byId('meeting-confirm').hidden = !active;
   byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price+(forecast?.delivery.fee ?? 0))}`;
+}
+
+function renderSaleMetrics(bike,meeting,value) {
+  const cost = bike.spent;
+  const profit = Math.round((meeting.price-cost)*100)/100;
+  byId('meeting-metrics').replaceChildren(metric('Toplam maliyet',money(cost)),
+    metric(profit < 0 ? 'Net zarar' : 'Net kâr',signed(profit)));
+  const scale = Math.max(meeting.price,cost,value,1);
+  const bars = byId('meeting-bars');
+  const markers = [['Maliyet',cost],['Piyasa',value],['Teklif',meeting.price]];
+  bars.setAttribute('aria-label',markers.map(([name,amount])=>`${name} ${money(amount)}`).join(' · '));
+  const axis = element('div','','price-axis');
+  const legend = element('div','','price-legend');
+  markers.forEach(([name,amount],index)=>{
+    const marker = element('span','','price-marker marker-' + index);
+    marker.style.left = `${Math.max(2,Math.min(98,amount / scale * 100))}%`;
+    axis.append(marker);
+    const key = element('span',name,'legend-' + index);
+    legend.append(key);
+  });
+  bars.replaceChildren(axis,legend);
 }
 
 async function meetingAction(action,amount) {
