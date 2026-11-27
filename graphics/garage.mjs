@@ -57,8 +57,16 @@ export function buildWorkshop(scene) {
       const item = new T.Mesh(boxGeometry,m);item.scale.set(sx,sy,.085);
       item.position.set(xx,yy,0);group.add(item);
     };
-    add(0,.22,w,.44,steel); add(0,2.9,w,.13,graphite);
-    for (let i=0;i<=Math.round(w);i++) add(-w/2+i*w/Math.round(w),1.59,.07,2.58,graphite);
+    add(0,.22,w,.44,steel);
+    const sections=Math.round(w);
+    const frame=new T.InstancedMesh(boxGeometry,graphite,sections+2);
+    const matrix=new T.Matrix4();
+    frame.setMatrixAt(0,matrix.makeScale(w,.13,.085).setPosition(0,2.9,0));
+    for (let i=0;i<=sections;i++) {
+      frame.setMatrixAt(i+1,matrix.makeScale(.07,2.58,.085).setPosition(-w/2+i*w/sections,1.59,0));
+    }
+    frame.computeBoundingSphere();
+    group.add(frame);
     add(0,1.56,w,2.23,glass);
   }
   function desk(x,z,finish=oak) {
