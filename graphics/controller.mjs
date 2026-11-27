@@ -1,5 +1,5 @@
-import { graphicsOptions,prototypeAllowed,readGraphics,writeGraphics } from './config.mjs?v=0.17';
-import { motorcycleAsset } from './registry.mjs?v=0.17';
+import { graphicsOptions,prototypeAllowed,readGraphics,writeGraphics } from './config.mjs?v=0.17-r2';
+import { motorcycleAsset } from './registry.mjs?v=0.17-r2';
 
 const levelNames={low:'Düşük',medium:'Orta',high:'Yüksek',ultra:'Ultra'};
 
@@ -11,6 +11,7 @@ export function createGraphicsController({byId,select,refresh}) {
   const legacyControls=legacy.nextElementSibling;
   const message=byId('graphics-message');
   const meter=byId('graphics-meter');
+  const stockNote=byId('graphics-stock-note');
   let storage;
   try {storage=window.localStorage;} catch {}
   let settings=readGraphics(storage);
@@ -77,7 +78,7 @@ export function createGraphicsController({byId,select,refresh}) {
   }
 
   function module() {
-    engine ??= import('./renderer.mjs?v=0.17').catch(error=>{engine=null;throw error;});
+    engine ??= import('./renderer.mjs?v=0.17-r2').catch(error=>{engine=null;throw error;});
     return engine;
   }
 
@@ -110,7 +111,10 @@ export function createGraphicsController({byId,select,refresh}) {
       garage=createRenderer(canvas,settings,{select:b=>{
         const current=last.parking.find(({bike})=>bike.id===b.id);
         if (current) select(current.bike,true);
-      },status:value=>{if (token===requested && visible) status(value);},measure});
+      },status:value=>{if (token===requested && visible) status(value);},measure,fallbacks:count=>{
+        stockNote.hidden=!count;
+        stockNote.textContent=count ? `${count} motosiklet özgün 2D görseliyle gösteriliyor.` : '';
+      }});
       loading=false;
       garage.update(last.parking);
       measure(null);

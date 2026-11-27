@@ -30,12 +30,13 @@ export function createAssets(renderer) {
       if (!assets.has(url)) {
         let cancel;
         const canceled=new Promise((_,reject)=>{cancel=()=>reject(new DOMException('3D varlık yüklemesi kapatıldı.','AbortError'));});
+        const entry = {uses:0,cancel};
         const decoded=gltf.loadAsync(url).then(item=>{
           if (disposed) release(item.scene);
+          else entry.scene=item.scene;
           return item.scene;
         });
-        const entry = {uses:0,cancel,pending:Promise.race([decoded,canceled])};
-        entry.pending.then(scene=>{entry.scene=scene;},()=>{});
+        entry.pending=Promise.race([decoded,canceled]);
         assets.set(url,entry);
       }
       const entry = assets.get(url);

@@ -1,4 +1,4 @@
-import { createGraphicsController } from './graphics/controller.mjs?v=0.17';
+import { createGraphicsController } from './graphics/controller.mjs?v=0.17-r2';
 import { createMarketAnalysis } from './market-view.mjs?v=0.16.1';
 import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
 import { drawGaragePreview } from './garage-scene.mjs?v=0.16.1';

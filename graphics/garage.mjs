@@ -196,7 +196,7 @@ export function buildWorkshop(scene) {
     surface.repeat.set(3,4);
     tile.map=surface;concrete.map=surface;tile.needsUpdate=concrete.needsUpdate=true;
   }
-  return {root,texture,dispose(){
+  return {root,texture,textureSize:()=>surface?.image.width,dispose(){
     surface?.dispose();
     const mats=new Set(),geos=new Set();
     root.traverse(node=>{if(node.isInstancedMesh)node.dispose();if(node.material)mats.add(node.material);if(node.geometry)geos.add(node.geometry);});

@@ -1,9 +1,9 @@
 import * as T from './vendor/three.module.min.js';
 import { OrbitControls,RoomEnvironment } from './vendor/addons.mjs';
-import { createAssets,DISPLAY_PLINTH,spriteTexture } from './assets.mjs?v=0.17';
-import { initialQuality,qualityProfile,worldBays } from './config.mjs?v=0.17';
-import { buildWorkshop } from './garage.mjs?v=0.17';
-import { motorcycleAsset } from './registry.mjs?v=0.17';
+import { createAssets,DISPLAY_PLINTH,spriteTexture } from './assets.mjs?v=0.17-r2';
+import { initialQuality,qualityProfile,worldBays } from './config.mjs?v=0.17-r2';
+import { buildWorkshop } from './garage.mjs?v=0.17-r2';
+import { motorcycleAsset } from './registry.mjs?v=0.17-r2';
 import { modelOf } from '../bikes.mjs?v=0.16.1';
 import { loadSprite,spriteKey } from '../sprite.mjs?v=0.16.1';
 
@@ -198,7 +198,9 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     },()=>{});
   }
   function countFallbacks() {
-    canvas.dataset.fallbacks=String([...rows.values()].filter(row=>row.userData.fallback).length);
+    const count=[...rows.values()].filter(row=>row.userData.fallback).length;
+    canvas.dataset.fallbacks=String(count);
+    callbacks.fallbacks?.(count);
   }
 
   function mountBike(bike,root) {
@@ -339,6 +341,10 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   }
   return {
     update,updateOptions,reset:()=>reset(true),
+    metrics:()=>({width:canvas.width,height:canvas.height,surface:workshop?.textureSize(),
+      shadow:renderer.shadowMap.enabled?sun.shadow.mapSize.x:0,reflection:scene.environmentIntensity,
+      environment:Boolean(scene.environment),aa:context.getContextAttributes()?.antialias,
+      render:{...renderer.info.render},resources:{...renderer.info.memory}}),
     active(value){active=value;if(!value){cancelAnimationFrame(frame);frame=0;}invalidate();},
     dispose,
   };

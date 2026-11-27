@@ -883,6 +883,7 @@ test('graphics garage loads GLB, applies quality, moves camera and switches back
   await canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
   assert.equal(await canvas.getAttribute('data-quality'),'medium');
   assert.equal(await canvas.getAttribute('data-visible-bikes'),'3');
+  assert.match(await page.locator('#graphics-stock-note').innerText(),/3 motosiklet özgün 2D/);
   assert.ok(await page.locator('#graphics-meter').isVisible());
   const name = process.env.GRAPHICS_SCREENSHOTS;
   if(name) await canvas.screenshot({path:name+'/garage-angle-1.png'});
@@ -962,4 +963,96 @@ test('graphics inventory refreshes after manager sale and excludes transport',as
   if(await canvas.count()) {
     await ui.page.waitForFunction(()=>document.querySelector('#garage-webgl')?.dataset.visibleBikes==='0');
   }
+});
+
+test('graphics UASTC GLB transcodes, uploads and releases shared texture and geometry once',async t=>{
+  const {page}=await open(t,390,844,initial());
+  const outcome=await page.evaluate(async ()=>{
+    const three=await import('/graphics/vendor/three.module.min.js');
+    const {createAssets}=await import('/graphics/assets.mjs');
+    const canvas=document.createElement('canvas');
+    if (!canvas.getContext('webgl2')) return null;
+    const renderer=new three.WebGLRenderer({canvas});
+    renderer.setSize(64,64,false);
+    const pool=createAssets(renderer);
+    const url='/tests/fixtures/checker-basis.glb';
+    const a=pool.acquire(url), b=pool.acquire(url);
+    const [first,second]=await Promise.all([a.model,b.model]);
+    let mesh,clone;
+    first.traverse(node=>{if(node.isMesh) mesh=node;});
+    second.traverse(node=>{if(node.isMesh) clone=node;});
+    const texture=mesh.material.map;
+    const scene=new three.Scene();
+    const camera=new three.PerspectiveCamera(45,1,.1,10);
+    camera.position.z=3;
+    scene.add(first,new three.AmbientLight(0xffffff,3));
+    renderer.render(scene,camera);
+    const gl=renderer.getContext();
+    const texels=[[16,16],[26,16]].map(([x,y])=>{
+      const pixel=new Uint8Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+      return [...pixel];
+    });
+    const before={...renderer.info.memory};
+    let disposed=0;
+    texture.addEventListener('dispose',()=>disposed++);
+    a.release();
+    await Promise.resolve();
+    const afterFirst=disposed;
+    first.removeFromParent();
+    b.release();
+    await Promise.resolve();
+    const result={shared:mesh.geometry===clone.geometry&&texture===clone.material.map,
+      width:texture.image.width,height:texture.image.height,mips:texture.mipmaps.length,
+      compressed:texture.isCompressedTexture,texels,before,after:{...renderer.info.memory},afterFirst,disposed};
+    const pending=pool.acquire(url);
+    pool.dispose();
+    pool.dispose();
+    result.canceled=await pending.model.then(()=>false,error=>error.name==='AbortError');
+    renderer.dispose();
+    renderer.forceContextLoss();
+    return result;
+  });
+  if(!outcome) {t.skip('WebGL2 unavailable');return;}
+  assert.deepEqual([outcome.width,outcome.height,outcome.mips],[32,32,6]);
+  assert.equal(outcome.shared,true);
+  assert.equal(outcome.compressed,true);
+  assert.notDeepEqual(outcome.texels[0],outcome.texels[1]);
+  assert.equal(outcome.afterFirst,0);
+  assert.equal(outcome.disposed,1);
+  assert.ok(outcome.after.textures<outcome.before.textures);
+  assert.ok(outcome.after.geometries<outcome.before.geometries);
+  assert.equal(outcome.canceled,true);
+  t.diagnostic(JSON.stringify(outcome));
+});
+
+test('graphics four profiles apply distinct real render settings and explicit reflection and MSAA overrides',async t=>{
+  const {page}=await open(t,390,844,initial());
+  const result=await page.evaluate(async ()=>{
+    const {createRenderer}=await import('/graphics/renderer.mjs');
+    const {DEFAULT_GRAPHICS}=await import('/graphics/config.mjs');
+    const canvas=document.createElement('canvas');
+    canvas.style.cssText='position:fixed;inset:0;width:320px;height:210px';
+    if(!canvas.getContext('webgl2',{antialias:false})) return null;
+    document.body.append(canvas);
+    const settings={...DEFAULT_GRAPHICS,aa:false};
+    const scene=createRenderer(canvas,settings,{status(){}});
+    const profiles=[];
+    for (const quality of ['low','medium','high','ultra']) {
+      scene.updateOptions({...settings,quality});
+      profiles.push(scene.metrics());
+    }
+    scene.updateOptions({...settings,reflections:'off',shadows:'off'});
+    const off=scene.metrics();
+    scene.dispose();
+    canvas.remove();
+    return {profiles,off};
+  });
+  if(!result) {t.skip('WebGL2 unavailable');return;}
+  assert.deepEqual(result.profiles.map(p=>p.surface),[128,256,512,1024]);
+  assert.deepEqual(result.profiles.map(p=>p.shadow),[0,512,1024,2048]);
+  assert.deepEqual(result.profiles.map(p=>p.reflection),[.22,.50,.78,1]);
+  for(const pair of result.profiles.slice(1).entries()) assert.ok(pair[1].width>result.profiles[pair[0]].width);
+  assert.equal(result.off.aa,false);
+  assert.equal(result.off.environment,false);
+  assert.equal(result.off.shadow,0);
 });
