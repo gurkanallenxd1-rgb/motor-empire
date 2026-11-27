@@ -1,6 +1,6 @@
-import { ISTANBUL, provinceName } from './provinces.mjs?v=0.15';
-import { additions } from './catalog-data.mjs?v=0.15';
-import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.15';
+import { ISTANBUL, provinceName } from './provinces.mjs?v=0.15.1';
+import { additions } from './catalog-data.mjs?v=0.15.1';
+import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.15.1';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
@@ -52,6 +52,7 @@ const legacyPaints = {
 };
 
 const yearPaints = {
+  'vespa-primavera125': [[2021,2023,'white red'],[2024,2024,'white red']],
   'ktm-duke390': [[2017,2020,'white orange'],[2021,2022,'grey white'],[2023,2023,'duke23orange duke23grey']],
   'ktm-duke250': [[2017,2019,'white orange'],[2020,2023,'grey black']],
   'yamaha-mt09': [[2021,2023,'grey blue black'],[2024,2025,'blue black']],

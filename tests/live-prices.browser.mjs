@@ -416,3 +416,62 @@ test('320×568 WebKit opens a branch, hires a manager and saves optional trading
   assert.equal(branch.tier,1);
   assert.equal(branch.automation.budget,70000);
 });
+
+test('320px WebKit configures staff stages and shows queue, deadline and completed automation',async t=>{
+  const bike = {...fixture,id:'auto-webkit',province:34,disclosure:undefined,
+    faults:['lastik'],damageHistory:[],condition:80};
+  let state = act({...initial(),cash:190000,listings:[bike]},'buy',bike.id);
+  for (const role of ['manager','inspector','master','sales']) state = act(state,'hire-worker',undefined,role);
+  const ui = await open(t,320,568,state);
+  const {page} = ui;
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#business .business-card > details:first-of-type summary');
+  const settings = page.locator('form[data-office-action=set-automation]');
+  await settings.locator('[name=reserve]').fill('25000');
+  for (const stage of ['inspect','repair','list','negotiate','sell']) await settings.locator(`[name=${stage}]`).check();
+  await settings.locator('button').tap();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).branches[0].automation?.inspect);
+  await ui.tap('.automation-report > summary');
+  await ui.jump(DAY_MS);
+  await page.waitForFunction(()=>document.querySelector('.automation-report')?.textContent.includes('Ekspertiz sırası'));
+  assert.equal(await page.locator('.automation-report').evaluate(item=>item.open),true);
+  assert.match(await page.locator('[data-next-office]').innerText(),/sa\./);
+  await ui.jump(16*HOUR_MS);
+  await page.waitForFunction(()=>document.querySelector('.automation-report')?.textContent.includes('İlan açma'));
+  assert.match(await page.locator('.automation-report').innerText(),/Yamaha R25/);
+  assert.equal((await ui.state()).branches[0].garage[0].stage,'listed');
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.tap('[data-action=pause-bike-automation]');
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).branches[0].garage[0].autoPaused);
+  assert.match(await page.locator('[data-action=pause-bike-automation]').innerText(),/Otomasyona bırak/);
+});
+
+test('390px WebKit renders both Primavera generations and changes only masked pixels',async t=>{
+  const vespa = {...fixture,id:'vespa-webkit',name:'Vespa Primavera 125',year:2024,
+    condition:94,disclosure:undefined,faults:[],damageHistory:[],color:'#c93838',colorName:'Kırmızı'};
+  const ui = await open(t,390,844,{...initial(),listings:[vespa]});
+  await ui.market();
+  await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
+  const colors = await ui.page.evaluate(async ()=>{
+    const {loadSprite} = await import('/sprite.mjs?v=0.15.1');
+    const name = 'Vespa Primavera 125';
+    const red = await loadSprite({name,year:2024,color:'#c93838'});
+    const white = await loadSprite({name,year:2024,color:'#eae6da'});
+    const original = await loadSprite({name,year:2021,color:'#c93838'});
+    const yusuf = await loadSprite({name:'KTM 1390 Super Duke R',year:2024,color:'#e86920',paintAccent:'#292b2e'});
+    const pixels = ({image})=>image.getContext('2d').getImageData(0,0,image.width,image.height).data;
+    const a = pixels(red), b = pixels(white), c = pixels(original);
+    let changes=0, preserved=0, changedAlpha=0, newGeneration=0;
+    for (let i=0;i<a.length;i+=4) {
+      if (a[i+3]!==b[i+3]) changedAlpha++;
+      if (a[i+3] && a[i]!==b[i]) changes++;
+      else if (a[i+3] && a[i+1]===b[i+1] && a[i+2]===b[i+2]) preserved++;
+      if (a[i+3]!==c[i+3]) newGeneration++;
+    }
+    return {changes,preserved,changedAlpha,newGeneration,yusufWidth:yusuf?.image.width,representative:red.representative};
+  });
+  assert.ok(colors.changes>1000 && colors.preserved>1000 && colors.newGeneration>1000);
+  assert.equal(colors.changedAlpha,0);
+  assert.equal(colors.yusufWidth,640);
+  assert.equal(colors.representative,true);
+});

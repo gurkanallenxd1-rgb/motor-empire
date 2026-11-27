@@ -1,28 +1,29 @@
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.15';
-import { financeReport } from './finance.mjs?v=0.15';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15';
-import { purchasePreview } from './valuation.mjs?v=0.15';
+  workshopRate } from './business.mjs?v=0.15.1';
+import { financeReport } from './finance.mjs?v=0.15.1';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.1';
+import { purchasePreview } from './valuation.mjs?v=0.15.1';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.15';
-import { createFinanceView } from './finance-view.mjs?v=0.15';
-import { dailyCashMovement } from './finance.mjs?v=0.15';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.15';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.1';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.1';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.1';
+import { createFinanceView } from './finance-view.mjs?v=0.15.1';
+import { dailyCashMovement } from './finance.mjs?v=0.15.1';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.1';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.15';
-import { createGarageRenderer } from './art.mjs?v=0.15';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15';
+} from './game.mjs?v=0.15.1';
+import { createGarageRenderer } from './art.mjs?v=0.15.1';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.1';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.1';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.15';
+  repairForecast } from './damage.mjs?v=0.15.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -117,6 +118,12 @@ function clockDisplay(now = Date.now()) {
   byId('clock-countdown').textContent = state.clock.paused ? 'Duraklatıldı' : `Yeni güne ${Math.ceil((DAY_MS-offset)/1000)} sn`;
   byId('clock-progress').value = offset;
   byId('toggle-clock').textContent = state.clock.paused ? 'Devam et' : 'Duraklat';
+  if (currentPage==='business') for (const node of byId('business').querySelectorAll('[data-next-office]')) {
+    const branch = state.branches[Number(node.dataset.nextOffice)-1];
+    const remaining = nextOfficeAction(branch,state);
+    const live = remaining===null ? null : Math.max(0,remaining-(offset-state.clock.offset));
+    node.textContent = `Sonraki otomatik kontrol · ${gameDuration(live)}`;
+  }
   const inspection = byId('listing-inspections').querySelector('[data-due]');
   if (inspection) inspection.textContent = countdownText(Number(inspection.dataset.due));
   if (currentPage === 'garage') for (const node of byId('garage').querySelectorAll('[data-timed-bike]')) {
@@ -413,6 +420,8 @@ function garageCard(slot) {
   card.append(element('h3', bike.name), element('p', `${stages[bike.stage]} · ${numeric.format(bike.km)} km · Kondisyon %${bike.condition}`, 'spec'),
     element('p', `Toplam maliyet · ${money(bike.spent)}`, 'spec'));
   appendCondition(card,bike);
+  if (activeBranch().automation) card.append(actionButton(bike.autoPaused ? 'Otomasyona bırak' : 'Manuel yönet',
+    'pause-bike-automation',bike.id));
   if (bike.stage === 'shipping') {
     const countdown = element('p',timedText(bike),'spec');
     countdown.dataset.timedBike = bike.id;
@@ -454,7 +463,7 @@ function garageCard(slot) {
           ? ` · 4 sa onay · ${money(service.payout)} ödeme · Net ${money(service.cost-service.payout)}` : ''}`,'spec'));
     }
     if (workshopRate(activeBranch(),'internalRepair')) {
-      const cost = Math.round(quote.cost*.75);
+      const cost = quote.cost;
       options.append(actionButton(`Şirket içi tamir · ${money(cost)}`,'internal-repair',bike.id,state.cash<cost));
     }
     card.append(issueDetails(bike),repairComparison(quote,'Tamir tahmini'),options,saleOptions(bike));
@@ -876,9 +885,9 @@ function automationForm(branch) {
   form.dataset.branch = branch.id;
   const settings = branch.automation ?? {maxPrice:0,minProfit:0,budget:0,brand:'',minCc:0,maxCc:3000,buy:false,sell:false};
   for (const [name,label] of [['maxPrice','En yüksek alış (TL)'],['minProfit','En düşük kâr (TL)'],
-    ['budget','Günlük bütçe (TL)'],['minCc','En az cc'],['maxCc','En çok cc']]) {
+    ['budget','Günlük bütçe (TL)'],['reserve','Nakit rezervi (TL)'],['minCc','En az cc'],['maxCc','En çok cc']]) {
     const input = element('input','');
-    Object.assign(input,{name,type:'number',min:'0',step:'1',required:true,value:String(settings[name])});
+    Object.assign(input,{name,type:'number',min:'0',step:'1',required:true,value:String(settings[name] ?? 0)});
     form.append(field(label,input));
   }
   const brand = element('select','');
@@ -886,9 +895,9 @@ function automationForm(branch) {
   brand.append(new Option('Tüm markalar',''),...[...new Set(catalog.map(model=>model.brand))].sort().map(name=>new Option(name,name)));
   brand.value = settings.brand;
   form.append(field('Marka tercihi',brand));
-  for (const [name,label] of [['buy','Otomatik alım'],['sell','Otomatik satış']]) {
+  for (const [name,label] of Object.entries(AUTO_STEPS)) {
     const input = element('input','');
-    Object.assign(input,{name,type:'checkbox',checked:settings[name],disabled:!hasManager(branch)});
+    Object.assign(input,{name,type:'checkbox',checked:stepEnabled(settings,name),disabled:!hasManager(branch)});
     form.append(field(label,input));
   }
   if (!hasManager(branch)) form.append(element('p','Görevde müdür gerekli.','spec'));
@@ -897,7 +906,46 @@ function automationForm(branch) {
   return details;
 }
 
+function automationReport(branch) {
+  const box = element('details','','risk-panel automation-report');
+  box.dataset.reportBranch = branch.id;
+  const report = branch.autoReport;
+  const soon = nextOfficeAction(branch,state);
+  const next = element('p',`Sonraki otomatik kontrol · ${gameDuration(soon)}`,'spec');
+  next.dataset.nextOffice = branch.id;
+  const staff = workers(branch);
+  const wage = staff.reduce((total,worker)=>total+STAFF_ROLES[worker.role].wage,branch.staff*DAILY_WAGE);
+  const pending = branch.garage.filter(bike=>!bike.autoPaused && (
+    ['internalInspection','internalRepair'].includes(bike.stage)
+    || ['unchecked','shipping'].includes(bike.stage) && stepEnabled(branch.automation,'inspect')
+    || bike.stage==='inspected' && stepEnabled(branch.automation,'repair')
+    || bike.stage==='ready' && stepEnabled(branch.automation,'list')
+    || bike.stage==='listed' && (stepEnabled(branch.automation,'sell') || stepEnabled(branch.automation,'negotiate'))));
+  const status = element('p',shopStatus(branch,state),'spec');
+  status.dataset.automationStatus = '';
+  box.append(element('summary','Otomasyon raporu'),status,next,
+    element('p',`Bekleyen iş ${pending.length} · Günlük personel gideri ${money(wage)}`,'spec'));
+  for (const kind of ['internalInspection','internalRepair']) {
+    const jobs = pending.filter(bike=>bike.stage===kind);
+    if (!jobs.length) continue;
+    const rate = workshopRate(branch,kind);
+    const duration = rate ? gameDuration(Math.ceil(jobs.reduce((total,bike)=>total+bike.internalJob.remaining,0)/rate)) : 'Personel bekleniyor';
+    box.append(element('p',`${kind==='internalInspection' ? 'Ekspertiz' : 'Tamir'} sırası · ${jobs.length} iş · ${duration}`,'spec'));
+  }
+  for (const person of staff) box.append(element('p',`${person.name} · ${STAFF_ROLES[person.role].name} · ${workerAssignment(branch,person)}`,'spec'));
+  const line = entry=>`Gün ${entry.day} · ${AUTO_STEPS[entry.step]} · ${entry.name} · ${entry.worker}`;
+  const latest = report?.history[0];
+  box.append(element('p',latest ? 'Son işlem · '+line(latest) : 'Henüz otomatik işlem kaydı yok','spec'));
+  for (const entry of report?.history.filter(item=>['buy','sell'].includes(item.step)) ?? []) box.append(element('p',line(entry),'spec'));
+  for (const [reason,count] of Object.entries(report?.rejectionCounts ?? {})) {
+    const examples = report.rejections.filter(row=>row.reason===reason).map(row=>row.name).join(', ');
+    box.append(element('p',`${count} ret · ${reason} · ${examples}`,'spec'));
+  }
+  return box;
+}
+
 function renderBusiness() {
+  const open = new Set([...document.querySelectorAll('.automation-report[open]')].map(item=>item.dataset.reportBranch));
   const cards = state.branches.map(branch=>{
     const card = element('article','','card business-card');
     const plan = nextBranchTier(branch);
@@ -912,6 +960,9 @@ function renderBusiness() {
       element('p',`Satış ${summary.totals.salesCount} · Toplam gelir ${money(summary.totals.revenue)} · Net kâr ${signed(summary.totals.profit)}`,'spec'),
       plan ? actionButton(`${plan.name} seviyesine yükselt · ${money(plan.increase)}`,'upgrade-office',branch.id,state.cash<plan.increase)
         : element('p','En yüksek şube seviyesi','spec'),automationForm(branch));
+    const automation = automationReport(branch);
+    automation.open = open.has(String(branch.id));
+    card.append(automation);
     return card;
   });
   byId('business').replaceChildren(...cards);
@@ -927,7 +978,7 @@ function renderPersonnel() {
     card.append(element('h3',worker.name),element('p',`${role.name} · ${money(role.wage)}/gün`,'spec'),
       element('p',`Deneyim ${worker.experience} · Beceri ${worker.skill} · Motivasyon ${worker.motivation}`,'spec'),
       element('p',`Hız ${worker.speed} · Kalite ${worker.quality}`,'spec'),
-      element('p',worker.travel ? 'Transferde' : worker.training ? 'Eğitimde' : 'Görevde','spec'),
+      element('p',workerAssignment(branch,worker),'spec'),
       actionButton(`Eğitim · ${money(TRAINING_COST)}`,'train-worker',worker.id,disabled || state.cash<TRAINING_COST),
       actionButton('İşten çıkar','fire-worker',worker.id,disabled));
     if (!disabled && state.branches.length>1) card.append(destinationForm('transfer-worker',worker.id,branch.id));
@@ -957,7 +1008,8 @@ document.addEventListener('submit',event=>{
   const amount = action==='open-office' ? {province:value('province'),tier:value('tier')}
     : action==='hire-worker' ? data.get('role')
     : action==='set-automation' ? {maxPrice:value('maxPrice'),minProfit:value('minProfit'),budget:value('budget'),
-      minCc:value('minCc'),maxCc:value('maxCc'),brand:data.get('brand'),buy:data.has('buy'),sell:data.has('sell')}
+      reserve:value('reserve'),minCc:value('minCc'),maxCc:value('maxCc'),brand:data.get('brand'),
+      ...Object.fromEntries(Object.keys(AUTO_STEPS).map(step=>[step,data.has(step)]))}
     : value('destination');
   runAction(action,form.dataset.item,amount,branch);
 });

@@ -28,8 +28,27 @@ const rows = [
   ['yamaha-mt25',2025,2025,'2025 kasa · Güncellenen ön yüz',3,5,r25],
 ];
 
+const standalone = {
+  'vespa-primavera125': [
+    {firstYear:2024,lastYear:2024,label:'2024 makyajı · LED aydınlatma',
+      source:'https://www.vespa.com/es_ES/models/primavera/primavera-red-125-4s3v-2024/'},
+    {firstYear:2021,lastYear:2023,label:'Primavera 125 i-get · Yuvarlak far',
+      source:'https://wlassets.vespa.com/wlassets/vespa/de/tech_spec/2021-07_TD_Vespa_Primavera-125-RED.pdf/original/2021-07_TD_Vespa_Primavera-125-RED.pdf.pdf'},
+  ],
+  'ktm-super-duke1390': [
+    {firstYear:2024,lastYear:2024,label:'1390 Super Duke R · LED far ve depo kanatları',
+      source:'https://press.ktm.com/news-introducing-the-ktm-1390-super-duke-r-the-beast-reborn?id=189969&l=uk&menueid=5904'},
+  ],
+};
+
 export function generationFor(modelId,year) {
   if (!Number.isInteger(year)) return null;
+  if (Object.prototype.hasOwnProperty.call(standalone,modelId)) {
+    const generation = standalone[modelId].find(item=>year>=item.firstYear && year<=item.lastYear);
+    if (!generation) return null;
+    const path = `generations/${modelId}-${generation.firstYear}`;
+    return {...generation,base:`${path}.webp`,mask:`${path}-mask.webp`,minWidth:640};
+  }
   const row = rows.find(([id,first,last])=>id === modelId && year >= first && year <= last);
   if (!row) return null;
   const [,firstYear,lastYear,label,atlas,cell,source] = row;

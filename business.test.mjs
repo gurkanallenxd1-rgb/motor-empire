@@ -101,7 +101,7 @@ test('manager closes an eligible deal but keeps risky stock and respects cash an
   let state = synchronize(seed(),start).state;
   const config = {buy:true,sell:true,maxPrice:250000,minProfit:5000,budget:1,brand:'',minCc:0,maxCc:3000};
   assert.throws(()=>act(state,'set-automation',undefined,config),/müdür/);
-  state = hire(state,'manager');
+  state = hire(hire(state,'manager'),'sales');
   state = act(state,'set-automation',undefined,config);
   for (const id of ['b','c']) {
     state = act(state,'buy',id);

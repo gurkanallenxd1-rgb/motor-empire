@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.15
+# MOTOR EMPIRE v0.15.1
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -190,3 +190,11 @@ Yusuf Belge tamamen kurgusal bir oyun karakteridir. İstanbul pazarında 120 oyu
 - Şirket içi ekspertiz için görevde bir ekspertiz uzmanı, tamir için bir usta gerekir. Teknisyen ve çırak tamir hızına katkıda bulunur. Her iş türü kendi sırasıyla ilerler. Şirket içi tamirde mevcut parça bedelleri tahsil edilir.
 - Müdür otomasyonu şube bazında ve varsayılan olarak kapalıdır. Gün değiştiğinde çalışır. Alım bütçesi nakliye ve tahmini hazırlık maliyetlerini kapsar. Müdür etkin görüşmeleri, riskli satışları ve Yusuf Belge ilanını atlar. Otomatik alım için kredi kullanılmaz.
 - Eski şubelerin kapasitesi ve mevcut kadronun ücretleri korunur. Yeni ücretler yalnızca işe alınan personele uygulanır.
+
+## v0.15.1 Katalog ve otomasyon
+
+- Atlas hücreleri katalog sırasından bağımsız, sabit model kimliklerine bağlıdır. Yusuf'un KTM modelinin araya eklenmesiyle 30 modele yayılan hücre kayması düzeltildi.
+- Vespa Primavera 125'in 2021–2023 ve 2024 çizimleri ile KTM 1390 Super Duke R'ın 2024 çizimi oyun için ImageGen ile üretildi. Şeffaf WebP varlıkları gövde renk maskeleriyle birlikte dağıtılır. Üretici teknik belgeleri tasarım referansıdır. Paket, üretici fotoğrafı içermez. Modeller ve nesiller [geliştirici denetiminde](visual-audit.html?dev=1) incelenebilir. Çizimler temsili kalır.
+- Müdür, günlük pazarı tahmini kâr, yatırım getirisi, model talebi, kondisyon, nakliye ve tamir maliyetine göre sıralar. Bütçe tahmini toplam edinim maliyetini kapsar. Nakit rezervi hem alımda hem otomatik tamirde korunur. Otomasyon borçlanmaz.
+- Alım, ekspertiz, tamir, ilan, müşteri görüşmesi ve satış ayrı ayrı açılabilir. Her aşama gereken personeli bekler. Yapılandırılmış otomasyon, duraklatılmamış oyun zamanında ve çevrimdışı ilerlemede çalışır. Bir motosiklet manuel yönetime alınabilir. Başlatılmış iş ve ödenmiş parça masrafı korunur.
+- Şube raporu zamanlamayı, iş sırasını, işlemleri ve tüm pazar için ret sayılarını gerekçe bazında gösterir. Ret listelerinde her gerekçe için en fazla üç örnek, işlem geçmişinde son 40 kayıt saklanır.
