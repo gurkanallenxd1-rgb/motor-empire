@@ -1,4 +1,4 @@
-import { modelOf } from './bikes.mjs?v=0.11';
+import { modelOf } from './bikes.mjs?v=0.12';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -55,10 +55,13 @@ export function createBuyer(bike,day,index,reputation,value,legacy) {
   const fit = profile.category === category ? .07 : -.035;
   const condition = (bike.condition - 90) * .0018;
   const mileage = Math.min(.11,bike.km / 650000);
-  const budget = roundPrice(value * (profile.premium + fit + condition - mileage + (reputation - 50) * .0018));
+  const request = bike.disclosureMode && seed%3!==0 ? (seed%2 ? 'history' : 'inspection') : null;
+  const trust = bike.disclosureMode==='disclose' && bike.damageHistory?.length ? .018 : request && bike.disclosureMode==='conceal' ? -.025 : 0;
+  const budget = roundPrice(value * (profile.premium + fit + condition - mileage + trust + (reputation - 50) * .0018));
   const price = legacy?.price ?? Math.min(bike.ask,roundPrice(budget * (.76 + (seed % 14) / 100)));
   return { id, kind:'sale', profile, day, price, anchor:bike.ask, limit:Math.max(price,budget), round:0, patience:profile.patience,
-    status:'open', speech:buyerSpeech(bike,profile,category,seed) };
+    status:'open', ...(request ? {request} : {}), speech:request==='history' ? 'Hasar geçmişini görebilir miyim?'
+      : request==='inspection' ? 'Ekspertiz ve servis bilgilerini paylaşır mısınız?' : buyerSpeech(bike,profile,category,seed) };
 }
 
 export function createSeller(bike,day) {
@@ -115,7 +118,7 @@ export function finishTrade(state,meeting,bike,outcome) {
   meeting.status = outcome;
   const sold = outcome === 'sold';
   const satisfaction = sold ? clamp(Math.round(90 - meeting.round * 4
-    - Math.max(0,meeting.price / meeting.anchor - 1) * 44 + (meeting.patience - 1) * 2),30,100) : null;
+    - Math.max(0,meeting.price / meeting.anchor - 1) * 44 + (meeting.patience - 1) * 2 + (bike.disclosureMode==='disclose' && bike.damageHistory?.length ? 5 : 0)),30,100) : null;
   if (sold) state.trade.reputation = clamp(state.trade.reputation + (satisfaction >= 80 ? 3 : 1),0,100);
   if (outcome === 'left' && meeting.kind === 'sale') state.trade.reputation = clamp(state.trade.reputation - 1,0,100);
   state.trade.history.unshift({

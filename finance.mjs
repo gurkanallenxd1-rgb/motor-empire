@@ -2,6 +2,8 @@ export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
   inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', overhead:'Şube gideri',
   investment:'Şube ve garaj yatırımı', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
+  insurance_premium:'Sigorta primi', insurance_payout:'Kasko ödemesi', traffic_payout:'Trafik sigortası ödemesi',
+  accident:'Kaza masrafı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',
   interest:'Faiz gideri', income:'Diğer gelir', expense:'Diğer gider',
 });
 
@@ -37,7 +39,7 @@ const cashSign = entry => entry.kind === 'income' || entry.kind === 'loan' ? 1 :
 export function dailyCashMovement(ledger,day) {
   return ledger.reduce((total,entry)=>total+(entry.day === day ? cashSign(entry)*cents(entry.amount) : 0),0)/100;
 }
-const stockExpenses = new Set(['purchase','repair','shipping','inspection']);
+const stockExpenses = new Set(['purchase','repair','shipping','inspection','service','refund']);
 const saleKey = (day,model,price) => JSON.stringify([day,model,cents(price)]);
 
 export function financeTransactions(state) {
@@ -90,9 +92,12 @@ export function financeReport(state,worth,period) {
       day.rentalDays += 1;
       day.rentalRevenue += cents(row.amount);
     }
-    if (row.kind === 'income' && row.category !== 'sale') day.revenue += cents(row.amount);
+    if (row.kind === 'income' && !['sale','insurance_payout'].includes(row.category)) day.revenue += cents(row.amount);
     if (row.kind === 'expense' && row.category !== 'investment' && !stockExpenses.has(row.category)) {
       day.operatingCost += cents(row.amount);
+    }
+    if (row.category==='inspection' && row.allocation==='operating') {
+      onDay(row.recognizedDay ?? row.day).operatingCost += cents(row.amount);
     }
     if (row.category === 'interest') day.interest += cents(row.amount);
     if (row.category === 'principal') day.principalPaid += cents(row.amount);
@@ -105,6 +110,14 @@ export function financeReport(state,worth,period) {
     day.salesCost += cents(sale.spent);
     day.revenue += cents(sale.price);
     day.operatingCost += cents(sale.spent);
+    if (sale.returnedDay !== undefined) {
+      const restitution = onDay(sale.returnedDay);
+      restitution.salesCount--;
+      restitution.salesRevenue -= cents(sale.price);
+      restitution.salesCost -= cents(sale.spent);
+      restitution.revenue -= cents(sale.price);
+      restitution.operatingCost -= cents(sale.spent);
+    }
   }
 
   const totals = blank(0);
@@ -154,12 +167,12 @@ export function pendingCosts(state,repairForecast,inspectionFee) {
   for (const branch of state.branches) for (const bike of branch.garage) {
     const quote = repairForecast(bike);
     if (bike.stage === 'shipping') shipping += bike.shipping.fee;
-    if (bike.stage === 'repairing') repairPaid += bike.repairCost ?? quote.cost;
+    if (['repairing','claiming'].includes(bike.stage)) repairPaid += bike.repairCost ?? quote.cost;
     if (bike.stage === 'inspected') repairUnpaid += quote.cost;
     if (bike.stage !== 'rented') {
       const remaining = ['shipping','unchecked','inspected'].includes(bike.stage) ? quote.cost : 0;
       const inspection = ['shipping','unchecked'].includes(bike.stage) ? inspectionFee : 0;
-      estimatedStockProfit += quote.afterValue-bike.spent-remaining-inspection;
+      estimatedStockProfit += quote.afterValue-bike.spent-remaining-inspection+(bike.claim?.payout ?? 0);
     }
   }
   return {shipping:round(shipping),repairPaid:round(repairPaid),repairUnpaid:round(repairUnpaid),

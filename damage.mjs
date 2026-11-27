@@ -86,7 +86,9 @@ export function permanentDiscount(bike) {
   const groups = new Map();
   for (const code of historicalIssues(bike)) {
     const {loss,group=code} = PARTS[code];
-    groups.set(group,Math.max(groups.get(group) ?? 0,loss));
+    const records = bike.damageRecords?.filter(record=>record.codes.includes(code));
+    const factor = records?.length ? Math.max(...records.map(record=>record.lossFactor ?? 1)) : 1;
+    groups.set(group,Math.max(groups.get(group) ?? 0,loss*factor));
   }
   return 1 - [...groups.values()].reduce((factor,loss)=>factor * (1 - loss),1);
 }

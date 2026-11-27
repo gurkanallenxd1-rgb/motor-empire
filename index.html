@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.11">
-  <script type="module" src="./app.mjs?v=0.11"></script>
+  <link rel="stylesheet" href="./style.css?v=0.12">
+  <script type="module" src="./app.mjs?v=0.12"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.11</span>
+      <span class="version">SÜRÜM 0.12</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
     </div>
   </header>
@@ -64,6 +64,7 @@
           <span id="bay-range" aria-live="polite"></span>
           <button id="bays-next" type="button" aria-label="Sonraki bölmeler">›</button>
         </div>
+        <div id="garage-returns" class="quick-actions"></div>
         <div id="garage" class="garage"></div>
       </section>
       <section class="market page" id="market-page" aria-labelledby="market-title" hidden>
@@ -91,6 +92,10 @@
         <nav id="market-pagination" class="market-pagination" aria-label="İlan sayfaları" hidden>
           <button type="button" id="market-prev">Önceki</button><span id="market-page-number" aria-live="polite"></span><button type="button" id="market-next">Sonraki</button>
         </nav>
+        <details id="inspection-archive" class="risk-panel" hidden><summary>Arşivlenen ekspertizler</summary>
+          <div id="inspection-history"></div>
+          <button id="more-inspections" type="button" data-action="more-inspections" hidden>Daha fazla rapor</button>
+        </details>
         <p class="muted market-foot">İlanlar her oyun günü yenilenir.</p>
         <p id="dev-audit-link" class="market-foot" hidden><a class="jump" href="./visual-audit.html?dev=1">Geliştirici · Görsel denetimi</a></p>
       </section>
@@ -191,6 +196,8 @@
     <div id="listing-prices" class="listing-prices"></div>
     <section id="listing-damage" aria-label="Arıza ve hasar kaydı"></section>
     <p id="listing-error" class="notice" data-error="true" role="status" hidden></p>
+    <p id="listing-trust" class="spec"></p>
+    <div id="listing-inspections"></div>
     <div id="listing-detail-actions" class="listing-detail-actions"></div>
   </dialog>
   <dialog id="meeting" aria-labelledby="meeting-title">
@@ -219,6 +226,7 @@
           </div>
         </div>
         <div class="meeting-quote"><span id="meeting-price-label" class="spec"></span><strong id="meeting-price" aria-live="polite"></strong></div>
+        <div id="meeting-evidence" hidden></div>
         <div id="meeting-metrics" class="meeting-metrics"></div>
         <div id="meeting-bars" class="meeting-bars" role="img"></div>
       </section>

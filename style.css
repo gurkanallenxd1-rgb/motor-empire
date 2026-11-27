@@ -430,3 +430,11 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 #offline-summary { width:min(480px,calc(100% - 20px)); max-height:calc(100% - 24px); overflow:auto; padding:13px; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; }
 #offline-summary::backdrop { background:#101311d9; }
 #offline-totals { grid-template-columns:repeat(2,minmax(0,1fr)); margin-block:9px; }
+
+.risk-panel { margin-block:7px; padding:7px; border:1px solid var(--line); border-radius:7px; min-width:0; overflow-wrap:anywhere; }
+.risk-panel summary { cursor:pointer; font-size:13px; font-weight:800; padding-block:4px; }
+.risk-panel p { margin-block:3px 6px; }
+.risk-panel h3 { margin-top:6px; }
+.risk-panel button { margin-top:4px; max-width:100%; }
+#meeting-evidence .risk-panel { margin-block:3px; }
+#garage-returns:not(:empty) { margin-top:7px; }
