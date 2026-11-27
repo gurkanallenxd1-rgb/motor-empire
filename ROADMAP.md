@@ -12,6 +12,8 @@
 | v0.15.3–v0.15.4 | Tek sahneli garaj, kamera, farklı kapasitelere göre mimari |
 | v0.16 | Deterministik piyasa, mevsim ve konjonktür, fiyat geçmişi ve ekonomi haberleri |
 | v0.16.1 | Tam sayfa piyasa merkezi ve depo içi proje hafızası, PR #32 |
+| v0.17 | İsteğe bağlı 10 bölmeli Three.js prototipi, PR #33 |
+| v0.17.0.1 | Kamera kesiti ve mobil giriş düzeltmesi, ayrıntılı garaj ekipmanı ve profil bilgisi |
 
 Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bulunur.
 
@@ -19,7 +21,7 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 
 | Sürüm | Hedef |
 | --- | --- |
-| v0.17 | İsteğe bağlı 10 bölmeli Three.js prototipi. Üç hedef model için doğrulanmış varlık ve fiziksel cihaz ölçümü bekleniyor. |
+
 | v0.18 | Hareketli personeller ve müşteriler |
 | v0.19 | Rakip galeriler |
 | v0.20 | Kullanıcı hesapları ve bulut kayıt |
@@ -28,4 +30,4 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 | v0.23 | Android ve iOS uygulaması |
 | v1.0 | Resmî yayın |
 
-PR #33 denetiminde KTX2 ve dört grafik profili doğrulandı. Sırada üç lisanslı model, gerçek 3D inceleme, profesyonel garaj varlıkları ve gerçek iPhone ölçümü var. Kataloğu veya ek garaj seviyelerini dönüştürmeden önce kullanıcı onayı gerekir. [Gereksinim denetimi](docs/v017-audit.md)
+PR #33 denetiminde KTX2 ve dört grafik profili doğrulandı. Sırada düzeltmenin fiziksel iPhone testi, üç lisanslı model ve gerçek 3D inceleme var. Kataloğu veya ek garaj seviyelerini dönüştürmeden önce kullanıcı onayı gerekir. [Gereksinim denetimi](docs/v017-audit.md)
