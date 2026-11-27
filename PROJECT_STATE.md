@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.16.1**. Temel sürüm v0.16, [PR #31](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/31) ile birleştirildi. v0.16.1, İlanlar üzerinden erişilen Özet, Fırsatlar, Şehirler ve Ekonomi sekmelerini içerir.
+Bu dalın sürümü **v0.17 deneysel 3D prototip**. Temel sürüm [v0.16.1, PR #32](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/32). Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -29,5 +29,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - Statik, hesapsız kullanım ve GitHub Pages yayını korunur. Kayıtlar tarayıcıya özeldir. Hesaplar ve bulut kayıt v0.20 için planlanıyor.
 - Model çizimleri yerel WebP ve boya maskeleri kullanır. Bütün model ve kasa varyantları üretici düzeyinde doğrulanmış değildir. Görsel denetim sayfası temsilî varlıkları işaretler. Fiziksel iPhone kare hızı ölçümü bu sürümde yapılmadı.
 - Fiyat grafiği Türkiye genelinde tüm model yıllarını kapsar. Şehir karşılaştırması seçilen yılın temiz motosiklet referansıdır ve işlem garantisi içermez.
-- Mevcut doğrulama **122 Node.js + 29 mobil Playwright WebKit = 151 başarılı test**. v0.16'nın 149 testi korunur. 320×568, 390×844 ve 844×390 boyutları kullanıldı. Fiziksel iPhone testi yapılmadı.
-- Sıradaki görev **v0.17 yeni grafik altyapısı ve gerçekçi motosikletler**. Önce görsel envanter, üretici referansı, lisans ve mobil render bütçesini doğrula. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.
+- Mevcut doğrulama **127 Node.js + 33 mobil Playwright WebKit testi**. v0.16.1’in 151 testi korunur. Chromium yazılımsal WebGL de dört yeni grafik senaryosu için kullanılır. Fiziksel iPhone testi yapılmadı.
+- Sıradaki görev üç prototip model için uygun varlık ve lisans doğrulaması, KTX2 örneği ve fiziksel iPhone performans ölçümü. Daha geniş 3D dönüşüm kullanıcı onayı gerektirir. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.

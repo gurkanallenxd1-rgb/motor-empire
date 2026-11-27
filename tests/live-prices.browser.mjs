@@ -10,12 +10,13 @@ import { roadValue } from '../damage.mjs';
 import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
 import { catalog,paintOptions } from '../bikes.mjs';
+import { worldBays } from '../graphics/config.mjs';
 import { fitGarage,garageLayout,garageParking } from '../garage-layout.mjs';
 
 const require = createRequire(import.meta.url);
-const {webkit,devices} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
+const {webkit,chromium,devices} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const T = 1800000000000;
-const contentTypes = {html:'text/html',mjs:'text/javascript',css:'text/css',webp:'image/webp'};
+const contentTypes = {html:'text/html',mjs:'text/javascript',css:'text/css',webp:'image/webp',js:'text/javascript',glb:'model/gltf-binary',wasm:'application/wasm'};
 const fixture = {id:'holiday-prices',name:'Yamaha R25',year:2021,km:22000,price:48000,value:100000,
   province:41,condition:47,faults:['saseDegisim','lastik'],damageHistory:['saseDegisim'],color:'#3560ab',colorName:'Mavi',
   disclosure:{trust:.11,condition:85,hidden:['saseDegisim','lastik']}};
@@ -31,7 +32,7 @@ const inspected = ()=>{
 };
 
 let browser;
-before(async()=>{browser=await webkit.launch();});
+before(async()=>{browser=process.env.GRAPHICS_CHROMIUM ? await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']}) : await webkit.launch();});
 after(async()=>{await browser?.close();});
 
 async function open(t,width,height,seed) {
@@ -68,7 +69,7 @@ async function open(t,width,height,seed) {
   const negotiation = ()=>tap('#listing-detail-actions [data-action=meet-seller]');
   const editOffer = ()=>tap('#purchase-offer-editor > summary');
   await page.goto('https://motor.test/');
-  await ready();
+  await ready().catch(error=>{throw new Error(errors.join(' | ') || error.message);});
   return {page,tap,ready,state,jump,text,market,row,negotiation,editOffer};
 }
 
@@ -818,4 +819,147 @@ test('landscape WebKit shows an empty opportunity list and allows keyboard tab n
   assert.match(await ui.page.locator('#analysis-opportunities').innerText(),/beklenen net kârı pozitif olan ilan yok/);
   await ui.page.locator('#analysis-tab-opportunities').press('End');
   assert.equal(await ui.page.locator('#analysis-economy').isVisible(),true);
+});
+
+test('graphics 3D settings are opt-in and a non-prototype garage retains 2D and its save',async t=>{
+  const seed = garageFixture(1,1);
+  const ui = await open(t,320,568,seed);
+  await ui.tap('[data-page=garage]');
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.equal(await ui.page.locator('#garage-3d-host canvas').count(),0);
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.match(await ui.page.locator('#graphics-message').innerText(),/10/);
+  assert.deepEqual((await ui.state()).branches,JSON.parse(JSON.stringify(seed.branches)));
+  await ui.page.reload();
+  await ui.ready();
+  await ui.tap('[data-page=garage]');
+  assert.equal(await ui.page.locator('#graphics-form [name=mode]').inputValue(),'3d');
+});
+
+test('graphics WebGL failure falls back to the original 2D garage',async t=>{
+  const ui = await open(t,390,844,garageFixture(2,1));
+  await ui.page.evaluate(()=>{
+    const get = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(kind,...options){
+      return kind==='webgl2' ? null : get.call(this,kind,...options);
+    };
+  });
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  await ui.page.waitForFunction(()=>/WebGL/.test(document.querySelector('#graphics-message').textContent));
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.equal((await ui.state()).branches[0].garage.length,1);
+});
+
+test('graphics garage loads GLB, applies quality, moves camera and switches back to 2D',async t=>{
+  const seed = garageFixture(2,0);
+  const models = [['yamaha-mt25',2024,'#292b2e'],['kawasaki-z900',2025,'#639d34'],['ktm-super-duke1390',2024,'#e86920','#292b2e']];
+  seed.branches[0].garage = models.map(([id,year,color,paintAccent],slot)=>({
+    id:'graphics-'+id,name:catalog.find(model=>model.key===id || model.id===id).name,slot:[0,4,8][slot],
+    stage:slot===0?'inspected':'ready',year,color,paintAccent,condition:100,km:1390,value:160000,price:120000,spent:120000,
+    faults:slot===0?['lastik']:[],
+  }));
+  const ui = await open(t,390,844,seed);
+  const {page} = ui;
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await page.selectOption('#graphics-form [name=fps]','30');
+  await page.selectOption('#graphics-form [name=quality]','medium');
+  await page.locator('#graphics-form [name=meter]').check();
+  const webgl = await page.evaluate(()=>!!document.createElement('canvas').getContext('webgl2'));
+  await page.selectOption('#graphics-form [name=mode]','3d');
+  if (!webgl) {
+    await page.waitForFunction(()=>/WebGL/.test(document.querySelector('#graphics-message').textContent));
+    assert.ok(await page.locator('#garage-art').isVisible());
+    t.diagnostic('Browser has no WebGL2. Verified fallback.');
+    return;
+  }
+  const canvas = page.locator('#garage-3d-host canvas');
+  await page.waitForFunction(()=>document.querySelector('#garage-3d-host canvas')?.dataset.glb==='ready');
+  await canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
+  assert.equal(await canvas.getAttribute('data-quality'),'medium');
+  assert.equal(await canvas.getAttribute('data-visible-bikes'),'3');
+  assert.ok(await page.locator('#graphics-meter').isVisible());
+  const name = process.env.GRAPHICS_SCREENSHOTS;
+  if(name) await canvas.screenshot({path:name+'/garage-angle-1.png'});
+  const before = await canvas.screenshot();
+  const bounds = await canvas.boundingBox();
+  await page.mouse.move(bounds.x+bounds.width*.55,bounds.y+bounds.height*.55);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x+bounds.width*.79,bounds.y+bounds.height*.62,{steps:12});
+  await page.mouse.up();
+  await page.waitForTimeout(350);
+  assert.notDeepEqual(await canvas.screenshot(),before);
+  if(name) await canvas.screenshot({path:name+'/garage-angle-2.png'});
+  t.diagnostic('Three render sample '+await canvas.getAttribute('data-measure'));
+  for (const {bike,bay} of garageParking(garageLayout(10),seed.branches[0].garage)) {
+    await ui.tap('#graphics-reset-camera');
+    await canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
+    await page.waitForTimeout(520);
+    const [x,z]=worldBays[bay.index];
+    const point=await canvas.evaluate(async (node,{x,z,y})=>{
+      const Three=await import('/graphics/vendor/three.module.min.js');
+      const {width,height}=node.getBoundingClientRect();
+      const camera=new Three.PerspectiveCamera(39,width/height,.07,110);
+      camera.position.set(15,17.2,21);
+      camera.lookAt(0,.2,0);
+      camera.updateMatrixWorld();
+      const p=new Three.Vector3(x,y,z).project(camera);
+      return {x:(p.x+1)*width/2,y:(1-p.y)*height/2};
+    },{x,z,y:(bay.index<3?.466:.109)+.58});
+    await canvas.tap({position:point});
+    const detail=page.locator('#bike-detail');
+    await detail.waitFor({state:'visible',timeout:4000});
+    assert.equal(await page.locator('#detail-name').innerText(),bike.name);
+    assert.match(await page.locator('#graphics-detail-status').innerText(),/Özgün 2D/);
+    if(name) {
+      await page.locator('#detail-image').waitFor();
+      await detail.screenshot({path:name+'/'+bike.id+'.png'});
+    }
+    await ui.tap('#bike-detail form button');
+  }
+  const canLose=await canvas.evaluate(node=>{
+    const extension=node.getContext('webgl2').getExtension('WEBGL_lose_context');
+    if (!extension) return false;
+    window.restoreTestContext=()=>extension.restoreContext();
+    extension.loseContext();
+    return true;
+  });
+  if (canLose) {
+    await page.locator('#garage-3d[data-renderer=lost]').waitFor({state:'attached'});
+    assert.ok(await page.locator('#garage-art').isVisible());
+    await page.evaluate(()=>window.restoreTestContext());
+    await canvas.waitFor({state:'visible'});
+  }
+  await page.selectOption('#graphics-form [name=mode]','2d');
+  assert.ok(await page.locator('#garage-art').isVisible());
+  assert.equal(await canvas.count(),0);
+  assert.equal((await ui.state()).branches[0].garage.length,3);
+});
+
+test('graphics inventory refreshes after manager sale and excludes transport',async t=>{
+  const seed=notificationSeed({auto:true});
+  seed.branches[0].tier=2;
+  const listing={...fixture,id:'graphics-shipping',province:65};
+  seed.cash=150000;
+  seed.listings=[listing];
+  const withTransport=act(seed,'buy',listing.id);
+  assert.equal(withTransport.branches[0].garage.length,2);
+  const ui=await open(t,390,844,withTransport);
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  await ui.page.waitForFunction(()=>['ready','unavailable'].includes(document.querySelector('#garage-3d').dataset.renderer));
+  const canvas=ui.page.locator('#garage-webgl');
+  if(await canvas.count()) assert.equal(await canvas.getAttribute('data-visible-bikes'),'1');
+  await ui.jump(DAY_MS);
+  await ui.page.locator('.sale-toast').waitFor({state:'visible'});
+  assert.equal((await ui.state()).sales.length,1);
+  if(await canvas.count()) {
+    await ui.page.waitForFunction(()=>document.querySelector('#garage-webgl')?.dataset.visibleBikes==='0');
+  }
 });

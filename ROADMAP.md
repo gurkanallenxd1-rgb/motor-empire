@@ -11,7 +11,7 @@
 | v0.14–v0.15.2 | Yusuf Belge, şube ve personel, otomasyon, katalog düzeltmeleri ve bildirim merkezi |
 | v0.15.3–v0.15.4 | Tek sahneli garaj, kamera, farklı kapasitelere göre mimari |
 | v0.16 | Deterministik piyasa, mevsim ve konjonktür, fiyat geçmişi ve ekonomi haberleri |
-| v0.16.1 | Tam sayfa piyasa merkezi ve depo içi proje hafızası, bu dalda tamamlandı |
+| v0.16.1 | Tam sayfa piyasa merkezi ve depo içi proje hafızası, PR #32 |
 
 Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bulunur.
 
@@ -19,7 +19,7 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 
 | Sürüm | Hedef |
 | --- | --- |
-| v0.17 | Yeni grafik altyapısı ve gerçekçi motosikletler |
+| v0.17 | İsteğe bağlı 10 bölmeli Three.js prototipi. Üç hedef model için doğrulanmış varlık ve fiziksel cihaz ölçümü bekleniyor. |
 | v0.18 | Hareketli personeller ve müşteriler |
 | v0.19 | Rakip galeriler |
 | v0.20 | Kullanıcı hesapları ve bulut kayıt |
