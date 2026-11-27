@@ -1,5 +1,5 @@
-import { catalog, modelOf, specsFor } from './bikes.mjs?v=0.16';
-import { ISTANBUL, PROVINCES } from './provinces.mjs?v=0.16';
+import { catalog, modelOf, specsFor } from './bikes.mjs?v=0.16.1';
+import { ISTANBUL, PROVINCES } from './provinces.mjs?v=0.16.1';
 
 const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
 const rounded = n=>Math.round(n*10000)/10000;

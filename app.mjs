@@ -1,33 +1,33 @@
-import { createMarketAnalysis } from './market-view.mjs?v=0.16';
-import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16';
-import { drawGaragePreview } from './garage-scene.mjs?v=0.16';
-import { createNotifications } from './notification-view.mjs?v=0.16';
-import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.16';
+import { createMarketAnalysis } from './market-view.mjs?v=0.16.1';
+import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
+import { drawGaragePreview } from './garage-scene.mjs?v=0.16.1';
+import { createNotifications } from './notification-view.mjs?v=0.16.1';
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.16.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.16';
-import { financeReport } from './finance.mjs?v=0.16';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.16';
-import { purchasePreview } from './valuation.mjs?v=0.16';
+  workshopRate } from './business.mjs?v=0.16.1';
+import { financeReport } from './finance.mjs?v=0.16.1';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.16.1';
+import { purchasePreview } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.16';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.16';
-import { createFinanceView } from './finance-view.mjs?v=0.16';
-import { dailyCashMovement } from './finance.mjs?v=0.16';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.16';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.16.1';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.16.1';
+import { createFinanceView } from './finance-view.mjs?v=0.16.1';
+import { dailyCashMovement } from './finance.mjs?v=0.16.1';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.16.1';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.16';
-import { createGarageRenderer } from './art.mjs?v=0.16';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.16';
+} from './game.mjs?v=0.16.1';
+import { createGarageRenderer } from './art.mjs?v=0.16.1';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.16.1';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.16';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.16';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.16.1';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.16.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.16';
+  repairForecast } from './damage.mjs?v=0.16.1';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -781,7 +781,6 @@ function openListing(id) {
 }
 
 function renderMarket() {
-  marketAnalysis.refresh();
   const current = state.listings.filter(listing=>listing.inspections?.some(report=>!report.closed) || isActive(listing.seller));
   const follow = byId('inspection-follow');
   follow.hidden = !current.length;
@@ -1114,6 +1113,7 @@ function render(action, animationBike) {
     refreshMarketColors();
     renderMarket();
   }
+  if (currentPage === 'market-analysis') marketAnalysis.refresh();
   if (currentPage === 'business') renderBusiness();
   if (currentPage === 'staff') renderPersonnel();
   if (currentPage === 'finance') renderFinance(state,worth);
@@ -1123,9 +1123,10 @@ function render(action, animationBike) {
 
 function showPage(page) {
   currentPage = page;
+  document.body.dataset.view = page;
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== `${page}-page`; });
   document.querySelectorAll('.bottom-nav button').forEach(button => {
-    if (button.dataset.page === page) button.setAttribute('aria-current','page');
+    if (button.dataset.page === (page==='market-analysis' ? 'market' : page)) button.setAttribute('aria-current','page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0,0);
@@ -1391,7 +1392,7 @@ byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.k
 byId('meeting').addEventListener('close',()=>{
   const id = sellerReturn;
   sellerReturn = undefined;
-  if (id && currentPage === 'market') openListing(id);
+  if (id && ['market','market-analysis'].includes(currentPage)) openListing(id);
 });
 
 byId('branch').addEventListener('change', event => {
@@ -1486,6 +1487,6 @@ window.addEventListener('pageshow',async event=>{
   }
 });
 const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
-const marketAnalysis = createMarketAnalysis({byId,element,metric,money,signed,
+const marketAnalysis = createMarketAnalysis({byId,element,money,signed,
   getState:()=>state,getDestination:()=>branchProvince(activeBranch()),estimate:purchaseForecast,openListing});
 startGame();

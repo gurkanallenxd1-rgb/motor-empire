@@ -1,4 +1,4 @@
-import { isRisky } from './characters.mjs?v=0.16';
+import { isRisky } from './characters.mjs?v=0.16.1';
 export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
   inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', training:'Eğitim', staff_transfer:'Personel transferi', overhead:'Şube gideri',
