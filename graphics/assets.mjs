@@ -22,11 +22,20 @@ export function createAssets(renderer) {
     .setWorkerLimit(2).detectSupport(renderer);
   const gltf = new GLTFLoader().setKTX2Loader(compressed);
   const assets=new Map();
+  let disposed=false;
 
   return {
     acquire(url) {
+      if (disposed) throw new Error('3D varlık önbelleği kapalı.');
       if (!assets.has(url)) {
-        const entry = {uses:0,pending:gltf.loadAsync(url).then(item=>item.scene)};
+        let cancel;
+        const canceled=new Promise((_,reject)=>{cancel=()=>reject(new DOMException('3D varlık yüklemesi kapatıldı.','AbortError'));});
+        const decoded=gltf.loadAsync(url).then(item=>{
+          if (disposed) release(item.scene);
+          return item.scene;
+        });
+        const entry = {uses:0,cancel,pending:Promise.race([decoded,canceled])};
+        entry.pending.then(scene=>{entry.scene=scene;},()=>{});
         assets.set(url,entry);
       }
       const entry = assets.get(url);
@@ -46,8 +55,13 @@ export function createAssets(renderer) {
       }};
     },
     dispose() {
+      if (disposed) return;
+      disposed=true;
+      for (const entry of assets.values()) {
+        entry.cancel();
+        entry.scene && release(entry.scene);
+      }
       compressed.dispose();
-      for (const entry of assets.values()) entry.pending.then(release,()=>{});
       assets.clear();
     },
   };

@@ -47,6 +47,11 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   const rows=new Map();
   scene.add(stock);
   let envTarget;
+  const garageBatches=[];
+  const targetMin=new T.Vector3(inspection?-.4:-6,0,inspection?-.4:-5);
+  const targetMax=new T.Vector3(inspection?.4:6,2,inspection?.4:5);
+  const clamped=new T.Vector3();
+  const correction=new T.Vector3();
   let frame=0,lastFrame=-Infinity,alive=true,lost=false,active=true,intersecting=true;
   let automatic=initialQuality({memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency});
   let profile;
@@ -60,7 +65,13 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   const shadowMaterial=new T.MeshBasicMaterial({color:0x292321,transparent:true,opacity:.27,depthWrite:false});
 
   function reflections(enabled) {
-    if (!enabled || envTarget || lost) return;
+    if (!enabled) {
+      scene.environment=null;
+      envTarget?.dispose();
+      envTarget=undefined;
+      return;
+    }
+    if (envTarget || lost) return;
     const room = new RoomEnvironment();
     const generator = new T.PMREMGenerator(renderer);
     envTarget = generator.fromScene(room,.06);
@@ -88,12 +99,16 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     scene.environmentIntensity=profile.reflection;
     renderer.shadowMap.enabled=Boolean(profile.shadow);
     sun.castShadow=Boolean(profile.shadow);
-    if (before?.shadow!==profile.shadow && profile.shadow) {
+    if (before?.shadow!==profile.shadow) {
       sun.shadow.map?.dispose();
       sun.shadow.map=null;
-      sun.shadow.mapSize.set(profile.shadow,profile.shadow);
+      if (profile.shadow) sun.shadow.mapSize.set(profile.shadow,profile.shadow);
     }
     workshop?.texture(profile.texture);
+    for (const root of rows.values()) {
+      const lod=root.userData.lod;
+      if (lod) lod.levels[1].distance=profile.lod;
+    }
     renderer.shadowMap.needsUpdate=true;
     canvas.dataset.quality=profile.name;
     if (!settings.meter) callbacks.measure?.(null);
@@ -133,16 +148,13 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
       camera.position.lerpVectors(a.oldPosition,a.position,smooth);
       if (p===1) targetAnimation=undefined;else invalidate();
     }
-    const clamped=controls.target.clone().clamp(
-      new T.Vector3(inspection?-.4:-6,0,inspection?-.4:-5),
-      new T.Vector3(inspection?.4:6,2,inspection?.4:5),
-    );
-    camera.position.add(clamped.clone().sub(controls.target));
+    clamped.copy(controls.target).clamp(targetMin,targetMax);
+    camera.position.add(correction.subVectors(clamped,controls.target));
     controls.target.copy(clamped);
     controls.update();
     renderer.render(scene,camera);
     const elapsed=now-lastFrame;
-    if (elapsed>0 && elapsed<250 && (measuring || targetAnimation)) {
+    if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation)) {
       if (settings.meter && now-lastMeasure>245) {
         lastMeasure=now;
         callbacks.measure?.({fps:Math.round(1000/elapsed),triangles:renderer.info.render.triangles,
@@ -202,6 +214,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
       const distant=new T.Group();
       fallback(bike,distant);
       lod.addLevel(distant,profile.lod);
+      root.userData.lod=lod;
       root.add(lod);
       if (inspection) callbacks.model?.();
       root.userData.release=()=>{handle.release();distant.userData.release?.();};
@@ -249,12 +262,21 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     const plinth=assets.acquire(DISPLAY_PLINTH);
     plinth.model.then(template=>{
       if (!alive) return;
-      for (const [x,z] of worldBays.slice(3)) {
-        const model=template.clone(true);
-        model.position.set(x,.009,z);
-        model.traverse(node=>{if(node.isMesh)node.castShadow=node.receiveShadow=true;});
-        scene.add(model);
-      }
+      const positions=worldBays.slice(3);
+      const transform=new T.Matrix4();
+      template.updateMatrixWorld(true);
+      template.traverse(node=>{
+        if (!node.isMesh) return;
+        const batch=new T.InstancedMesh(node.geometry,node.material,positions.length);
+        for (const [index,[x,z]] of positions.entries()) {
+          transform.makeTranslation(x,.009,z).multiply(node.matrixWorld);
+          batch.setMatrixAt(index,transform);
+        }
+        batch.castShadow=batch.receiveShadow=true;
+        batch.computeBoundingSphere();
+        scene.add(batch);
+        garageBatches.push(batch);
+      });
       canvas.dataset.glb='ready';
       renderer.shadowMap.needsUpdate=true;invalidate();
     },()=>{if(alive)canvas.dataset.glb='fallback';});
@@ -309,6 +331,8 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     controls.dispose();workshop?.dispose();
     for (const row of rows.values()) remove(row);
     rows.clear();
+    for (const batch of garageBatches) {batch.removeFromParent();batch.dispose();}
+    sun.shadow.map?.dispose();
     shadowGeometry.dispose();shadowMaterial.dispose();assets.dispose();envTarget?.dispose();
     renderer.dispose();
     if (!context.isContextLost()) renderer.forceContextLoss();
