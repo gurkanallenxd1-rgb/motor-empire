@@ -426,12 +426,12 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 #complaint-notices { scroll-margin-top:120px; }
 
 .valuation-list { margin:5px 0; }
-.valuation-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,auto); align-items:baseline; gap:6px;
+.valuation-row,.price-summary-rows > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,auto); align-items:baseline; gap:6px;
   border-bottom:1px solid var(--line); padding:5px 1px; font-size:12px; }
-.valuation-row dt { color:var(--muted); }
-.valuation-row dd { margin:0; font-weight:750; text-align:right; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.valuation-row dt,.price-summary-rows dt { color:var(--muted); }
+.valuation-row dd,.price-summary-rows dd { margin:0; font-weight:750; text-align:right; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .valuation-group { margin:6px 0; padding:4px 6px; border:1px solid var(--line); border-radius:6px; }
-@media (max-width:360px) { .valuation-row { grid-template-columns:minmax(0,1fr) minmax(0,.9fr); } }
+@media (max-width:360px) { .valuation-row,.price-summary-rows > div { grid-template-columns:minmax(0,1fr) minmax(0,.9fr); } }
 
 .vehicle-heading { display:grid; grid-template-columns:clamp(62px,20vw,94px) minmax(0,1fr) auto;
   align-items:center; gap:8px; margin-bottom:8px; }
@@ -456,11 +456,14 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 .offer-editor label { font-size:13px; font-weight:700; }
 #player-offer { width:100%; min-width:0; min-height:44px; font:16px system-ui; color:var(--text);
   background:var(--card); border:1px solid var(--line); border-radius:7px; padding-inline:6px; }
-.offer-shortcuts,#offer-warning { grid-column:1/-1; margin:0; }
+.offer-shortcuts,#offer-warning,#player-offer-range { grid-column:1/-1; margin:0; }
 .offer-shortcuts { display:flex; flex-wrap:wrap; gap:5px; }
 .offer-shortcuts button { flex:1 1 auto; font-size:12px; padding-inline:5px; min-width:70px; color:var(--accent); }
 #offer-warning:empty { display:none; }
-.offer-profit { display:grid; gap:2px; padding:6px 0 2px; }
+.offer-profit { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,auto);
+  align-items:baseline; gap:6px; padding:6px 0 2px; }
+#player-offer-range { width:100%; min-width:0; height:28px; accent-color:var(--accent); }
+.offer-profit strong { text-align:right; }
 .offer-profit strong { font-size:clamp(18px,4.5vw,25px); line-height:1.17; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 @media(max-width:420px) {
   .meeting-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
