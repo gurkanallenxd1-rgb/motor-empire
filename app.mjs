@@ -1,32 +1,33 @@
-import { garageLayout, garageParking } from './garage-layout.mjs?v=0.15.4';
-import { drawGaragePreview } from './garage-scene.mjs?v=0.15.4';
-import { createNotifications } from './notification-view.mjs?v=0.15.4';
-import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.4';
+import { createMarketAnalysis } from './market-view.mjs?v=0.16';
+import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16';
+import { drawGaragePreview } from './garage-scene.mjs?v=0.16';
+import { createNotifications } from './notification-view.mjs?v=0.16';
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.16';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.15.4';
-import { financeReport } from './finance.mjs?v=0.15.4';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.4';
-import { purchasePreview } from './valuation.mjs?v=0.15.4';
+  workshopRate } from './business.mjs?v=0.16';
+import { financeReport } from './finance.mjs?v=0.16';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.16';
+import { purchasePreview } from './valuation.mjs?v=0.16';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.4';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.4';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.4';
-import { createFinanceView } from './finance-view.mjs?v=0.15.4';
-import { dailyCashMovement } from './finance.mjs?v=0.15.4';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.4';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.16';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.16';
+import { createFinanceView } from './finance-view.mjs?v=0.16';
+import { dailyCashMovement } from './finance.mjs?v=0.16';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.16';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.15.4';
-import { createGarageRenderer } from './art.mjs?v=0.15.4';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.4';
+} from './game.mjs?v=0.16';
+import { createGarageRenderer } from './art.mjs?v=0.16';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.16';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.4';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.4';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.16';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.16';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.15.4';
+  repairForecast } from './damage.mjs?v=0.16';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -575,7 +576,7 @@ function marketCard(listing) {
     marketObserver.observe(media);
   } else renderSprite(image,fallback,listing,label);
 
-  const forecast = purchaseForecast(listing,listing.price,branchProvince(activeBranch()));
+  const forecast = purchaseForecast(listing,listing.price,branchProvince(activeBranch()),state.economy);
   const details = element('span','','listing-details');
   details.append(element('strong',listing.name,'listing-name'),
     element('span',`${listing.year} · ${numeric.format(listing.km)} km · ${listing.colorName || 'Renk belirtilmedi'}`,'spec listing-meta'),
@@ -724,6 +725,7 @@ function renderPurchaseAnalysis(container, analysis, meeting = false) {
     pair('Garaj ekspertizi tahmini',money(analysis.intakeFee)),
     pair('Nakliye ücreti',money(analysis.delivery.fee)),
     pair('Tamir sonrası tahmini piyasa değeri',money(analysis.afterValue)));
+  if (analysis.expectedPrice!==undefined) costs.append(pair('Beklenen kapanış fiyatı',money(analysis.expectedPrice)));
   if (!meeting) costs.append(pair('Tahmini toplam maliyet',money(analysis.total)),
     pair(margin,analysis.profit===0 ? money(0) : `${delta(analysis.profit)} · ${share(analysis.profitShare)}`,
       analysis.profit < 0 ? 'negative' : 'positive'));
@@ -745,7 +747,7 @@ function openListing(id) {
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
-  const analysis = purchaseAnalysis(listing,isActive(listing.seller) ? listing.seller : undefined,branchProvince(activeBranch()));
+  const analysis = purchaseAnalysis(listing,isActive(listing.seller) ? listing.seller : undefined,branchProvince(activeBranch()),state.economy);
   const payable = listing.price + analysis.delivery.fee;
   byId('listing-prices').replaceChildren(
     metric('İlan fiyatı',money(listing.price)),
@@ -779,6 +781,7 @@ function openListing(id) {
 }
 
 function renderMarket() {
+  marketAnalysis.refresh();
   const current = state.listings.filter(listing=>listing.inspections?.some(report=>!report.closed) || isActive(listing.seller));
   const follow = byId('inspection-follow');
   follow.hidden = !current.length;
@@ -822,7 +825,7 @@ function renderMarket() {
     maxKm: readLimit('filter-km'),
     minCc: readLimit('filter-cc-min'),
     maxCc: readLimit('filter-cc'),
-  },bike=>estimatedListingProfit(bike,branchProvince(activeBranch())));
+  },bike=>estimatedListingProfit(bike,branchProvince(activeBranch()),state.economy));
   byId('market-count').textContent = `${listings.length} / ${state.listings.length} İLAN`;
   const pages = Math.max(1,Math.ceil(listings.length / LISTINGS_PER_PAGE));
   marketPage = Math.min(marketPage,pages - 1);
@@ -1301,7 +1304,7 @@ function updateMeeting() {
   byId('meeting-spec').textContent = bikeSpecs(isSale ? bike : visibleListing(bike));
   byId('meeting-image').setAttribute('aria-label',bike.name);
   renderSprite(byId('meeting-image'),byId('meeting-image-missing'),bike,byId('meeting-representative'));
-  const forecast = isSale ? null : purchaseAnalysis(bike,meeting,branchProvince(state.branches.find(branch=>branch.id===view.branchId)));
+  const forecast = isSale ? null : purchaseAnalysis(bike,meeting,branchProvince(state.branches.find(branch=>branch.id===view.branchId)),state.economy);
   const value = isSale ? roadValue(bike) : forecast.beforeValue;
   byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';
   byId('live-seller-price').textContent = money(meeting.price);
@@ -1483,4 +1486,6 @@ window.addEventListener('pageshow',async event=>{
   }
 });
 const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
+const marketAnalysis = createMarketAnalysis({byId,element,metric,money,signed,
+  getState:()=>state,getDestination:()=>branchProvince(activeBranch()),estimate:purchaseForecast,openListing});
 startGame();

@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.15.4
+# MOTOR EMPIRE v0.16
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -216,3 +216,23 @@ Yükseltme önizlemesi mevcut fiyatı ve yeni kat planını gösterir. Onay, mev
 İki bölmeli atölyenin özgün görseli korunur. Geniş kat planları servis ve sergileme alanlarını cam bölmelerle ayırır. Ekspertiz, depo, resepsiyon, yönetim ve nakliye alanları kapasiteye göre eklenir. Hidrolik lift, cam kapı, yönetim mobilyası, parça rafı ve sergileme platformları yerel WebP atlasından yüklenir. Mevcut motosiklet, lastik ve kompresör varlıkları kullanılır. Statik mimari ve istasyonlar, kamera hareketinden bağımsız olarak önbelleğe alınır.
 
 Görsel denetim, mobil Playwright WebKit ekran görüntülerini kapsar. [Beş seviye](docs/v0154-garaj-seviyeleri.webp) ve [%100, %200, %300, %500 yakınlaştırma karşılaştırması](docs/v0154-yakinlastirma.webp).
+
+## v0.16 Dinamik piyasa
+
+Model, üretim yılı, motor hacmi ve 81 ilin nüfus ve satın alma gücü ağırlıkları piyasa değerini etkiler. Mevsim, talep ve ekonomik dönemler ilan fiyatlarına, müşteri bütçelerine ve yeni parça tekliflerine yansır. Nüfus ve satın alma gücü değerleri oyun için yuvarlatılmış simülasyon ağırlıklarıdır. İl seçimi nakliye ücretini değiştirebilir. Tamir ve ekspertiz maliyetleriyle birlikte beklenen satış fiyatı, şubenin bulunduğu ile göre hesaplanır.
+
+**Piyasa Analizi** 7, 30 ve 90 günlük gerçek oyun içi ilan örneklerini, karşılaştırılabilir model endekslerini ve 81 ilin referans değerlerini gösterir. Grafikteki ilan ortalamaları Türkiye genelinde model yılından bağımsızdır. İl karşılaştırması seçilen model yılını kullanır. Gerçekleşen satış süresi, oyuncunun ilan günü kayıtlı satışlarından hesaplanır. İlk kayıt öncesi veya modelin ilana çıkmadığı günlere veri eklenmez.
+
+Müdür, talep, güncel değer, bekleme süresi ve sermaye riskiyle birlikte maliyetleri değerlendirir. Beyan edilen kondisyona göre sıra dışı ucuz ilanları eler. Günlük bütçe, nakit rezervi ve satış kârı tabanı uygulanmaya devam eder. Açık pazarlık teklifleri ve geçmiş maliyetler korunur. Piyasa haberleri bildirim merkezinde en az yedi oyun günü arayla yayınlanır.
+
+### Ekonomi simülasyonu
+
+`node tests/economy-simulation.mjs` aynı üç kontrol noktasını yeniden üretir. Otomasyon senaryosu 750.000 TL ile iki bölmeli şubede müdür, satış danışmanı, ekspertiz uzmanı ve ustayla başlar. Günlük alım bütçesi 160.000 TL, rezerv 45.000 TL ve asgari satış kârı 4.500 TL'dir.
+
+| Oyun günü | Referans fiyat aralığı (baz 1.000) | Gerçekleşen satış | Kapanış nakdi | Beklenen kâr / zarar gösteren açık ilan |
+| ---: | ---: | ---: | ---: | ---: |
+| 30 | 1.052–1.140 | 9 | 834.978 TL | 298 / 212 |
+| 90 | 1.052–1.183 | 30 | 1.279.923 TL | 339 / 171 |
+| 365 | 1.048–1.225 | 122 | 2.927.662 TL | 281 / 229 |
+
+En büyük günlük model endeksi değişimi %3,04, parça endeksi aralığı %102,74–%115,77 oldu. Otomasyon dalında nakit ile işlem defteri farkı 0 TL ve borç 0 TL kaldı. İşlem yapmayan 75.000 TL'lik kontrol şubesi gelir üretmedi ve 365. gün sonunda 16.250 TL işletme borcu birikti.

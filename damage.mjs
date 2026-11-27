@@ -66,7 +66,7 @@ export function damageGrade(bike) {
 }
 
 export function repairPartCost(bike,code) {
-  return Math.round(PARTS[code].cost * (bike.serviceFactor ?? 1));
+  return Math.round(PARTS[code].cost * (bike.serviceFactor ?? 1) * (bike.marketTerms?.parts ?? 1));
 }
 
 export function repairQuote(bike) {
@@ -79,7 +79,7 @@ export function repairQuote(bike) {
 // Legacy value already includes model year and odometer. New cleanBase is year-adjusted only.
 export function cleanValue(bike) {
   if (bike.cleanBase === undefined) return Math.round(bike.value);
-  return Math.round(bike.cleanBase * (1 - clamp(bike.km / 500000,0,.42)));
+  return Math.round(bike.cleanBase * (bike.marketTerms?.value ?? 1) * (1 - clamp(bike.km / 500000,0,.42)));
 }
 
 export function permanentDiscount(bike) {

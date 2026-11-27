@@ -1,3 +1,4 @@
+import { marketRandom,nextEconomy } from './economy.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BRANCH_TIERS,STAFF_ROLES,TRAINING_COST,TRAINING_TIME } from './business.mjs';
@@ -120,26 +121,22 @@ test('manager closes an eligible deal but keeps risky stock and respects cash an
   assert.equal(advance(state,1).sales.length,1);
 });
 
-test('manager can make a funded automatic purchase and never buys the fixed-price Easter egg',t=>{
-  const random = ()=>{
-    let value = 17;
-    return ()=>((value = (Math.imul(1664525,value)+1013904223)>>>0)/2**32);
-  };
-  const market = generateMarket(2,random());
-  const candidate = market.find(item=>!item.faults.length && !item.damageHistory.length && purchaseForecast(item).profit>0);
-  assert.ok(candidate);
+test('manager can make a funded automatic purchase and never buys the fixed-price Easter egg',()=>{
   let state = synchronize(seed(),start).state;
+  const economy = nextEconomy(state,2);
+  const market = generateMarket(2,marketRandom(2),true,economy);
+  const candidate = market.find(item=>!item.faults.length && !item.damageHistory.length && purchaseForecast(item,item.price,34,economy).profit>0);
+  assert.ok(candidate);
   state = hire(state,'manager');
   state = act(state,'set-automation',undefined,{
-    buy:true,sell:false,maxPrice:candidate.price,minProfit:0,budget:purchaseForecast(candidate).total,
+    buy:true,sell:false,maxPrice:candidate.price,minProfit:0,budget:purchaseForecast(candidate,candidate.price,34,economy).total,
     brand:'',minCc:0,maxCc:3000,
   });
-  t.mock.method(Math,'random',random());
   state = advance(state,DAY_MS);
   const garage = state.branches[0].garage;
   assert.ok(garage.length>0);
   assert.ok(garage.every(item=>item.price<=candidate.price && item.name!=='KTM 1390 Super Duke R'));
-  assert.ok(garage.reduce((total,item)=>total+purchaseForecast(item).total,0)<=purchaseForecast(candidate).total);
+  assert.ok(garage.reduce((total,item)=>total+purchaseForecast(item,item.price,34,economy).total,0)<=purchaseForecast(candidate,candidate.price,34,economy).total);
   assert.equal(state.debt,0);
   assert.equal(reload(state).cash,state.cash);
 });

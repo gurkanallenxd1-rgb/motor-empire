@@ -1,4 +1,4 @@
-import { fitGarage } from './garage-layout.mjs?v=0.15.4';
+import { fitGarage } from './garage-layout.mjs?v=0.16';
 
 let original;
 let equipment;
@@ -8,7 +8,7 @@ function loadArt(file) {
     const image = new Image();
     image.onload = ()=>resolve(image);
     image.onerror = ()=>resolve(null);
-    image.src = new URL(`./assets/${file}?v=0.15.4`,import.meta.url);
+    image.src = new URL(`./assets/${file}?v=0.16`,import.meta.url);
   });
 }
 

@@ -455,7 +455,7 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   await ui.market();
   await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
   const colors = await ui.page.evaluate(async ()=>{
-    const {loadSprite} = await import('/sprite.mjs?v=0.15.4');
+    const {loadSprite} = await import('/sprite.mjs?v=0.16');
     const name = 'Vespa Primavera 125';
     const red = await loadSprite({name,year:2024,color:'#c93838'});
     const white = await loadSprite({name,year:2024,color:'#eae6da'});
@@ -705,4 +705,54 @@ test('mobile WebKit leaves a shipping motorcycle in stock and off the scene',asy
   await ui.tap('.bottom-nav [data-page=garage]');
   await ui.text('.garage-overview','Servis ve galeri · 350 m² · 0/10 parkta');
   assert.match(await ui.page.locator('#garage').innerText(),/Yolda/);
+});
+
+test('320px WebKit shows sparse real market history, period selection, regional prices and a touch chart after catch-up',async t=>{
+  const seed = initial();
+  delete seed.economy;
+  const ui = await open(t,320,568,seed);
+  const {page} = ui;
+  await ui.market();
+  await ui.tap('#market-analysis-open');
+  await page.locator('#market-analysis[open]').waitFor();
+  assert.match(await page.locator('#analysis-history-status').innerText(),/yeterli geçmiş veri/);
+  assert.equal(await page.locator('#analysis-chart').isVisible(),false);
+  await page.selectOption('#analysis-period','30');
+  await page.selectOption('#analysis-province','69');
+  await page.selectOption('#analysis-year','2021');
+  await ui.tap('#market-analysis details:last-of-type summary');
+  assert.equal(await page.locator('#analysis-regions > p').count(),82);
+  assert.match(await page.locator('#analysis-regions .analysis-selected').innerText(),/Bayburt/);
+  await ui.jump(31*DAY_MS);
+  await page.locator('#analysis-chart').waitFor({state:'visible'});
+  assert.match(await page.locator('#analysis-history-status').innerText(),/30 günlük aralıkta/);
+  assert.equal((await ui.state()).economy.history.length,32);
+  await ui.tap('#analysis-chart');
+  assert.match(await page.locator('#analysis-point-value').innerText(),/Gün .* TL .* ilan/);
+  await page.selectOption('#analysis-period','90');
+  assert.match(await page.locator('#analysis-history-status').innerText(),/90 günlük aralıkta/);
+  await page.selectOption('#analysis-period','7');
+  assert.match(await page.locator('#analysis-history-status').innerText(),/7 günlük aralıkta/);
+});
+
+test('landscape WebKit retrieves offline market news once through the existing bell',async t=>{
+  const seed = initial();
+  delete seed.economy;
+  seed.day = 68;
+  const ui = await open(t,844,390,seed);
+  await ui.jump(10*DAY_MS);
+  await ui.page.reload();
+  await ui.ready();
+  await ui.page.locator('#offline-summary[open]').waitFor();
+  await ui.tap('#offline-summary form button');
+  await ui.tap('#notification-bell');
+  await ui.page.selectOption('#notification-filter','economy');
+  const news = ui.page.locator('.notification-row');
+  assert.equal(await news.count(),1);
+  await ui.tap('.notification-row');
+  assert.match(await ui.page.locator('#notification-detail-content').innerText(),/Denge dönemi|Piyasa haberi/);
+  await ui.page.reload();
+  await ui.ready();
+  const saved = await ui.state();
+  assert.equal(saved.inbox.items.filter(row=>row.type==='economy').length,1);
 });

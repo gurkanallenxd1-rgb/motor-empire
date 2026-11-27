@@ -1,5 +1,5 @@
-import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.15.4';
-import { renderSprite } from './sprite.mjs?v=0.15.4';
+import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.16';
+import { renderSprite } from './sprite.mjs?v=0.16';
 
 export function createNotifications({byId,element,money,signed,dispatch}) {
   const dialog = byId('notification-dialog');
@@ -100,6 +100,7 @@ export function createNotifications({byId,element,money,signed,dispatch}) {
     delete holder.dataset.tone;
     if (item.sale) saleDetails(item,holder);
     else if (item.branch) holder.append(element('p',item.branch,'spec'));
+    if (item.detail) holder.append(element('p',item.detail));
     if (item.amount!==undefined) holder.append(element('p',money(item.amount)));
     if (!dialog.open) dialog.showModal();
     detail.querySelector('button').focus();
