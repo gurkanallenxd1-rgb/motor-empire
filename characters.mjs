@@ -62,18 +62,19 @@ export function setReputation(state,delta,reason) {
 
 export function rememberSale(state,sale,meeting,bike,worker) {
   const profile = meeting.profile;
-  const customerId=profile.id ?? meeting.id;
-  const customers = state.trade.customers ??= {};
-  const member = customers[customerId] ?? {id:customerId,purchases:0,visits:0};
-  member.purchases++;
-  member.lastModel = sale.name;
-  member.lastAnswers = meeting.dialogue?.answers ?? [];
-  member.lastDay = sale.day;
-  member.satisfaction = state.trade.history[0].satisfaction;
-  customers[customerId] = member;
-  const text=saleReview(bike,meeting,sale,member.satisfaction,worker,stableNumber(sale.id));
-  (state.trade.reviews ??= []).unshift({saleId:sale.id,customerId,person:profile.name,
-    day:sale.day,branchId:sale.branchId,stars:starsFor(member.satisfaction),text});
+  const satisfaction=state.trade.history[0].satisfaction;
+  if(profile.id){
+    const customers=state.trade.customers??={};
+    const member=customers[profile.id]??={id:profile.id,purchases:0,visits:0};
+    member.purchases++;
+    member.lastModel=sale.name;
+    member.lastAnswers=meeting.dialogue?.answers??[];
+    member.lastDay=sale.day;
+    member.satisfaction=satisfaction;
+  }
+  const text=saleReview(bike,meeting,sale,satisfaction,worker,stableNumber(sale.id));
+  (state.trade.reviews??=[]).unshift({saleId:sale.id,...(profile.id?{customerId:profile.id}:{}),person:profile.name,
+    day:sale.day,branchId:sale.branchId,stars:starsFor(satisfaction),text});
 }
 
 export function complaintCost(sale,choice,repairQuote) {

@@ -41,3 +41,20 @@ test('gallery statistics distinguish old reviews, recent ratings, repeat buyers 
   assert.equal(result.complaints,3);
   assert.equal(result.resolved,1);
 });
+
+test('ratings distribute across buyer expectations and sale outcomes',()=>{
+  const groups={documented:[0,0,0,0,0],ordinary:[0,0,0,0,0],concealed:[0,0,0,0,0]};
+  for(let i=0;i<150;i++){
+    const expectations={knowledge:20+(i*13)%81,skepticism:20+(i*19)%81};
+    const customer={...buyer,profile:expectations,price:95000+i%15*900,round:i%3,patience:2+i%3};
+    const documented={...clean,garageInspection:{result:[{area:'Motor',codes:[]}]}};
+    groups.documented[starsFor(score(documented,customer,{roll:i%9-4}))-1]++;
+    groups.ordinary[starsFor(score({...clean,condition:88},customer,{roll:i%9-4}))-1]++;
+    const faulty={...clean,condition:59,faults:['saseIslem','zincir'],damageHistory:['saseIslem']};
+    groups.concealed[starsFor(score(faulty,customer,{honest:false,roll:i%9-4}))-1]++;
+  }
+  assert.ok(groups.documented[4]>=100);
+  assert.ok(groups.ordinary[4]<groups.documented[4]);
+  assert.equal(groups.concealed[4],0);
+  assert.ok(groups.concealed[0]+groups.concealed[1]>=120);
+});
