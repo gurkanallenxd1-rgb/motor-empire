@@ -1,29 +1,30 @@
-import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.1';
+import { createNotifications } from './notification-view.mjs?v=0.15.2';
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.2';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.15.1';
-import { financeReport } from './finance.mjs?v=0.15.1';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.1';
-import { purchasePreview } from './valuation.mjs?v=0.15.1';
+  workshopRate } from './business.mjs?v=0.15.2';
+import { financeReport } from './finance.mjs?v=0.15.2';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.2';
+import { purchasePreview } from './valuation.mjs?v=0.15.2';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.1';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.1';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.1';
-import { createFinanceView } from './finance-view.mjs?v=0.15.1';
-import { dailyCashMovement } from './finance.mjs?v=0.15.1';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.1';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.2';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.2';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.2';
+import { createFinanceView } from './finance-view.mjs?v=0.15.2';
+import { dailyCashMovement } from './finance.mjs?v=0.15.2';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.2';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.15.1';
-import { createGarageRenderer } from './art.mjs?v=0.15.1';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.1';
+} from './game.mjs?v=0.15.2';
+import { createGarageRenderer } from './art.mjs?v=0.15.2';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.2';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.1';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.1';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.2';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.2';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.15.1';
+  repairForecast } from './damage.mjs?v=0.15.2';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -179,10 +180,11 @@ function renderComplaints() {
   }));
 }
 
-function acceptTime(next) {
+function acceptTime(next,{live=true} = {}) {
   const refresh = !state || next.day !== state.day || next.clock?.revision !== state.clock?.revision;
   const y = window.scrollY;
   state = next;
+  updateNotifications(state,{live});
   if (refresh) {
     render();
     window.scrollTo(0,y);
@@ -217,7 +219,7 @@ async function tickClock(background = false) {
   try {
     if (background || clockIsDue(Date.now())) {
       const result = await transact();
-      acceptTime(result.state);
+      acceptTime(result.state,{live:!background});
       if (background) showOffline(result.summary);
     } else clockDisplay();
   } catch (error) { stopSaving(error); }
@@ -233,7 +235,7 @@ async function startGame() {
   try {
     transact = createTimeStore(window.localStorage,saveLock(navigator,window.indexedDB));
     const result = await transact();
-    acceptTime(result.state);
+    acceptTime(result.state,{live:false});
     showOffline(result.summary);
   } catch (error) {
     // A failed shared save stays read-only so another tab's progress cannot be overwritten.
@@ -1086,6 +1088,7 @@ async function runAction(action, id, amount, targetBranch = branchId) {
       return true;
     }
     state = result.state;
+    updateNotifications(state);
     const isPurchase = ['buy','buy-negotiated'].includes(action);
     const animationBike = isPurchase
       ? state.branches.find(branch=>branch.id===targetBranch).garage.find(bike=>bike.id===id) : oldBike;
@@ -1096,7 +1099,7 @@ async function runAction(action, id, amount, targetBranch = branchId) {
       showPage('garage');
     }
     render(isPurchase && animationBike.stage !== 'shipping' ? 'buy' : action,animationBike);
-    notice(result.message);
+    if (result.message) notice(result.message);
     clockDisplay();
     return true;
   } catch (error) {
@@ -1425,4 +1428,5 @@ window.addEventListener('pageshow',async event=>{
     startTicker();
   }
 });
+const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
 startGame();
