@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.13.1
+# MOTOR EMPIRE v0.14
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -178,3 +178,7 @@ Alış görüşmesinde **Pazarlık yap** düğmesi teklif kontrollerini açar. T
 ## v0.13.1 Müşteri cevapları
 
 Müşteri cevapları teklif, güven, şüphe ve görüşme sabrını etkiler. Her konu bir kez cevaplanabilir. Cevaplar pazarlık turu harcamaz. Teklif değişirse önceki ve güncel fiyat, fark ve net kâr görüşmede görünür.
+
+## v0.14 Yusuf Belge Easter Egg
+
+Yusuf Belge tamamen kurgusal bir oyun karakteridir. İstanbul pazarında 120 oyun günlük her dönemde bir gün karşılaşılabilir. Açık bir Yusuf ilanı varken ikinci ilan eklenmez. Ekspertiz ve pazarlık 1.350.000 TL satış fiyatını değiştirmez.

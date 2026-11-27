@@ -1,25 +1,25 @@
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.13.1';
-import { purchasePreview } from './valuation.mjs?v=0.13.1';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.14';
+import { purchasePreview } from './valuation.mjs?v=0.14';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13.1';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.13.1';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.13.1';
-import { createFinanceView } from './finance-view.mjs?v=0.13.1';
-import { dailyCashMovement } from './finance.mjs?v=0.13.1';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.13.1';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.14';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.14';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.14';
+import { createFinanceView } from './finance-view.mjs?v=0.14';
+import { dailyCashMovement } from './finance.mjs?v=0.14';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.14';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.13.1';
-import { createGarageRenderer } from './art.mjs?v=0.13.1';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.13.1';
+} from './game.mjs?v=0.14';
+import { createGarageRenderer } from './art.mjs?v=0.14';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.14';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.13.1';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.13.1';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.14';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.14';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.13.1';
+  repairForecast } from './damage.mjs?v=0.14';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -1033,11 +1033,12 @@ function updateMeeting() {
   if (!meeting) { byId('meeting').close(); return; }
   const {profile} = meeting;
   byId('meeting-title').textContent = isSale ? 'Müşteri görüşmesi' : 'Satıcı görüşmesi';
-  byId('meeting-role').textContent = isSale ? profile.type : 'İKİNCİ EL PAZARI';
+  byId('meeting-role').textContent = profile.fictional ? 'Kurgusal oyun karakteri' : isSale ? profile.type : 'İKİNCİ EL PAZARI';
   renderPortrait(profile);
   renderQuestions(meeting,isSale);
   byId('meeting-name').textContent = profile.name;
-  byId('meeting-job').textContent = `${profile.age} yaş · ${profile.job}${meeting.returning ? ' · Önceki müşteri' : ''}`;
+  byId('meeting-job').textContent = profile.fictional ? `${profile.job} · ${profile.income}`
+    : `${profile.age} yaş · ${profile.job}${meeting.returning ? ' · Önceki müşteri' : ''}`;
   byId('meeting-speech').textContent = meeting.speech;
   const evidence = byId('meeting-evidence');
   const concealed = isSale && bike.disclosureMode==='conceal';

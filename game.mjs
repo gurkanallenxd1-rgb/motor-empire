@@ -1,17 +1,18 @@
+import { isYusufListing, yusufListing, YUSUF_PRICE } from './easter-eggs.mjs?v=0.14';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.13.1';
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.13.1';
+  setReputation } from './characters.mjs?v=0.14';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.14';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.13.1';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.13.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.13.1';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.13.1';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.13.1';
-import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.13.1';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.14';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.14';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.14';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.14';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.14';
+import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.14';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.13.1';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.13.1';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.14';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.14';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -92,17 +93,30 @@ function bySegment(ordered, quotas) {
 }
 
 export function generateMarket(day, random = Math.random, includeIstanbul = true) {
-  const ordered = shuffle(catalog,random);
+  const models = catalog.filter(model=>!model.eventOnly);
+  const ordered = shuffle(models,random);
   const local = bySegment(ordered,[['budget',8],['mid',14],['premium',6],['rare',2]]);
   const sharedModel = local[0];
   const market = includeIstanbul ? generateProvince(day,ISTANBUL,local,random) : [];
   for (const {id} of PROVINCES) {
     if (id === ISTANBUL) continue;
-    const pool = shuffle(catalog,random).filter(model=>model !== sharedModel);
+    const pool = shuffle(models,random).filter(model=>model !== sharedModel);
     const selected = [sharedModel,...bySegment(pool,[['budget',2],['mid',2],[id % 5 === 0 ? 'rare' : 'premium',1]])];
     market.push(...generateProvince(day,id,selected,random));
   }
   return market;
+}
+
+function replenishMarket(state,day) {
+  const listings = generateMarket(day);
+  if (!state.listings.some(isYusufListing)) {
+    const special = yusufListing(day);
+    if (special) {
+      const slot = listings.findLastIndex(item=>item.province===special.province);
+      listings[slot] = special;
+    }
+  }
+  state.listings.push(...listings);
 }
 
 function createBranch(id) {
@@ -210,6 +224,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
   let listing = next.listings.find(item => item.id === id);
   function purchase(price) {
     if (!listing) throw new Error('Bu ilan artık açık değil.');
+    if (isYusufListing(listing)) price = YUSUF_PRICE;
     if (branch.garage.length >= branchCapacity(branch)) throw new Error('Bu şubenin garajı dolu.');
     const slot = Array.from({length:branchCapacity(branch)},(_,index)=>index)
       .find(index=>!branch.garage.some(item=>item.slot === index));
@@ -223,7 +238,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       listing.seller.price = price;
       finishTrade(next,listing.seller,listing,'bought');
     }
-    const { seller, ...vehicle } = listing;
+    const { seller, easterEgg, ...vehicle } = listing;
     const reportIds = new Set(listing.inspections?.map(report=>report.id));
     for (const entry of next.ledger) {
       if (reportIds.has(entry.inspectionId)) entry.allocation = 'stock';
@@ -350,7 +365,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
   }
 
   function considerEvidence(item) {
-    if (item.seller?.status!=='open') return;
+    if (item.seller?.status!=='open' || isYusufListing(item)) return;
     const verified = verifiedFindings(item).filter(code=>item.disclosure?.hidden.includes(code));
     if (!verified.length) return;
     const discount = Math.min(.11,verified.reduce((sum,code)=>sum+PARTS[code].gain*.003,0));
@@ -362,7 +377,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
 
   function restoreInspection() {
     const archived = next.inspectionArchive?.find(item=>item.id===id && item.listing);
-    if (!archived || listing) return false;
+    if (!archived || listing || (isYusufListing(archived.listing) && next.listings.some(isYusufListing))) return false;
     listing = {...archived.listing,inspectionResumedDay:next.day,inspections:archived.reports};
     next.listings.unshift(listing);
     next.inspectionArchive = next.inspectionArchive.filter(item=>item!==archived);
@@ -779,7 +794,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
         }
         return false;
       });
-      if (!deferMarket) next.listings.push(...generateMarket(tomorrow));
+      if (!deferMarket) replenishMarket(next,tomorrow);
       if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
       return {state:next,completed,returned,delivered,visits,accidents,complaints,
         message:`Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`};
@@ -901,7 +916,7 @@ export function synchronize(state, now) {
       for (const key of ['inspected','approved','accidents','rides','complaints']) summary[key] += events[key];
     }
   }
-  if (summary.days) next.listings.push(...generateMarket(next.day));
+  if (summary.days) replenishMarket(next,next.day);
   for (const row of next.ledger.slice(0,next.ledger.length-ledgerLength)) {
     if (row.kind === 'income') summary.income += row.amount;
     if (row.kind === 'expense') summary.expenses += row.amount;
