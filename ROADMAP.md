@@ -15,20 +15,20 @@
 | v0.17 | İsteğe bağlı 10 bölmeli Three.js prototipi, PR #33 |
 | v0.17.0.1 | Kamera ve mobil giriş düzeltmesi, PR #34. Kullanıcının fiziksel iPhone testi kamera ve metin seçimini doğruladı. |
 | v0.18 | 50 rakip galeri, günlük rekabet, şirket devralma ve Rekabet Merkezi |
+| v0.18.1 | İtibar Merkezi, kompakt satış bildirimi, şirket sayaç ve devralma düzeltmeleri |
 
 Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bulunur.
 
-## Planlanan sürümler
+## Önerilen geliştirme sırası
 
-| Sürüm | Hedef |
-| --- | --- |
-| v0.19 | Sıradaki oynanış kapsamı kullanıcı kararıyla belirlenecek. |
-| v0.20 | Kullanıcı hesapları ve bulut kayıt |
-| v0.21 | Reklam entegrasyonu |
-| v0.22 | Premium üyelik ve oyun içi mağaza |
-| v0.23 | Android ve iOS uygulaması |
-| v1.0 | Resmî yayın |
+1. Personel ve müşteri sistemi geliştirmeleri.
+2. Reklam ve pazarlama sistemi.
+3. Marka bayilikleri ve sıfır motosiklet satışı.
+4. Merkezi şirket ve şube yönetimi.
+5. Oyuncu hesapları ve bulut kayıtları.
+6. Gerçek oyuncular arası çevrim içi rekabet.
+7. Premium üyelik ve gelir sistemi.
+8. Android ve iOS uygulamaları.
+9. Tam kapsamlı 3D grafik geliştirmeleri.
 
-Grafik çalışmaları ertelendi. Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri, hareketli personel/müşteriler ve görsel hasar açık işler olarak saklanır. Genişleme kullanıcı onayı gerektirir.
-
-[v0.18 rekabet raporu](docs/v018-competition.md) · [v0.17 grafik denetimi](docs/v017-audit.md)
+Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri ve görsel hasar sonraki grafik kapsamındadır. [v0.18.1 düzeltme raporu](docs/v0181-hotfix.md)

@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.18 Rakip Galeriler ve Dinamik Rekabet**. Temel sürüm [v0.17.0.1, PR #34](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/34), main `2853770`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
+Bu dalın sürümü **v0.18.1 Rekabet, İtibar ve Arayüz Düzeltmesi**. Temel sürüm [v0.18, PR #35](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/35), main `db8bce8`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -30,14 +30,14 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - Statik, hesapsız kullanım ve GitHub Pages yayını korunur. Kayıtlar tarayıcıya özeldir. Hesaplar ve bulut kayıt v0.20 için planlanıyor.
 - Model çizimleri yerel WebP ve boya maskeleri kullanır. Bütün model ve kasa varyantları üretici düzeyinde doğrulanmış değildir. Görsel denetim sayfası temsilî varlıkları işaretler. Fiziksel iPhone kare hızı ölçümü bu sürümde yapılmadı.
 - Fiyat grafiği Türkiye genelinde tüm model yıllarını kapsar. Şehir karşılaştırması seçilen yılın temiz motosiklet referansıdır ve işlem garantisi içermez.
-- Önceki 173 senaryo korundu. Bu sürümün sonuçları [rekabet raporunda](docs/v018-competition.md). Kullanıcı fiziksel iPhone’da v0.17.0.1 kamera ve iOS metin seçimi düzeltmesini doğruladı. v0.18 fiziksel cihazda denenmedi.
+- Önceki 173 senaryo korundu. Bu sürümün sonuçları [rekabet raporunda](docs/v018-competition.md). Kullanıcı fiziksel iPhone’da v0.17.0.1 kamera ve iOS metin seçimi düzeltmesini doğruladı. Kullanıcı v0.18’de fiziksel iPhone’da Kıvıltaş Seri Moto devralmasını ve Çanakkale şubesi, stok, çalışan, kasa ve otomatik alım aktarımını doğruladı. Aktif sayaçta görülen belirsizlik v0.18.1’de ayrı toplamlarla giderildi.
 - Grafik geliştirmeleri ertelendi. Lisanslı 3D motosikletler, tüm garaj seviyelerinin 3D dönüşümü ve görsel hasar açık.
 
 ## Son görev ve devam noktası
 
-- **Son görev** v0.18’de rakiplerin günlük stok, nakliye, servis, kira, satış ve borç döngüsü. Mobil Rekabet Merkezi ve onaylı atomik devralma.
+- **Son görev** v0.18.1’de kompakt canlı satış tepsisi, kanıta dayalı yıldız ve 84 yorum şablonu, İtibar Merkezi, kaydırılabilir rakip kartı ve açık devralma/şirket sayacı.
 - **Ticaret ve zaman** yeni galeri bir şube ve altıdan az satış kaydı varken müşteri kaybına karşı korunur. Açık pazarlıklar etkilenmez. Rakip çalışması mevcut kayıt kilidini ve 60 günlük çevrimdışı sınırı kullanır.
 - **Kayıt ve ekonomi** `motor-empire.v9` anahtarında ek `competition` alanı. Eski kayıt ilk eşitlemede rakipleri oluşturur. İlk oluşum oyuncu kasasını, stoklarını, şubelerini, otomasyon veya borç bilgilerini değiştirmez. Rakip tarihçesi 365 gün, yerel performans 30 gün, şirket başına işlem 12, haber 45 ve arşiv 80 ile sınırlı.
 - **Değişiklik sınırları** 98 katalog ve 2D dosyası, garaj motorları, Yusuf'un kuralları ve v0.16 fiyat formülleri.
-- **Açık işler ve sıradaki görev** fiziksel iPhone Rekabet Merkezi testi. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
-- **Kanıtlar** [Simülasyon, test ve ekran görüntüleri](docs/v018-competition.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)
+- **Açık işler ve sıradaki görev** v0.18.1 fiziksel iPhone doğrulaması, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
+- **Kanıtlar** [v0.18.1 testleri ve karşılaştırmaları](docs/v0181-hotfix.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)

@@ -15,6 +15,7 @@ Oyun statik HTML, CSS, standart JavaScript ES modülleri ve varsayılan Canvas 2
 | `economy.mjs`, `provinces.mjs`, `valuation.mjs` | Deterministik piyasa, 81 il, nakliye ve fiyat tahminleri |
 | `trade.mjs`, `characters.mjs`, `damage.mjs`, `risk.mjs` | Pazarlık, müşteri profilleri, hasar, ekspertiz ve sigorta |
 | `business.mjs`, `automation.mjs`, `finance.mjs` | Şube, personel, otomasyon ve defter kuralları |
+| `reviews.mjs`, `gallery-view.mjs` | Satış kanıtına dayalı puan ve yorumlar, itibar ve müşteri profili |
 | `rivals.mjs`, `competition-view.mjs` | Günlük rakip bilançosu, müşteri alternatifleri, devralma ve Rekabet Merkezi |
 | `market-view.mjs`, `finance-view.mjs`, `notification-view.mjs`, `notifications.mjs` | Ekran gösterimleri ve kayıtlı bildirimler |
 | `art.mjs`, `garage-layout.mjs`, `garage-scene.mjs`, `sprite.mjs`, `bikes.mjs`, `catalog-data.mjs` | İzometrik sahne, kamera, yerleşim, katalog ve model görselleri |
@@ -51,6 +52,10 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 - Rakip satışına stok kimliği, hazırlık maliyeti ve tahsilat eşlik etmeli. Getiriyi rastgele kasa artışıyla verme. Rekabet verileri eski oyuncu varlıklarından ayrı oluşturulur.
 - Devralma teklifini güncel gün, şirket durumu, kasadaki brüt bedel ve açık onay ile doğrula. Kasa, borç, şube, personel, stok ve rakip listesi aynı kayıt işleminde değişir. Devralınan kasa işletme cirosuna girmez.
 - `node tests/rival-simulation.mjs` ile 30/90/365/1000 gün ölç. Test ve tasarım sınırları [v0.18 rekabet raporunda](docs/v018-competition.md).
+
+- Aktif rakipleri güncel şirket listesinden say. Kurulmuş şirketleri ve devralmaları ayrı göster. Devralma defteri satış cirosunu değiştirmez.
+- Yeni yorumlarda fiyat, kondisyon, belge, çalışan ve şikâyet kanıtlarını kullan. Eski yorum metni ve puanını toplu olarak yeniden hesaplama. Canlı bildirim tepsisini kapatmak saklanan geçmişi temizlemez.
+- `node tests/competition-profiles.mjs` ile üç oyuncu profili için 30/90/365 gün denetle. iPhone bulguları ve test komutları [düzeltme raporunda](docs/v0181-hotfix.md).
 
 ## Git ve teslim
 
