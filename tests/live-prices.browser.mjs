@@ -453,7 +453,7 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   await ui.market();
   await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
   const colors = await ui.page.evaluate(async ()=>{
-    const {loadSprite} = await import('/sprite.mjs?v=0.15.1');
+    const {loadSprite} = await import('/sprite.mjs?v=0.15.2');
     const name = 'Vespa Primavera 125';
     const red = await loadSprite({name,year:2024,color:'#c93838'});
     const white = await loadSprite({name,year:2024,color:'#eae6da'});
@@ -474,4 +474,96 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   assert.equal(colors.changedAlpha,0);
   assert.equal(colors.yusufWidth,640);
   assert.equal(colors.representative,true);
+});
+
+function notificationSeed({auto=false,price=65000}={}) {
+  const listing = {...fixture,province:34,disclosure:undefined,faults:[],damageHistory:[],condition:100};
+  let state = act(act(act({...initial(),listings:[listing]},'buy',fixture.id),'inspect',fixture.id),'list',fixture.id);
+  const bike = state.branches[0].garage[0];
+  bike.nextVisit = 12;
+  bike.meetings = [createBuyer(bike,1,0,50,100000,{name:'Deniz Kaya',price})];
+  if (auto) {
+    state = act(act(state,'hire-worker',undefined,'manager'),'hire-worker',undefined,'sales');
+    state = act(state,'set-automation',undefined,{buy:false,sell:true,maxPrice:0,minProfit:1000,budget:0,brand:'',minCc:0,maxCc:3000});
+  }
+  return state;
+}
+
+test('320px WebKit live manual sale opens loss details, filters history and persists read and cleared states',async t=>{
+  const ui = await open(t,320,568,notificationSeed({price:40000}));
+  const {page} = ui;
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.tap('[data-action=open-buyer]');
+  await ui.tap('#meeting-confirm');
+  await page.locator('.sale-toast[data-tone=loss]').waitFor({state:'visible'});
+  assert.equal(await page.locator('#notification-count').innerText(),'3');
+  await ui.tap('.sale-toast');
+  await page.locator('#notification-detail-content canvas').waitFor({state:'visible'});
+  const detail = await page.locator('#notification-detail-content').innerText();
+  assert.match(detail,/Yamaha R25/);
+  assert.match(detail,/Oyuncu · Manuel satış/);
+  assert.match(detail,/Model yılı 2021/);
+  assert.match(detail,/Alış fiyatı\s+48\.000 TL/);
+  assert.match(detail,/Gerçekleşen zarar\s+-8\.450 TL/);
+  assert.match(detail,/Yatırım getirisi\s+-%17,44/);
+  await ui.text('#notification-count','2');
+  await ui.tap('#notification-back');
+  await page.selectOption('#notification-filter','sale');
+  assert.equal(await page.locator('.notification-row').count(),1);
+  await ui.tap('#notification-clear');
+  await ui.tap('#notification-clear');
+  await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('motor-empire.v9')).inbox.items.some(item=>item.type==='sale'));
+  await page.reload(); await ui.ready();
+  assert.equal(await page.locator('.sale-toast').count(),0);
+  await ui.tap('#notification-bell');
+  assert.equal(await page.locator('.notification-row').count(),2);
+  await ui.tap('#notification-read-all');
+  await page.locator('#notification-count').waitFor({state:'hidden'});
+});
+
+test('390px WebKit automatic sale appears on Finance and dismisses after eight seconds',async t=>{
+  const ui = await open(t,390,844,notificationSeed({auto:true}));
+  await ui.tap('.bottom-nav [data-page=finance]');
+  await ui.jump(DAY_MS);
+  const toast = ui.page.locator('.sale-toast[data-tone=gain]');
+  await toast.waitFor({state:'visible'});
+  assert.match(await toast.innerText(),/Yamaha R25 · 2021/);
+  assert.equal(await ui.page.locator('#finance-page').isVisible(),true);
+  await toast.waitFor({state:'detached',timeout:9200});
+  await ui.tap('#notification-bell');
+  await ui.page.selectOption('#notification-filter','sale');
+  assert.equal(await ui.page.locator('.notification-row').count(),1);
+});
+
+test('844px WebKit offline sale is retained without a replay toast and type settings persist',async t=>{
+  const seed = notificationSeed({auto:true});
+  const ui = await open(t,844,390,seed);
+  await ui.jump(DAY_MS);
+  await ui.page.reload(); await ui.ready();
+  await ui.page.locator('#offline-summary[open]').waitFor();
+  await ui.tap('#offline-summary form button');
+  assert.equal(await ui.page.locator('.sale-toast').count(),0);
+  await ui.tap('#notification-bell');
+  await ui.page.selectOption('#notification-filter','sale');
+  assert.equal(await ui.page.locator('.notification-row').count(),1);
+  await ui.tap('#notification-history details summary');
+  await ui.page.getByLabel('Motosiklet satışı',{exact:true}).uncheck();
+  await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).inbox.muted.sale);
+  await ui.page.reload(); await ui.ready();
+  await ui.tap('#notification-bell');
+  await ui.tap('#notification-history details summary');
+  assert.equal(await ui.page.getByLabel('Motosiklet satışı',{exact:true}).isChecked(),false);
+});
+
+test('mobile WebKit can open an automatic sale notification over an active seller dialogue',async t=>{
+  const seed = notificationSeed({auto:true});
+  seed.listings = [{...fixture,id:'other-listing'}];
+  const ui = await open(t,390,844,seed);
+  await ui.market(); await ui.row(); await ui.negotiation();
+  await ui.page.locator('#meeting[open]').waitFor();
+  await ui.jump(DAY_MS);
+  await ui.page.locator('#meeting .sale-toast').waitFor({state:'visible'});
+  await ui.tap('.sale-toast');
+  assert.equal(await ui.page.locator('#notification-detail').isVisible(),true);
+  assert.equal(await ui.page.locator('#meeting').evaluate(item=>item.open),true);
 });

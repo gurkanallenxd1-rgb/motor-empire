@@ -1,8 +1,8 @@
-import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.1';
+import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.2';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.15.1';
-export { stableNumber } from './characters.mjs?v=0.15.1';
-import { modelOf } from './bikes.mjs?v=0.15.1';
+  setReputation, stableNumber } from './characters.mjs?v=0.15.2';
+export { stableNumber } from './characters.mjs?v=0.15.2';
+import { modelOf } from './bikes.mjs?v=0.15.2';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });

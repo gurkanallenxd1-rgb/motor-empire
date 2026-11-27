@@ -1,5 +1,5 @@
-import { stableNumber } from './characters.mjs?v=0.15.1';
-import { ISTANBUL } from './provinces.mjs?v=0.15.1';
+import { stableNumber } from './characters.mjs?v=0.15.2';
+import { ISTANBUL } from './provinces.mjs?v=0.15.2';
 
 export const YUSUF_ID = 'yusuf-belge';
 export const YUSUF_PRICE = 1_350_000;

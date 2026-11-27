@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.15.1
+# MOTOR EMPIRE v0.15.2
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -198,3 +198,9 @@ Yusuf Belge tamamen kurgusal bir oyun karakteridir. İstanbul pazarında 120 oyu
 - Müdür, günlük pazarı tahmini kâr, yatırım getirisi, model talebi, kondisyon, nakliye ve tamir maliyetine göre sıralar. Bütçe tahmini toplam edinim maliyetini kapsar. Nakit rezervi hem alımda hem otomatik tamirde korunur. Otomasyon borçlanmaz.
 - Alım, ekspertiz, tamir, ilan, müşteri görüşmesi ve satış ayrı ayrı açılabilir. Her aşama gereken personeli bekler. Yapılandırılmış otomasyon, duraklatılmamış oyun zamanında ve çevrimdışı ilerlemede çalışır. Bir motosiklet manuel yönetime alınabilir. Başlatılmış iş ve ödenmiş parça masrafı korunur.
 - Şube raporu zamanlamayı, iş sırasını, işlemleri ve tüm pazar için ret sayılarını gerekçe bazında gösterir. Ret listelerinde her gerekçe için en fazla üç örnek, işlem geçmişinde son 40 kayıt saklanır.
+
+## v0.15.2 Bildirim merkezi
+
+Üst menüdeki zil, okunmamış bildirim sayısını ve son 200 kaydı gösterir. Kategori filtresi okundu işaretleme ve temizleme işlemlerini de sınırlar. Türler ve isteğe bağlı satış sesi ayarlardan değiştirilebilir.
+
+Canlı satış kartı sekiz saniye görünür. Kartı açınca satış anındaki fiyat, maliyet, kâr veya zarar ve yatırım getirisi gösterilir. Çevrim dışı satışlar geçmişe eklenir. Önceki sürümlerde maliyeti kalemlere ayrılmamış stok için kayıtlı toplam kullanılır.
