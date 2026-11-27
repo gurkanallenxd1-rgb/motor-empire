@@ -570,3 +570,25 @@ body[data-view="market-analysis"] main { padding-top:13px }
 .graphics-canvas { background:#191c20; border:1px solid var(--line); border-radius:9px; overflow:hidden }
 .graphics-canvas canvas { display:block; width:100%; aspect-ratio:3/2; max-height:66svh; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none }
 .graphics-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-block:6px }
+
+#competition-open { color:var(--accent); border-color:#845739; background:#332720 }
+body[data-view="competition"] main > :is(.intro,.stats,.branch-bar) { display:none }
+body[data-view="competition"] main { padding-top:13px }
+.competition-tabs { grid-template-columns:repeat(5,minmax(0,1fr)) }
+.competition-tabs button { min-width:0; font-size:clamp(10px,3.15vw,14px); line-height:1.05; overflow-wrap:anywhere }
+.competition-filters { grid-template-columns:repeat(2,minmax(0,1fr)) }
+.competition-hero { grid-template-columns:1fr 1fr }
+.competition-total { font-size:clamp(16px,5vw,29px); color:var(--accent); overflow-wrap:anywhere }
+.competition-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(55px,36%); align-items:center; gap:6px;
+  padding:7px 5px; border-bottom:1px solid var(--line) }
+.competition-row[data-player] { border:1px solid #a66640; border-radius:8px; padding:9px 7px; background:#372a22 }
+.competition-link { border-color:transparent; background:transparent; text-align:left; padding:3px; min-height:44px;
+  color:var(--accent); overflow-wrap:anywhere }
+.competition-value { text-align:right; overflow-wrap:anywhere; font-variant-numeric:tabular-nums }
+.competition-story { padding:7px 0; margin:0; border-bottom:1px solid var(--line); font-size:13px; color:var(--muted) }
+#competition-summary h3 { margin-block:12px 5px }
+#rival-detail { width:min(96%,560px); max-height:86svh; overflow:auto; overflow-wrap:anywhere }
+#rival-detail h3 { margin-block:10px 5px }
+#rival-history svg { display:block; width:100%; background:#212523 }
+#rival-price { min-width:0; width:min(100%,160px); min-height:44px; font-size:16px }
+#rival-confirm-area { margin-top:9px; border-top:1px solid var(--line); padding-top:7px }

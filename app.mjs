@@ -1,3 +1,4 @@
+import { createCompetitionView } from './competition-view.mjs?v=0.18';
 import { createGraphicsController } from './graphics/controller.mjs?v=0.17.0.1';
 import { createMarketAnalysis } from './market-view.mjs?v=0.16.1';
 import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
@@ -1128,6 +1129,7 @@ function render(action, animationBike) {
   }
   if (currentPage === 'market-analysis') marketAnalysis.refresh();
   if (currentPage === 'business') renderBusiness();
+  if (currentPage === 'competition') competitionView.render();
   if (currentPage === 'staff') renderPersonnel();
   if (currentPage === 'finance') renderFinance(state,worth);
   renderComplaints();
@@ -1140,7 +1142,7 @@ function showPage(page) {
   document.body.dataset.view = page;
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== `${page}-page`; });
   document.querySelectorAll('.bottom-nav button').forEach(button => {
-    if (button.dataset.page === (page==='market-analysis' ? 'market' : page)) button.setAttribute('aria-current','page');
+    if (button.dataset.page === (page==='market-analysis' ? 'market' : page==='competition' ? 'business' : page)) button.setAttribute('aria-current','page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0,0);
@@ -1503,6 +1505,7 @@ window.addEventListener('pageshow',async event=>{
 const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
 const marketAnalysis = createMarketAnalysis({byId,element,money,signed,
   getState:()=>state,getDestination:()=>branchProvince(activeBranch()),estimate:purchaseForecast,openListing});
+const competitionView=createCompetitionView({byId,element,money,signed,assets,getState:()=>state,dispatch:runAction});
 const garageGraphics = createGraphicsController({byId,select:openBike,refresh:()=>{
   if (currentPage==='garage') render();
 }});
