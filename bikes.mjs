@@ -1,6 +1,6 @@
-import { ISTANBUL, provinceName } from './provinces.mjs?v=0.13.1';
-import { additions } from './catalog-data.mjs?v=0.13.1';
-import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.13.1';
+import { ISTANBUL, provinceName } from './provinces.mjs?v=0.14';
+import { additions } from './catalog-data.mjs?v=0.14';
+import { damageGrade, GRADE_LABELS } from './damage.mjs?v=0.14';
 
 const models = [
   // Model ID, display name, category, displacement, PS, years, base buy and sale values (TL).
@@ -36,6 +36,7 @@ export const PAINT_COLORS = {
   red:{name:'Kırmızı',hex:'#c93838'}, blue:{name:'Mavi',hex:'#3564ba'}, green:{name:'Yeşil',hex:'#639d34'},
   duke23orange:{name:'Turuncu / Mavi-gri',hex:'#e86920',accent:'#526279'},
   duke23grey:{name:'Mat gri / Siyah',hex:'#747c82',accent:'#292b2e'},
+  orangeBlack:{name:'Turuncu-siyah',hex:'#e86920',accent:'#292b2e'},
   orange:{name:'Turuncu',hex:'#e86920'}, yellow:{name:'Sarı',hex:'#e7b843'}, mirror:{name:'Ayna siyahı',hex:'#383a40'},
 };
 
@@ -67,6 +68,7 @@ const yearSpecs = {
 
 export const catalog = [...models,...additionsInLira].map(([id,name,category,cc,hp,firstYear,lastYear,price,value,paints]) => ({
   id,name,category,cc,hp,firstYear,lastYear,price,value,
+  ...(id==='ktm-super-duke1390' ? {eventOnly:true} : {}),
   brand:name.startsWith('Royal Enfield ') ? 'Royal Enfield' : name.split(' ')[0],
   palettes:(yearPaints[id] ?? [[firstYear,lastYear,paints ?? legacyPaints[id]]]).map(([from,to,keys]) =>
     ({from,to,colors:keys.split(' ').map(key=>PAINT_COLORS[key])})),

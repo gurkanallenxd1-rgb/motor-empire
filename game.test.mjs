@@ -188,8 +188,8 @@ test('v0.3 migration preserves legacy storage, delivery day, listings and sales'
 });
 
 test('daily market offers thirty distinct models with changing valid attributes', () => {
-  assert.equal(catalog.length,100);
-  assert.equal(new Set(catalog.map(model => model.id)).size,100);
+  assert.equal(catalog.length,101);
+  assert.equal(new Set(catalog.map(model => model.id)).size,101);
   let seed=14;
   const random = () => ((seed = (Math.imul(seed,1664525) + 1013904223) >>> 0) / 2 ** 32);
   const all = new Set();
@@ -214,7 +214,7 @@ test('daily market offers thirty distinct models with changing valid attributes'
       if(model.category==='scooter') assert.ok(!bike.faults.includes('zincir'));
     }
   }
-  assert.equal(all.size,catalog.length);
+  assert.equal(all.size,catalog.filter(model=>!model.eventOnly).length);
   assert.equal(grades.size,Object.keys(gradeLabel).length);
 });
 

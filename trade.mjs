@@ -1,7 +1,8 @@
+import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.14';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.13.1';
-export { stableNumber } from './characters.mjs?v=0.13.1';
-import { modelOf } from './bikes.mjs?v=0.13.1';
+  setReputation, stableNumber } from './characters.mjs?v=0.14';
+export { stableNumber } from './characters.mjs?v=0.14';
+import { modelOf } from './bikes.mjs?v=0.14';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -87,6 +88,7 @@ export function createBuyer(bike,day,index,reputation,value,legacy,trade) {
 }
 
 export function createSeller(bike,day,marketValue) {
+  if (isYusufListing(bike)) return yusufMeeting(bike,day);
   const id = 'seller:' + bike.id;
   const profile = bike.characterSeed ? characterFor(`seller-${stableNumber(bike.characterSeed)%1800}`) : profileFor(id);
   const seed = stableNumber(id);
@@ -230,6 +232,11 @@ export function negotiate(meeting,offer) {
   if (offer !== undefined) meeting.playerOffer = offer;
   meeting.round += 1;
   meeting.patience -= 1;
+  if (meeting.kind==='purchase' && meeting.fixedSeller===YUSUF_ID) {
+    meeting.price = YUSUF_PRICE;
+    meeting.speech = yusufReply(meeting);
+    return;
+  }
   const buyer = meeting.kind === 'sale';
   const gap = Math.abs(meeting.limit - meeting.price);
   const roll = stableNumber(`${meeting.id}:${meeting.round}:automatic`) % 100;

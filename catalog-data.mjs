@@ -49,6 +49,7 @@ ktm-duke790|KTM Duke 790|naked|799|105|2018|2020|282|338|black orange
 ktm-duke890|KTM Duke 890|naked|889|115|2021|2023|388|462|black orange
 ktm-duke990|KTM Duke 990|naked|947|123|2024|2025|541|650|black orange
 ktm-super-duke1290|KTM 1290 Super Duke R|naked|1301|180|2020|2023|768|910|black orange
+ktm-super-duke1390|KTM 1390 Super Duke R|naked|1350|190|2025|2025|1350|1350|orangeBlack
 ktm-rc125|KTM RC 125|sport|125|15|2017|2021|115|149|orange
 ktm-rc390|KTM RC 390|sport|373.2|44|2022|2024|162|202|orange blue
 suzuki-gsxr125|Suzuki GSX-R125|sport|124.4|15|2017|2021|97|125|blue black
