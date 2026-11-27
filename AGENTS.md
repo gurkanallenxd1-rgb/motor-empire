@@ -39,8 +39,11 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 - 3D dosyaları `assets/3d/` altında ve eşleştirmeleri `graphics/registry.mjs` içinde bağımsız tutulur. Eksik veya hatalı 3D modelin yerine aynı motosikletin özgün 2D görseli kullanılır.
 - 2D varsayılan açıktır. Kaynak veya WebGL hatasında 2D garaj çalışmaya devam eder. Grafik ayarları oyun kaydından ayrıdır.
 - Katalog ve görsel dosyalarını temel envanterle otomatik karşılaştır. Varlık lisanslarını [ASSET_LICENSES.md](ASSET_LICENSES.md) dosyasına belgele. Mimari için [GRAPHICS_ARCHITECTURE.md](GRAPHICS_ARCHITECTURE.md) dosyasını oku.
+- [v0.17 gereksinim denetimi](docs/v017-audit.md) doğrulanan özellikleri ve açık işleri listeler. Performans karşılaştırmalarında tarayıcı, donanım, profil ve ölçüm yöntemini kaydet. Fiziksel iPhone sonucu diye emülasyon ölçümü kullanma.
 - İlk prototip 10 bölme ve üç hedef motosikletle sınırlı. Katalog veya garaj seviyelerini genişletmeden önce kullanıcı onayı al. PR'ı otomatik birleştirme.
 
 ## Git ve teslim
 
 Güncel `main` üzerinden ayrı bir `feature/` veya `fix/` dalı aç. Odaklı commit oluştur, testi ve sınırlarını PR'da raporla ve ilgili proje belgelerini aynı PR'a ekle. `main` dalına doğrudan yazmak yerine PR kullan. Şifre, erişim belirteci, API anahtarı, kişisel hesap bilgisi veya tarayıcı kaydı commit etme. Proje içi kaynak ve geçmiş için GitHub deposunu kullan.
+
+Açık PR üzerinde devam edilmesi istenirse aynı dalı kullan. Çalışmayı geri dönülebilir commit’lere ayır ve doğrulanmamış bulguları proje durumunda açık iş olarak kaydet.

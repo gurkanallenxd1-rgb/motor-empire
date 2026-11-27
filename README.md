@@ -18,7 +18,7 @@ Tarayıcıda [localhost:8000](http://localhost:8000/) adresini aç. Aynı kaydı
 
 Garaj ekranında **Garaj grafik ayarları → Deneysel 3D Garaj** yolunu kullan. Prototip 10 bölmeli şubelerde çalışır. Diğer şubeler ve WebGL 2 desteklemeyen cihazlar 2D garajı kullanır. Grafik ayarları oyun kaydından bağımsızdır. Mevcut motosiklet görselleri üç hedef varyant dahil stokta gösterilir. Lisanslı 3D motosiklet modelleri henüz pakette bulunmuyor.
 
-Yerel Three.js ve Basis dosyaları statik olarak sunulur. Mimari ve varlık belgeleri [GRAPHICS_ARCHITECTURE.md](GRAPHICS_ARCHITECTURE.md) ve [ASSET_LICENSES.md](ASSET_LICENSES.md) dosyalarındadır.
+Yerel Three.js ve Basis dosyaları statik olarak sunulur. Testte kullanılan özgün UASTC doku ve aday varlık lisansları belgelenmiştir. [Grafik mimarisi](GRAPHICS_ARCHITECTURE.md) · [Lisanslar](ASSET_LICENSES.md) · [Gereksinim denetimi](docs/v017-audit.md)
 
 ## Oynama
 

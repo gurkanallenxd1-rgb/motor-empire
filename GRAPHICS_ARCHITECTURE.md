@@ -24,8 +24,16 @@
 
 Oyun anahtarı `motor-empire.v9`. Grafik seçimi bağımsız `motor-empire.graphics.v1` anahtarındadır. WebGL 2 yoksa veya motor başlatılamazsa izometrik 2D garaj görünür. Bağlam kesintisinde aynı 2D ekran gösterilir, geri yüklemede temiz bir canvas ile motor yeniden başlatılır. Onaylı GLB eşleşmesi yoksa veya yüklenemezse mevcut motosiklet WebP görseli sahnede veya ayrıntıda kullanılır. Nakliye ve kiralamadaki stok fiziksel sahneye eklenmez. Katalog bütünlüğü v0.16.1 dosya karmalarıyla denetlenir.
 
-Bu prototipte doğrulanmış motosiklet mesh'i, fiziksel görsel hasar, harici HDRI ve gerçek cihaz performans ölçümü eksik. GLB yükleyici özgün sergi platformuyla test edilir. KTX2 çözücü mevcut, motosiklet dokusu olarak doğrulanmış KTX2 örneği yok. Tüm katalog ve garajlara genişleme öncesi kullanıcı onayı gereklidir.
+Bu prototipte doğrulanmış motosiklet mesh'i, fiziksel görsel hasar, harici HDRI ve gerçek cihaz performans ölçümü eksik. GLB yükleyici özgün sergi platformuyla test edilir. UASTC KTX2 yolu özgün test GLB’si ile doğrulandı. Üretim motosikleti dokusu henüz yok. Tüm katalog ve garajlara genişleme öncesi kullanıcı onayı gereklidir.
 
-## v0.17 ölçüm kaydı
+## Performans doğrulaması
 
-390×844 mobil ekran emülasyonunda, Chromium SwiftShader yazılımsal WebGL ile Orta profil ve 30 FPS sınırında, kamera hareketi sırasında örnek alınan çizimde 7.558 üçgen, 12 GPU doku nesnesi ve 14 geometri nesnesi raporlandı. Ayrı koşularda anlık kare hızı örnekleri 5–12 FPS aralığındaydı. Bu ölçüm fiziksel iPhone performansını temsil etmez. GLB platformu 6.940 bayt. GPU bellek baytları ve ilk kullanımdaki yükleme gecikmesi ölçülmedi. Mevcut üç 2D motosikletin 3D poligon sayısı yoktur.
+`tests/graphics-profile.cjs`, ayrı bir Chromium profili açar ve 390×844 iPhone emülasyonunda yazılımsal Vulkan SwiftShader kullanır. İlk açılış metrikleri 3D seçeneğini değiştirmekten platform GLB'sinin bağlanmasına kadar ölçülür. Ardından boş 10 bölmeli sahne 390×260 CSS pikselde, 487×325 fiziki pikselde ve Orta profilde örneklenir. Çizim çağrıları web bağlamından, CPU tarafı duvar süresi ilk clear ile aynı karedeki ölçüm callback'i arasından alınır. Bu süre JavaScript ile yazılım sürücüsünün senkronize işini kesin olarak ayırmaz. Timer sorguları desteklenirse aygıt tarafı örnekleri de alınır. SwiftShader sonuçları CPU üzerinde çalışan bir WebGL sürücüsüne aittir.
+
+```sh
+python3 -m http.server 8397
+# İkinci terminal
+node tests/graphics-profile.cjs
+```
+
+Gerekirse `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` ve `GRAPHICS_URL` ayarla. Karşılaştırılacak iki commit için aynı tarayıcı ve host kullan. Platform GLB 6.940 bayt. UASTC test GLB'si 1.492 bayt. Gömülü doku 529 bayt ve 32×32 boyutta. Bu doku üretim sahnesinin parçası değildir. Three.js bellek sayaçları kaynak adedini verir. GPU VRAM baytlarını veya süreç RSS sızıntısını ispatlamaz.

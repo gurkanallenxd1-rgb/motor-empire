@@ -28,4 +28,4 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 | v0.23 | Android ve iOS uygulaması |
 | v1.0 | Resmî yayın |
 
-Sıradaki görev v0.17 grafik temelidir. Mevcut model atlası ve kasa doğrulama eksiklerini [görsel denetim sayfasıyla](visual-audit.html?dev=1) belirleyip önce az sayıda model üzerinde yeni render yaklaşımı, varlık lisansları ve mobil bütçeyi doğrula. Ardından kataloğa yay. Bu sürümde ekonomi veya kayıt şemasında değişiklik planlanmıyor.
+PR #33 denetiminde KTX2 ve dört grafik profili doğrulandı. Sırada üç lisanslı model, gerçek 3D inceleme, profesyonel garaj varlıkları ve gerçek iPhone ölçümü var. Kataloğu veya ek garaj seviyelerini dönüştürmeden önce kullanıcı onayı gerekir. [Gereksinim denetimi](docs/v017-audit.md)
