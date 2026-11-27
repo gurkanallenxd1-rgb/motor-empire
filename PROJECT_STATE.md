@@ -40,4 +40,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Açık işler** düzeltmenin fiziksel iPhone tekrarı, pil/ısıl durum ve cihaz FPS’i, lisanslı 3D motosikletler, gerçek 3D inceleme, gerçek optik cam kırılması ve çekilmiş HDRI.
 - **Sıradaki görev** 10 bölmeli garajın fiziksel iPhone testi ve üç hedef model için kalite/lisans doğrulaması. Diğer seviyelere ve tüm kataloğa genişleme kullanıcı onayı gerektirir.
 - **Değişiklik sınırları** 98 katalog/2D dosyası, 2D varsayılanı, oyun kaydı, ekonomi, finans, personel, otomasyon, ekspertiz, nakliye, tamir, bildirimler ve Yusuf Belge kuralları.
+- **Performans** yerel SwiftShader Orta profilde 3D başlangıcı 3,655 → 1,833 sn, normal kare 44 → 72 çizim çağrısı ve aygıt sorgusu medyanı 80,42 → 92,45 ms. Yeni geometri maliyeti fiziksel cihazda ölçülmeli.
 - **Kanıtlar** [Karşılaştırma, test ve ölçümler](docs/v01701-comparison.md) · [PR #33 temel denetimi](docs/v017-audit.md)
