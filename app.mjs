@@ -1,21 +1,23 @@
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.11';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.11';
-import { createFinanceView } from './finance-view.mjs?v=0.11';
-import { dailyCashMovement } from './finance.mjs?v=0.11';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.11';
+import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
+  policyQuote, serviceQuote, visibleListing } from './risk.mjs?v=0.12';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12';
+import { createFinanceView } from './finance-view.mjs?v=0.12';
+import { dailyCashMovement } from './finance.mjs?v=0.12';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
-  assets, branchCapacity, estimatedListingProfit, newGame, operatingCost,
+  assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.11';
-import { createGarageRenderer } from './art.mjs?v=0.11';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.11';
+} from './game.mjs?v=0.12';
+import { createGarageRenderer } from './art.mjs?v=0.12';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.11';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.11';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, cleanValue, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.11';
+  repairForecast } from './damage.mjs?v=0.12';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -24,7 +26,7 @@ const money = value => `${numeric.format(value)} TL`;
 const signed = value => value > 0 ? `+${money(value)}` : money(value);
 const stages = {
   unchecked: 'Ekspertiz bekliyor', inspected: 'Tamir bekliyor',
-  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada', shipping: 'Yolda',
+  repairing: 'Tamirde', ready: 'Satışa hazır', listed: 'Satışta', rented: 'Kirada', shipping: 'Yolda', claiming:'Kasko onayı bekliyor', riding:'Test sürüşünde',
 };
 
 let state;
@@ -33,6 +35,8 @@ let bayPage = 0;
 let currentPage = 'home';
 let meetingView;
 let sellerReturn;
+let listingDetailId;
+let archiveLimit = 20;
 let marketPage = 0;
 const LISTINGS_PER_PAGE = 10;
 const deliveryLabel = delivery => delivery.days ? `${delivery.days} oyun günü` : 'Aynı gün';
@@ -68,6 +72,9 @@ function timedText(bike) {
     const hours = Math.ceil(remaining/HOUR_MS);
     return `${provinceName(bike.province)} → İstanbul · Kalan ${Math.floor(hours/24)} gün ${hours%24} sa · Teslimat: Gün ${bike.shipping.arrivalDay}`;
   }
+  if (bike.stage==='claiming' || bike.stage==='riding') {
+    return countdownText(bike.claim?.due ?? bike.ride.end);
+  }
   if (bike.readyDay) return `Teslim · Gün ${bike.readyDay}`;
   const branch = activeBranch();
   const elapsed = projectedOffset(state.clock,Date.now())-state.clock.offset;
@@ -81,6 +88,12 @@ function timedText(bike) {
   return `Kalan işçilik · ${Math.floor(minutes/60)} sa ${minutes%60} dk`;
 }
 
+function countdownText(due) {
+  const remaining = Math.max(0,due-gameTime(state.day,projectedOffset(state.clock,Date.now())));
+  const minutes = Math.ceil(remaining*60/HOUR_MS);
+  return `Kalan ${Math.floor(minutes/60)} sa ${minutes%60} dk`;
+}
+
 function clockDisplay(now = Date.now()) {
   if (!state?.clock) return;
   const offset = projectedOffset(state.clock,now);
@@ -90,19 +103,23 @@ function clockDisplay(now = Date.now()) {
   byId('clock-countdown').textContent = state.clock.paused ? 'Duraklatıldı' : `Yeni güne ${Math.ceil((DAY_MS-offset)/1000)} sn`;
   byId('clock-progress').value = offset;
   byId('toggle-clock').textContent = state.clock.paused ? 'Devam et' : 'Duraklat';
+  const inspection = byId('listing-inspections').querySelector('[data-due]');
+  if (inspection) inspection.textContent = countdownText(Number(inspection.dataset.due));
   if (currentPage === 'garage') for (const node of byId('garage').querySelectorAll('[data-timed-bike]')) {
     const bike = activeBranch().garage.find(item=>item.id === node.dataset.timedBike);
-    if (bike && ['shipping','repairing'].includes(bike.stage)) node.textContent = timedText(bike);
+    if (bike && ['shipping','repairing','claiming','riding'].includes(bike.stage)) node.textContent = timedText(bike);
   }
 }
 
 function showOffline(summary) {
-  if (!summary || document.hidden || !(summary.days || summary.completed || summary.delivered)) return;
+  if (!summary || document.hidden || !(summary.days || summary.completed || summary.delivered || summary.inspected || summary.approved || summary.rides)) return;
   const dialog = byId('offline-summary');
   byId('offline-totals').replaceChildren(
     metric('Geçen oyun günü',summary.days),metric('Tamamlanan tamir',summary.completed),
     metric('Teslim edilen nakliye',summary.delivered),metric('Dönen kiralık',summary.returned),
-    metric('Gelen müşteri',summary.visits),metric('Gelir',money(summary.income)),metric('Gider',money(summary.expenses)));
+    metric('Gelen müşteri',summary.visits),metric('Hazır ekspertiz',summary.inspected),
+    metric('Onaylanan kasko',summary.approved),metric('Kaza',summary.accidents),
+    metric('Müşteri şikâyeti',summary.complaints),metric('Gelir',money(summary.income)),metric('Gider',money(summary.expenses)));
   byId('offline-limit').hidden = !summary.capped;
   if (!dialog.open) dialog.showModal();
 }
@@ -115,13 +132,20 @@ function acceptTime(next) {
     render();
     window.scrollTo(0,y);
     if (byId('meeting').open) updateMeeting();
+    if (byId('listing-detail').open && listingDetailId) {
+      if (next.listings.some(item=>item.id===listingDetailId)) openListing(listingDetailId);
+      else {
+        byId('listing-detail').close();
+        notice('İlanın süresi doldu.');
+      }
+    }
   }
   clockDisplay();
 }
 
 function clockIsDue(now) {
   const offset = projectedOffset(state.clock,now);
-  if (offset >= DAY_MS) return true;
+  if (offset >= DAY_MS || nextRiskEvent(state)<=gameTime(state.day,offset)) return true;
   return state.branches.some(branch=>{
     const activeWork = Math.min((offset-state.clock.offset)*(1+branch.staff),
       Math.max(0,repairCapacity(branch)*HOUR_MS-(branch.workMs ?? 0)));
@@ -199,14 +223,28 @@ function issueDetails(bike,{active=true}={}) {
     }
     details.append(element('h3',label),list);
   }
-  const history = historicalIssues(bike);
+  const history = legacyDamageRecords(bike);
   if (history.length) {
-    const list = element('ul','','parts');
-    for (const code of history) {
-      const label = {agir:'Ağır hasar kaydı',pert:'Pert geçmişi'}[code] ?? PARTS[code].name;
-      list.append(element('li',label));
+    const sources = {unknown:'Kayıt kaynağı bilinmiyor',private:'Özel servis kaydı',authorized:'Yetkili servis kaydı',
+      insured:'Sigorta kaydı',unrepaired:'Yeni kaza'};
+    details.append(element('h3','Kalıcı hasar geçmişi'));
+    const groups = [
+      ['Sigorta kayıtlı hasarlar',history.filter(record=>record.source==='insured')],
+      ['Servis ve diğer hasar kayıtları',history.filter(record=>record.source!=='insured')],
+    ];
+    for (const [title,records] of groups) {
+      if (!records.length) continue;
+      const list = element('ul','','parts');
+      for (const record of records) {
+        const status = record.method ? 'Onarılmış' : 'Aktif hasar';
+        const labels = record.codes.map(code=>({agir:'Ağır hasar kaydı',pert:'Pert geçmişi'})[code] ?? PARTS[code].name);
+        const date = record.date ?? (record.day ? `Gün ${record.day}` : 'Tarih bilinmiyor');
+        const cost = record.amount == null ? 'Tutar bilinmiyor' : `${record.estimated ? 'Tahmini ' : ''}${money(record.amount)}`;
+        const method = METHODS[record.method]?.label ?? (record.method==='unknown' ? 'Yöntem bilinmiyor' : '');
+        list.append(element('li',[`${status} · ${labels.join(', ')}`,date,cost,sources[record.source],method].filter(Boolean).join(' · ')));
+      }
+      details.append(element('p',title,'spec'),list);
     }
-    details.append(element('h3','Kalıcı hasar geçmişi'),list);
   }
   return details;
 }
@@ -218,6 +256,72 @@ function repairComparison(report,label) {
     element('p',`Piyasa değeri · ${money(report.beforeValue)} → ${money(report.afterValue)}`,'spec'),
     element('p',`Tamir masrafı · ${money(report.cost)}`,'spec'));
   return section;
+}
+
+function reportCard(report) {
+  const details = element('details','','risk-panel');
+  details.append(element('summary',`${report.title ?? PACKAGES[report.package].label+' ekspertiz'} · ${report.result ? 'Rapor hazır' : 'İnceleniyor'}`));
+  if (!report.result) {
+    details.open = true;
+    const due = element('p',countdownText(report.due),'spec');
+    due.dataset.due = report.due;
+    details.append(due);
+    return details;
+  }
+  const list = element('ul','','parts');
+  for (const area of report.result) {
+    const result = !area.checked ? 'Paket kapsamı dışında' : area.codes.length
+      ? area.codes.map(code=>PARTS[code].name).join(', ') : 'Bulgu yok';
+    list.append(element('li',`${SYSTEMS[area.area]} · ${result}`));
+  }
+  details.append(list);
+  return details;
+}
+
+function inspectionControls(bike) {
+  const node = byId('listing-inspections');
+  const expanded = new Set([...node.querySelectorAll('details[open]')].map(item=>item.dataset.report));
+  const reports = bike.inspections ?? [];
+  const panel = element('details','','risk-panel');
+  panel.dataset.report = 'packages';
+  panel.open = !reports.length || expanded.has('packages');
+  panel.append(element('summary','Satın alma öncesi ekspertiz'));
+  for (const [id,plan] of Object.entries(PACKAGES)) {
+    const button = actionButton(`${plan.label} · ${money(plan.cost)} · ${plan.hours} sa`,'pre-inspect',bike.id,
+      state.cash<plan.cost || reports.some(report=>!report.result || report.cost>=plan.cost),id);
+    const coverage = plan.areas.map(area=>SYSTEMS[area]).join(', ');
+    panel.append(button,element('p',coverage,'spec'));
+  }
+  const rendered = reports.map(report=>{
+    const card = reportCard(report);
+    card.dataset.report = report.id;
+    card.open = !report.result || expanded.has(report.id) || report===reports.at(-1);
+    return card;
+  });
+  if (reports.length && reports.every(report=>report.result) && reports.some(report=>!report.closed)) {
+    panel.append(actionButton('Alımdan vazgeç · Ekspertizi gider kaydet','close-inspection',bike.id));
+  }
+  node.replaceChildren(panel,...rendered);
+}
+
+function insuranceControls(bike) {
+  const details = element('details','','risk-panel');
+  details.append(element('summary','Sigorta ve poliçeler'));
+  const time = gameTime(state.day,projectedOffset(state.clock,Date.now()));
+  for (const [type,plan] of Object.entries(POLICY_TYPES)) {
+    const current = activePolicy(bike,type,time);
+    const quote = current ?? policyQuote(bike,type);
+    details.append(element('h3',plan.label),element('p',plan.coverage,'spec'),
+      element('p',`Prim ${money(quote.premium)} · Süre ${quote.days} gün · Limit ${money(quote.limit)} · Muafiyet ${money(quote.deductible)}`,'spec'));
+    if (current) details.append(element('p',`Başlangıç: Gün ${Math.floor(current.start/DAY_MS)+1} · Bitiş: Gün ${Math.floor(current.end/DAY_MS)+1}`,'spec'));
+    else if (['unchecked','inspected','ready'].includes(bike.stage)) details.append(
+      actionButton(`${plan.label} al · ${money(quote.premium)}`,'policy',bike.id,state.cash<quote.premium,type));
+  }
+  for (const policy of bike.policies ?? []) {
+    if (policy.end>time) continue;
+    details.append(element('p',`${POLICY_TYPES[policy.type].label} · Süresi doldu · Gün ${Math.floor(policy.end/DAY_MS)+1} · ${money(policy.premium)}`,'spec'));
+  }
+  return details;
 }
 
 function garageCard(slot) {
@@ -252,25 +356,41 @@ function garageCard(slot) {
     renderSprite(canvas,missing,bike);
     card.append(media);
   }
+  for (const report of bike.inspections ?? []) if (report.result) card.append(reportCard(report));
+  if (bike.garageInspection) card.append(reportCard(bike.garageInspection));
   if (bike.lastRepair) card.append(repairComparison(bike.lastRepair,`Tamir sonucu · Gün ${bike.lastRepair.day}`));
   if (bike.stage === 'unchecked') {
     if (historicalIssues(bike).length) card.append(issueDetails(bike,{active:false}));
     card.append(actionButton(`Ekspertiz · ${money(INSPECTION_FEE)}`, 'inspect', bike.id, state.cash < INSPECTION_FEE));
   } else if (bike.stage === 'inspected') {
     const quote = repairForecast(bike);
-    card.append(issueDetails(bike),repairComparison(quote,'Tamir tahmini'),
-      element('p',`Toplam işçilik · ${quote.hours} saat`,'spec'),
-      actionButton(`Tamire başla · ${money(quote.cost)}`, 'repair', bike.id, state.cash < quote.cost));
+    const options = element('details','','risk-panel');
+    options.open = true;
+    options.append(element('summary','Onarım seçenekleri'));
+    for (const [id,method] of Object.entries(METHODS)) {
+      const service = serviceQuote(bike,id);
+      if (id==='insured' && !service.eligible) continue;
+      options.append(actionButton(`${method.label} · ${money(service.cost)}`,'repair',bike.id,state.cash<service.cost,id),
+        element('p',`${service.hours} sa işçilik${id==='private' ? '' : ' · Daha az kalıcı değer kaybı'}${service.payout
+          ? ` · 4 sa onay · ${money(service.payout)} ödeme · Net ${money(service.cost-service.payout)}` : ''}`,'spec'));
+    }
+    card.append(issueDetails(bike),repairComparison(quote,'Tamir tahmini'),options);
+  } else if (bike.stage === 'claiming' || bike.stage === 'riding') {
+    const countdown = element('p',timedText(bike),'spec');
+    countdown.dataset.timedBike = bike.id;
+    card.append(countdown);
   } else if (bike.stage === 'repairing') {
     const progress = element('p',timedText(bike),'spec');
     progress.dataset.timedBike = bike.id;
     card.append(progress,repairComparison(repairForecast(bike),'Tamir tahmini'));
   } else if (bike.stage === 'ready') {
+    const time = gameTime(state.day,projectedOffset(state.clock,Date.now()));
+    const traffic = activePolicy(bike,'traffic',time);
     const rentActions = element('div', '', 'quick-actions rent-actions');
     rentActions.setAttribute('aria-label','Kiralama süresi');
     rentActions.setAttribute('role','group');
     for (const days of RENTAL_DAYS) {
-      const button = actionButton(`${days} gün`, 'rent', bike.id, false, days);
+      const button = actionButton(`${days} gün`, 'rent', bike.id, !(traffic?.end>=gameTime(state.day+days)), days);
       button.setAttribute('aria-label', `${bike.name} · ${days} gün kirala`);
       rentActions.append(button);
     }
@@ -283,8 +403,16 @@ function garageCard(slot) {
     input.value = roadValue(bike);
     ask.append(input);
     card.append(ask);
-    card.append(actionButton('Satışa çıkar', 'list', bike.id),
-      element('p', `Kiralama · ${money(rentalRate(bike))} / gün`, 'spec rental-rate'), rentActions);
+    card.append(actionButton(historicalIssues(bike).length ? 'Hasarı açıklayarak satışa çıkar' : 'Satışa çıkar','list',bike.id));
+    if (historicalIssues(bike).length) {
+      const disclosure = element('details','','risk-panel');
+      disclosure.append(element('summary','Hasarı açıklamadan satış'),
+        element('p','Şikâyet, iade, tazminat ve itibar kaybı riski.','spec'),
+        actionButton('Hasarı açıklamadan ilana ver','list-quiet',bike.id));
+      card.append(disclosure);
+    }
+    card.append(element('p',`Kiralama · ${money(rentalRate(bike))} / gün${traffic ? '' : ' · Trafik poliçesi gerekiyor'}`,'spec rental-rate'),
+      rentActions,actionButton('Test sürüşü · 1 sa','ride',bike.id,!(traffic?.end>=time+HOUR_MS)));
   } else if (bike.stage === 'rented') {
     card.append(element('p', `Dönüş · Gün ${bike.rental.endDay} · ${money(bike.rental.rate)} / gün`, 'spec'));
   } else if (bike.stage === 'listed') {
@@ -304,6 +432,7 @@ function garageCard(slot) {
   if (!['unchecked','inspected'].includes(bike.stage) && historicalIssues(bike).length) {
     card.append(issueDetails(bike,{active:false}));
   }
+  card.append(insuranceControls(bike));
   return card;
 }
 
@@ -376,10 +505,13 @@ function marketCard(listing) {
 function openListing(id) {
   const listing = state.listings.find(item=>item.id === id);
   if (!listing) return;
+  listingDetailId = id;
+  const previous = visibleListing(listing);
+  const pending = listing.inspections?.some(report=>!report.result);
   const dialog = byId('listing-detail');
   byId('listing-name').textContent = listing.name;
-  byId('listing-class').textContent = listingClass(listing);
-  byId('listing-spec').textContent = `${bikeSpecs(listing)} · ${provinceName(listing.province)}`;
+  byId('listing-class').textContent = listingClass(previous);
+  byId('listing-spec').textContent = `${bikeSpecs(previous)} · ${provinceName(listing.province)}`;
   byId('listing-error').hidden = true;
   byId('listing-image').setAttribute('aria-label',listing.name);
   renderSprite(byId('listing-image'),byId('listing-image-missing'),listing,byId('listing-representative'));
@@ -390,7 +522,8 @@ function openListing(id) {
     metric('İlan fiyatı',money(listing.price)),
     metric('Nakliye ücreti',money(forecast.delivery.fee)),
     metric('Teslimat',forecast.delivery.days ? `${deliveryLabel(forecast.delivery)} · ${numeric.format(forecast.delivery.km)} km` : deliveryLabel(forecast.delivery)),
-    metric('Mevcut kondisyon',`%${forecast.beforeCondition}`),
+    metric('Beyan edilen kondisyon',`%${listing.disclosure?.condition ?? listing.condition ?? 100}`),
+    metric('Bilinen kondisyon',`%${forecast.beforeCondition}`),
     metric('Mevcut piyasa değeri',money(forecast.beforeValue)),
     metric('Tahmini tamir masrafı',money(forecast.cost)),
     metric('Tamir sonrası kondisyon',`%${forecast.afterCondition}`),
@@ -400,15 +533,19 @@ function openListing(id) {
   );
   const urgency = SELLER_URGENCY[listing.urgency];
   byId('listing-urgency').textContent = urgency ? `Satıcı aciliyeti · ${urgency.label}` : '';
-  byId('listing-damage').replaceChildren(issueDetails(listing));
+  const trust = listing.disclosure?.trust;
+  const verdict = trust === undefined ? 'Bilinmiyor' : trust>=.7 ? 'Yüksek' : trust>=.23 ? 'Orta' : 'Düşük';
+  byId('listing-trust').textContent = `Satıcı geçmişi · ${verdict}`;
+  byId('listing-damage').replaceChildren(issueDetails(previous));
+  inspectionControls(listing);
   const branch = activeBranch();
-  const reason = branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu'
+  const reason = pending ? 'Ekspertiz bekleniyor' : branch.garage.length >= branchCapacity(branch) ? 'Garaj dolu'
     : state.cash < payable ? 'Yetersiz bakiye' : '';
   const buy = actionButton(reason || 'Satın al · '+money(payable),'buy',id,Boolean(reason));
   buy.classList.add('primary');
-  const canNegotiate = !listing.seller || isActive(listing.seller);
+  const canNegotiate = !pending && (!listing.seller || isActive(listing.seller));
   const talk = actionButton(isActive(listing.seller) ? 'Görüşmeye dön'
-    : canNegotiate ? 'Satıcıyla pazarlık' : 'Görüşme kapandı','meet-seller',id,!canNegotiate);
+    : canNegotiate ? 'Satıcıyla pazarlık' : pending ? 'Ekspertiz bekleniyor' : 'Görüşme kapandı','meet-seller',id,!canNegotiate);
   byId('listing-detail-actions').replaceChildren(talk,buy);
   if (!dialog.open) {
     dialog.showModal();
@@ -417,11 +554,19 @@ function openListing(id) {
 }
 
 function renderMarket() {
+  byId('inspection-archive').hidden = !state.inspectionArchive?.length;
+  const records = (state.inspectionArchive ?? []).slice(0,archiveLimit).map(item=>{
+    const detail = element('details','','risk-panel');
+    detail.append(element('summary',`${item.name} · Gün ${item.day}`),...item.reports.map(reportCard));
+    return detail;
+  });
+  byId('inspection-history').replaceChildren(...records);
+  byId('more-inspections').hidden = (state.inspectionArchive?.length ?? 0)<=archiveLimit;
   const readLimit = id => {
     const field = byId(id);
     return field.value === '' ? null : field.valueAsNumber;
   };
-  const listings = filterListings(state.listings, {
+  const listings = filterListings(state.listings.map(visibleListing), {
     province: Number(byId('filter-province').value),
     brand: byId('filter-brand').value,
     modelId: byId('filter-model').value,
@@ -471,6 +616,8 @@ function renderGarage(branch, action, bike) {
   const visibleBikes = branch.garage.filter(item => inFrame(item) && !['rented','shipping'].includes(item.stage));
   byId('garage').dataset.occupied = branch.garage.some(inFrame);
   byId('garage').replaceChildren(garageCard(offset), garageCard(offset + 1));
+  byId('garage-returns').replaceChildren(...(state.waitingReturns ?? []).filter(item=>item.branchId===branch.id)
+    .map(item=>actionButton(`İade bekliyor · ${item.bike.name}`,'take-return',item.bike.id,branch.garage.length>=capacity)));
   drawGarage(visibleBikes, action, bike && bike.stage !== 'shipping' && inFrame(bike) ? bike : undefined, offset, branch.id);
 }
 
@@ -497,7 +644,7 @@ function renderBusiness() {
 }
 
 const renderFinance = createFinanceView({byId,element,metric,money,signed,repairForecast,
-  inspectionFee:INSPECTION_FEE,loanLimit:LOAN_LIMIT,tradeSummary});
+  inspectionFee:INSPECTION_FEE,loanLimit:LOAN_LIMIT,tradeSummary,issueDetails,reportCard});
 
 function render(action, animationBike) {
   const branch = activeBranch();
@@ -589,6 +736,9 @@ document.addEventListener('click', async event => {
     showPage(page);
     render();
     if (page === 'market') byId('market-title').scrollIntoView({block:'start'});
+  } else if (action === 'more-inspections') {
+    archiveLimit += 20;
+    renderMarket();
   } else if (action === 'open-listing') {
     openListing(id);
   } else if (action === 'open-buyer') {
@@ -601,8 +751,10 @@ document.addEventListener('click', async event => {
     }
   } else if (action) {
     const isBranchAction = ['hire','fire','upgrade'].includes(action);
-    const amount = action === 'list' ? button.closest('.card').querySelector('.ask-price input').valueAsNumber : Number(index);
-    runAction(action,id,amount,isBranchAction ? Number(id) : branchId);
+    const amount = ['list','list-quiet'].includes(action) ? button.closest('.card').querySelector('.ask-price input').valueAsNumber
+      : ['policy','pre-inspect','repair'].includes(action) ? index : Number(index);
+    if (await runAction(action,id,amount,isBranchAction ? Number(id) : branchId)
+        && ['pre-inspect','close-inspection'].includes(action)) openListing(id);
   }
 });
 
@@ -627,15 +779,31 @@ function updateMeeting() {
   byId('meeting-name').textContent = profile.name;
   byId('meeting-job').textContent = `${profile.age} yaş · ${profile.job}`;
   byId('meeting-speech').textContent = meeting.speech;
+  const evidence = byId('meeting-evidence');
+  const concealed = isSale && bike.disclosureMode==='conceal';
+  evidence.hidden = !meeting.request && !(isSale && !concealed && historicalIssues(bike).length);
+  evidence.replaceChildren();
+  if (!evidence.hidden) {
+    const details = element('details','','risk-panel');
+    details.append(element('summary',meeting.request==='inspection' ? 'Müşteri ekspertiz istedi' : 'Müşteri hasar kaydını inceliyor'));
+    if (concealed) details.append(element('p','Hasar bilgisi paylaşılmadı.','spec'));
+    else {
+      details.append(issueDetails(bike,{active:false}));
+      for (const report of bike.inspections ?? []) if (report.result) details.append(reportCard(report));
+      if (bike.garageInspection) details.append(reportCard(bike.garageInspection));
+      if (bike.lastRepair) details.append(repairComparison(bike.lastRepair,'Son onarım'));
+    }
+    evidence.append(details);
+  }
   const rights = Math.min(MAX_ROUNDS - meeting.round,meeting.patience);
   byId('meeting-round').textContent = `Sabır ${meeting.patience}/${profile.patience} · Kalan hak ${meeting.status === 'open' ? rights : 0}`;
   byId('meeting-patience').max = profile.patience;
   byId('meeting-patience').value = meeting.patience;
   byId('meeting-bike').textContent = bike.name;
-  byId('meeting-spec').textContent = bikeSpecs(bike);
+  byId('meeting-spec').textContent = bikeSpecs(isSale ? bike : visibleListing(bike));
   byId('meeting-image').setAttribute('aria-label',bike.name);
   renderSprite(byId('meeting-image'),byId('meeting-image-missing'),bike,byId('meeting-representative'));
-  const value = roadValue(bike);
+  const value = roadValue(isSale ? bike : visibleListing(bike));
   const cost = isSale ? bike.spent : bike.price;
   const margin = meeting.price - cost;
   byId('meeting-price-label').textContent = isSale ? 'Müşteri teklifi' : 'Satıcının fiyatı';

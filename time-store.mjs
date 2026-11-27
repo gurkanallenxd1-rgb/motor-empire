@@ -1,4 +1,4 @@
-import { loadGame, perform, saveGame, STORAGE_KEY, synchronize } from './game.mjs?v=0.11';
+import { loadGame, perform, saveGame, STORAGE_KEY, synchronize } from './game.mjs?v=0.12';
 
 // The IndexedDB write transaction provides mutual exclusion on Safari versions
 // without Web Locks. Keep the localStorage read, reduction and write synchronous.
@@ -55,7 +55,7 @@ export function createTimeStore(storage, lock, now = Date.now) {
         message = result.message;
       } catch (failure) { error = failure; }
     }
-    if ((action && action !== 'hold-buyer' && !error) || summary?.days || summary?.completed || summary?.delivered) {
+    if ((action && action !== 'hold-buyer' && !error) || summary?.days || summary?.completed || summary?.delivered || summary?.inspected || summary?.approved || summary?.rides) {
       state = {...state,clock:{...state.clock,revision:(state.clock.revision ?? 0)+1}};
     }
     if (!raw || state !== source) saveGame(storage,state);

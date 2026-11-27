@@ -1,12 +1,14 @@
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.11';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.11';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.11';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.11';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.11';
+import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
+  policyEnd, policyQuote, seedRisk, serviceQuote, visibleListing } from './risk.mjs?v=0.12';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.11';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.11';
+  knownPart, listingForecast, repairQuote, roadValue } from './damage.mjs?v=0.12';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -16,7 +18,8 @@ export const MARKET_STORAGE_KEY = 'motor-empire.v4';
 export const DAMAGE_STORAGE_KEY = 'motor-empire.v5';
 export const TURKEY_STORAGE_KEY = 'motor-empire.v6';
 export const FINANCE_STORAGE_KEY = 'motor-empire.v7';
-export const STORAGE_KEY = 'motor-empire.v8';
+export const CLOCK_STORAGE_KEY = 'motor-empire.v8';
+export const STORAGE_KEY = 'motor-empire.v9';
 export const DAILY_OVERHEAD = 250;
 export const DAILY_WAGE = 750;
 export const BRANCH_COST = 250000;
@@ -45,7 +48,7 @@ function marketIssues(model,random) {
     : ['yag','fren','lastik','akü','zincir','debriyaj'];
   const choose = list => list[Math.floor(random() * list.length)];
   const minor = ['grenaj','manet','ayna','sinyal','ayaklik'];
-  if (roll < .025) return ['pert',choose(minor)];
+  if (roll < .025) return ['pert',choose(['saseDegisim','motor','agir']),choose(minor)];
   if (roll < .065 + risk*.09) return [choose(['saseIslem','saseDegisim','motor','agir']),choose(maintenance)];
   if (roll < .14 + risk*.15) return [choose(['depo','jant','masa','radyator','sanziman']),choose(minor)];
   if (roll < .25 + risk*.22) return [choose(minor),choose(maintenance)];
@@ -72,6 +75,7 @@ function generateProvince(day, province, selected, random) {
     const bike = { id:`${day}-${province}-${slot}`,province,name:model.name,year,km,condition,cleanBase,serviceFactor,urgency,
       color:color.hex,colorName:color.name,...(color.accent ? {paintAccent:color.accent} : {}),faults };
     bike.damageHistory = historicalIssues(bike);
+    seedRisk(bike);
     bike.value = cleanValue(bike);
     const baseline = askingPrice(bike,random);
     const pressure = marketPressure(day,province,model.demand,stock.get(model.category)/selected.length);
@@ -103,7 +107,7 @@ function createBranch(id) {
 }
 
 export function newGame() {
-  return { version: 8, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
+  return { version: 9, day: 1, cash: 75000, debt: 0, listings: generateMarket(1), branches: [createBranch(1)], sales: [], ledger: [], financeSnapshots: [], trade:createTrade() };
 }
 
 export const branchCapacity = branch => GARAGE_LEVELS[branch.level - 1].capacity;
@@ -112,7 +116,10 @@ export const operatingCost = branch => DAILY_OVERHEAD + branch.staff * DAILY_WAG
 
 export function purchaseForecast(bike, price = bike.price) {
   const delivery = shippingQuote(bike.province);
-  return {delivery,...listingForecast({...bike,price},INSPECTION_FEE,delivery.fee)};
+  const reports = bike.inspections ?? [];
+  const inspected = reports.some(report=>report.package==='full' && report.result);
+  const fees = reports.reduce((sum,report)=>sum+report.cost,0);
+  return {delivery,...listingForecast({...visibleListing(bike),price},(inspected ? 0 : INSPECTION_FEE)+fees,delivery.fee)};
 }
 
 export function estimatedListingProfit(bike) {
@@ -133,6 +140,7 @@ export function assets(state) {
       inventory += roadValue(bike);
     }
   }
+  for (const {bike} of state.waitingReturns ?? []) inventory += roadValue(bike);
   const total = state.cash + equipment + inventory;
   return { equipment, inventory, total, net: total - state.debt };
 }
@@ -152,8 +160,9 @@ export function dailyTotals(ledger, day) {
 
 export function realizedSales(sales,day) {
   const results = sales.filter(sale=>day === undefined || sale.day === day);
-  const revenue = decimal(results.reduce((sum,sale)=>sum + sale.price,0));
-  const cost = decimal(results.reduce((sum,sale)=>sum + sale.spent,0));
+  const refunds = sales.filter(sale=>sale.returnedDay !== undefined && (day === undefined || sale.returnedDay===day));
+  const revenue = decimal(results.reduce((sum,sale)=>sum+sale.price,0)-refunds.reduce((sum,sale)=>sum+sale.price,0));
+  const cost = decimal(results.reduce((sum,sale)=>sum+sale.spent,0)-refunds.reduce((sum,sale)=>sum+sale.spent,0));
   return { revenue,cost,profit:decimal(revenue-cost) };
 }
 
@@ -170,12 +179,12 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
   if (!branch) throw new Error('Şube bulunamadı.');
   const bike = branch.garage.find(item => item.id === id);
 
-  function record(kind, value, label, at = branch) {
-    const entry = { day: next.day, branchId: at?.id ?? null, kind, amount: value, label };
+  function record(kind, value, label, at = branch, details = {}) {
+    const entry = { day: next.day, branchId: at?.id ?? null, kind, amount: value, label,...details };
     next.ledger.unshift({...entry,...entryDetails(entry)});
   }
 
-  function pay(cost, label, at = branch, mandatory = false) {
+  function pay(cost, label, at = branch, mandatory = false, details) {
     if (next.cash < cost) {
       if (!mandatory) throw new Error('Kasanızda yeterli nakit yok. Finans bölümünden borç alabilirsiniz.');
       const shortfall = decimal(cost - next.cash);
@@ -184,20 +193,22 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       record('loan', shortfall, 'Zorunlu gider için borç', at);
     }
     next.cash = decimal(next.cash - cost);
-    record('expense', cost, label, at);
+    record('expense', cost, label, at, details);
   }
 
-  function earn(value, label, at = branch) {
+  function earn(value, label, at = branch, details) {
     next.cash = decimal(next.cash + value);
-    record('income', value, label, at);
+    record('income', value, label, at, details);
   }
 
+  const now = gameTime(next.day,next.clock?.offset);
   const listing = next.listings.find(item => item.id === id);
   function purchase(price) {
     if (!listing) throw new Error('Bu ilan artık açık değil.');
     if (branch.garage.length >= branchCapacity(branch)) throw new Error('Bu şubenin garajı dolu.');
     const slot = Array.from({length:branchCapacity(branch)},(_,index)=>index)
       .find(index=>!branch.garage.some(item=>item.slot === index));
+    if (listing.inspections?.some(report=>!report.result)) throw new Error('Ekspertiz raporu henüz hazır değil.');
     const delivery = shippingQuote(listing.province);
     const spent = decimal(price + delivery.fee);
     if (next.cash < spent) throw new Error('Alım ve nakliye için yeterli nakit yok.');
@@ -208,13 +219,91 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       finishTrade(next,listing.seller,listing,'bought');
     }
     const { seller, ...vehicle } = listing;
-    branch.garage.push({...vehicle,slot,stage:delivery.days ? 'shipping' : 'unchecked',spent,
-      ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days,
+    const reportIds = new Set(listing.inspections?.map(report=>report.id));
+    for (const entry of next.ledger) {
+      if (reportIds.has(entry.inspectionId)) entry.allocation = 'stock';
+    }
+    const inspected = listing.inspections?.some(report=>report.package==='full');
+    const acquiredStage = inspected ? (listing.faults.length ? 'inspected' : 'ready') : 'unchecked';
+    const inspectionCost = listing.inspections?.reduce((sum,report)=>sum+report.cost,0) ?? 0;
+    branch.garage.push({...vehicle,slot,stage:delivery.days ? 'shipping' : acquiredStage,spent:decimal(spent+inspectionCost),
+      ...(delivery.days ? {shipping:{...delivery,arrivalDay:next.day+delivery.days,acquiredStage,
         ...(next.clock ? {arrivalMs:gameTime(next.day+delivery.days,next.clock.offset)} : {})}} : {}),
       condition:listing.condition ?? 100});
     next.listings = next.listings.filter(item=>item.id !== id);
     return delivery.days ? `${listing.name} yolda · ${branch.name} · Teslimat: Gün ${next.day+delivery.days}.`
       : `${listing.name} · ${branch.name} garajına alındı.`;
+  }
+
+  function vehiclePay(item, category, cost, title, office = branch, mandatory = false, details = {}) {
+    if (cost) pay(cost,`${item.name} · ${title}`,office,mandatory,{category,model:item.name,...details});
+  }
+
+  function vehicleEarn(item, category, value, title, office = branch) {
+    if (value) earn(value,`${item.name} · ${title}`,office,{category,model:item.name});
+  }
+
+  function beginRepair(item, hours) {
+    item.remainingHours = hours;
+    item.repairOrder = (next.repairOrder ?? 0)+1;
+    next.repairOrder = item.repairOrder;
+    item.stage = 'repairing';
+  }
+
+  function recordAccident(item, office, at, activity) {
+    const incident = accidentAt(item,next.day,at,activity);
+    if (!incident) return false;
+    item.damageRecords = [...legacyDamageRecords(item),incident];
+    item.openIncident = incident.id;
+    item.faults = [...new Set([...item.faults,...incident.codes])];
+    item.damageHistory = historicalIssues(item);
+    item.condition = Math.max(25,item.condition-incident.codes.reduce((sum,code)=>sum+PARTS[code].gain,0));
+    item.stage = 'inspected';
+    delete item.rental;
+    vehicleEarn(item,'traffic_payout',incident.trafficPayout,'Trafik sigortası ödemesi',office);
+    vehiclePay(item,'accident',Math.round(incident.amount*.035)+incident.thirdParty,
+      'Kaza kurtarma ve üçüncü kişi zararı',office,true);
+    return true;
+  }
+
+  function placeReturn(item,office) {
+    const slot = Array.from({length:branchCapacity(office)},(_,index)=>index)
+      .find(index=>!office.garage.some(bike=>bike.slot===index));
+    if (slot === undefined) return false;
+    office.garage.push({...item,slot,stage:'ready'});
+    return true;
+  }
+
+  function settleComplaints() {
+    let count = 0;
+    for (const sale of next.sales) {
+      if (!sale.complaint || sale.complaint.day > next.day+1) continue;
+      const {item,refund} = sale.complaint;
+      const office = next.branches.find(branch=>branch.id===sale.branchId);
+      next.trade.reputation = Math.max(0,next.trade.reputation-(refund ? 12 : 6));
+      sale.complaintDay = next.day;
+      delete sale.complaint;
+      const outcome = next.trade.history.find(row=>row.saleId===sale.id);
+      if (outcome) outcome.satisfaction = Math.min(outcome.satisfaction,refund ? 30 : 50);
+      if (refund) {
+        vehiclePay(item,'refund',sale.price,'Satış iadesi',office,true,{saleId:sale.id});
+        sale.returnedDay = next.day;
+        if (!placeReturn(item,office)) (next.waitingReturns ??= []).push({bike:item,branchId:office.id});
+      } else {
+        const compensation = Math.max(500,Math.round(sale.price*.085));
+        vehiclePay(item,'compensation',compensation,'Müşteri tazminatı',office,true);
+        sale.compensation = compensation;
+      }
+      count++;
+    }
+    return count;
+  }
+
+  function considerEvidence(item,verified) {
+    if (!verified.length || item.seller?.status!=='open') return;
+    const discount = Math.min(.11,verified.reduce((sum,code)=>sum+PARTS[code].gain*.003,0));
+    item.seller.limit = Math.min(item.seller.limit,Math.max(50,Math.round(item.price*(.84-discount))));
+    item.seller.speech = 'Ekspertiz raporundaki bulguları fiyat görüşmesinde değerlendirelim.';
   }
 
   function activeMeeting(meetingId) {
@@ -226,13 +315,104 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
 
   let message;
   switch (action) {
+    case 'pre-inspect': {
+      const plan = Object.prototype.hasOwnProperty.call(PACKAGES,amount) ? PACKAGES[amount] : null;
+      if (!listing || !plan) throw new Error('İlan veya ekspertiz paketi geçersiz.');
+      const reports = listing.inspections ??= [];
+      if (reports.some(report=>!report.result || PACKAGES[report.package].cost>=plan.cost)) {
+        throw new Error('Mevcut ekspertiz bekleniyor veya bu kapsam zaten incelendi.');
+      }
+      const report = {id:`${listing.id}:${amount}`,package:amount,cost:plan.cost,due:now+plan.hours*HOUR_MS};
+      vehiclePay(listing,'inspection',plan.cost,`${plan.label} ekspertiz`,branch,false,
+        {inspectionId:report.id,allocation:'pending'});
+      reports.push(report);
+      message = `${plan.label} ekspertiz başladı · ${plan.hours} oyun saati.`;
+      break;
+    }
+    case 'close-inspection':
+      if (!listing?.inspections?.length || listing.inspections.some(report=>!report.result)) {
+        throw new Error('Kapatılabilir bir ekspertiz yok.');
+      }
+      for (const report of listing.inspections) {
+        if (!report.closed) report.closed = true;
+        for (const entry of next.ledger) if (entry.inspectionId===report.id && entry.allocation==='pending') {
+          entry.allocation = 'operating';
+          entry.recognizedDay = next.day;
+        }
+      }
+      message = 'Ekspertiz gider kaydedildi. Sonuçlar ilan açık kaldığı sürece görülebilir.';
+      break;
+    case 'policy': {
+      const quote = Object.prototype.hasOwnProperty.call({traffic:1,casco:1},amount) && bike && policyQuote(bike,amount);
+      if (!quote || !['ready','inspected','unchecked'].includes(bike.stage) || activePolicy(bike,amount,now)) {
+        throw new Error('Bu poliçe şu anda düzenlenemiyor.');
+      }
+      const policy = {...quote,id:`${bike.id}:${amount}:${now}`,type:amount,start:now,end:policyEnd(now,quote.days)};
+      vehiclePay(bike,'insurance_premium',policy.premium,amount==='traffic' ? 'Trafik primi' : 'Kasko primi');
+      (bike.policies ??= []).push(policy);
+      message = 'Poliçe başladı.';
+      break;
+    }
+    case 'ride':
+      if (bike?.stage !== 'ready' || !activePolicy(bike,'traffic',now) ||
+          activePolicy(bike,'traffic',now).end<now+HOUR_MS) throw new Error('Sürüş boyunca geçerli trafik sigortası gerekiyor.');
+      bike.stage = 'riding';
+      bike.ride = {end:now+HOUR_MS,sequence:(bike.rideSequence ?? 0)+1};
+      bike.rideSequence = bike.ride.sequence;
+      message = 'Test sürüşü başladı · 1 oyun saati.';
+      break;
+    case 'take-return': {
+      const returned = next.waitingReturns?.find(item=>item.bike.id===id && item.branchId===branch.id);
+      if (!returned || !placeReturn(returned.bike,branch)) throw new Error('İade için boş garaj bölmesi gerekiyor.');
+      next.waitingReturns = next.waitingReturns.filter(item=>item!==returned);
+      message = 'İade edilen motosiklet garaja alındı.';
+      break;
+    }
+    case 'settle-events': {
+      const summary = {inspected:0,approved:0,accidents:0,rides:0};
+      for (const item of next.listings) {
+        for (const report of item.inspections ?? []) {
+          if (report.result || report.due>now) continue;
+          report.result = examine(item,report.package);
+          report.completedDay = next.day;
+          if (item.disclosure) considerEvidence(item,
+            [...new Set([...visibleListing(item).faults,...visibleListing(item).damageHistory])].filter(code=>item.disclosure.hidden.includes(code)));
+          summary.inspected++;
+        }
+      }
+      for (const office of next.branches) for (const item of office.garage) {
+        if (item.stage==='claiming' && item.claim.due<=now) {
+          vehicleEarn(item,'insurance_payout',item.claim.payout,'Kasko hasar ödemesi',office);
+          item.spent = decimal(item.spent-item.claim.payout);
+          item.repairPayout = item.claim.payout;
+          beginRepair(item,item.claim.hours);
+          delete item.claim;
+          summary.approved++;
+        }
+        if (item.stage==='riding' && item.ride.end<=now) {
+          const {sequence,end} = item.ride;
+          item.km += 12;
+          item.stage = 'ready';
+          delete item.ride;
+          summary.accidents += Number(recordAccident(item,office,end,`ride:${sequence}`));
+          summary.rides++;
+        }
+      }
+      return {state:next,...summary};
+    }
     case 'buy':
       message = purchase(listing?.price);
       break;
     case 'meet-seller':
       if (!listing) throw new Error('Bu ilan artık açık değil.');
+      if (listing.inspections?.some(report=>!report.result)) throw new Error('Ekspertiz raporu henüz hazır değil.');
       if (listing.seller && !isActive(listing.seller)) throw new Error('Satıcı bu görüşmeyi kapattı.');
-      listing.seller ??= createSeller(listing,next.day);
+      if (!listing.seller) {
+        listing.seller = createSeller(listing,next.day);
+        const visible = visibleListing(listing);
+        considerEvidence(listing,[...new Set([...visible.faults,...(visible.damageHistory ?? [])])]
+          .filter(code=>listing.disclosure?.hidden.includes(code)));
+      }
       message = listing.seller.speech;
       break;
     case 'hold-buyer': {
@@ -265,30 +445,42 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (bike?.stage !== 'unchecked') throw new Error('Ekspertiz şu anda yapılamıyor.');
       pay(INSPECTION_FEE, `${bike.name} ekspertizi`);
       bike.spent += INSPECTION_FEE;
+      bike.garageInspection = {package:'full',title:'Garaj ekspertizi',result:examine(bike,'full'),completedDay:next.day};
       bike.stage = bike.faults.length ? 'inspected' : 'ready';
       message = bike.faults.length ? 'Ekspertiz tamamlandı. Parça ve işçilik dökümü hazır.' : 'Ekspertiz tamamlandı. Motosiklet satışa hazır.';
       break;
     case 'repair': {
       if (bike?.stage !== 'inspected') throw new Error('Önce ekspertiz yaptırın.');
-      const quote = repairQuote(bike);
+      const method = amount ?? 'private';
+      const quote = Object.prototype.hasOwnProperty.call(METHODS,method) && serviceQuote(bike,method);
+      if (!quote || (method==='insured' && !quote.eligible)) throw new Error('Bu hasar için kasko onarımı kullanılamıyor.');
       if (!quote.hours) {
         bike.stage = 'ready';
         message = 'Motosiklet satışa hazır.';
         break;
       }
-      pay(quote.cost, `${bike.name} tamir parçaları`);
+      if (method==='private') pay(quote.cost,`${bike.name} tamir parçaları`);
+      else vehiclePay(bike,'service',quote.cost,METHODS[method].label);
       bike.spent += quote.cost;
       bike.repairCost = quote.cost;
-      bike.remainingHours = quote.hours;
-      bike.repairOrder = (next.repairOrder ?? 0) + 1;
-      next.repairOrder = bike.repairOrder;
-      bike.stage = 'repairing';
-      message = 'Tamir iş sırasına alındı.';
+      bike.repairMethod = method;
+      if (method==='insured') {
+        const incident = bike.damageRecords.find(row=>row.id===bike.openIncident);
+        incident.claimed = true;
+        bike.claim = {due:now+quote.approval,payout:quote.payout,hours:quote.hours,incident:incident.id};
+        bike.stage = 'claiming';
+        message = 'Kasko onayı bekleniyor. Onaydan sonra ödeme işlenecek ve onarım başlayacak.';
+      } else {
+        beginRepair(bike,quote.hours);
+        message = 'Tamir iş sırasına alındı.';
+      }
       break;
     }
+    case 'list-quiet':
     case 'list':
       if (bike?.stage !== 'ready') throw new Error('Yalnızca satışa hazır motosikletler ilana çıkabilir.');
       if (amount !== undefined && !validAmount(amount)) throw new Error('Geçerli bir ilan fiyatı girin.');
+      bike.disclosureMode = action==='list-quiet' ? 'conceal' : 'disclose';
       bike.stage = 'listed';
       bike.ask = amount ?? roadValue(bike);
       bike.nextVisit = next.day + 1 + (bike.ask > roadValue(bike) * 1.22 ? 1 : 0);
@@ -309,16 +501,30 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (meeting.kind !== 'sale' || bike?.stage !== 'listed') throw new Error('Bu teklif artık geçerli değil.');
       branch.garage = branch.garage.filter(item=>item.id !== id);
       earn(meeting.price,`${bike.name} satışı`);
-      next.sales.unshift({name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id});
+      const saleId = `${meeting.id}:settled`;
+      const complaint = buyerComplaint(bike,saleId);
+      const sale = {id:saleId,name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
+        damageRecords:legacyDamageRecords(bike),disclosureMode:bike.disclosureMode ?? 'disclose',
+        inspections:[...(bike.inspections ?? []),...(bike.garageInspection ? [bike.garageInspection] : [])]};
+      if (complaint) {
+        const {meetings,ask,nextVisit,...item} = bike;
+        sale.complaint = {item,day:next.day+complaint.delay,refund:complaint.returnBike};
+      }
+      next.sales.unshift(sale);
       finishTrade(next,meeting,bike,'sold');
+      next.trade.history[0].saleId = saleId;
       for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
       message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
       break;
     }
     case 'rent':
       if (bike?.stage !== 'ready' || !RENTAL_DAYS.includes(amount)) throw new Error('Geçerli süreyle satışa hazır bir motosiklet seçin.');
+      const endDay = next.day+amount;
+      if (next.clock && !(activePolicy(bike,'traffic',now)?.end>=gameTime(endDay))) {
+        throw new Error('Kiralama boyunca geçerli trafik sigortası gerekiyor.');
+      }
       bike.stage = 'rented';
-      bike.rental = { endDay: next.day + amount, days: amount, rate: rentalRate(bike) };
+      bike.rental = { endDay, days: amount, rate: rentalRate(bike),...(next.clock ? {roadRisk:true} : {}) };
       message = `${bike.name} ${amount} günlüğüne kiralandı.`;
       break;
     case 'hire':
@@ -365,6 +571,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       const tomorrow = next.day + 1;
       let completed = 0;
       let returned = 0;
+      let accidents = 0;
       const delivered = deliver(next,gameTime(tomorrow));
       let visits = 0;
       // Today's rentals are earned before any branch settles its mandatory expenses.
@@ -372,6 +579,12 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
         for (const item of office.garage) {
           if (item.stage !== 'rented') continue;
           earn(item.rental.rate, `${item.name} kira geliri`, office);
+          const {rental} = item;
+          if (rental.roadRisk && recordAccident(item,office,gameTime(tomorrow)-1,'rental')) {
+            item.km += (rental.days-(rental.endDay-tomorrow))*85;
+            accidents++;
+            continue;
+          }
           if (item.rental.endDay === tomorrow) {
             item.km += item.rental.days * 85;
             item.condition = Math.max(25, item.condition - item.rental.days);
@@ -398,14 +611,27 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
           visits += arrive(item,tomorrow,next.trade.reputation,roadValue(item));
         }
       }
+      const complaints = settleComplaints();
       next.financeSnapshots ??= [];
       next.financeSnapshots.push({day:next.day,cash:next.cash,netWorth:assets(next).net});
       next.day = tomorrow;
       if (next.clock) next.clock.offset = 0;
-      next.listings = next.listings.filter(item=>isActive(item.seller));
+      next.listings = next.listings.filter(item=>{
+        const reports = item.inspections ?? [];
+        if (isActive(item.seller) || reports.some(report=>!report.closed && (!report.result || report.completedDay+1>=tomorrow))) return true;
+        if (reports.length) {
+          (next.inspectionArchive ??= []).unshift({name:item.name,id:item.id,day:tomorrow-1,reports});
+          const ids = new Set(reports.map(report=>report.id));
+          for (const entry of next.ledger) if (ids.has(entry.inspectionId) && entry.allocation==='pending') {
+            entry.allocation = 'operating';
+            entry.recognizedDay = tomorrow-1;
+          }
+        }
+        return false;
+      });
       if (!deferMarket) next.listings.push(...generateMarket(tomorrow));
       if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
-      return {state:next,completed,returned,delivered,visits,
+      return {state:next,completed,returned,delivered,visits,accidents,complaints,
         message:`Gün kapandı · ${completed} tamir tamamlandı · ${returned} kiralık motosiklet döndü · ${delivered} nakliye teslim edildi · ${visits} müşteri geldi.`};
     }
     default:
@@ -419,7 +645,7 @@ function deliver(state, time) {
   let count = 0;
   for (const branch of state.branches) for (const bike of branch.garage) {
     if (bike.stage !== 'shipping' || deliveryTime(bike) > time) continue;
-    bike.stage = 'unchecked';
+    bike.stage = bike.shipping.acquiredStage ?? 'unchecked';
     delete bike.shipping;
     count++;
   }
@@ -445,7 +671,23 @@ function workRepairs(branch, day, availableMs) {
         continue;
       }
     }
+    const beforeValue = roadValue(bike);
+    bike.damageRecords = legacyDamageRecords(bike);
+    const method = bike.repairMethod ?? 'private';
+    for (const record of bike.damageRecords) {
+      if (record.method || !record.codes.some(code=>bike.faults.includes(code))) continue;
+      record.method = method;
+      record.repairedDay = day;
+      record.lossFactor = METHODS[method].loss;
+      if (method==='insured' && record.claimed) record.source = 'insured';
+      else if (['unknown','unrepaired'].includes(record.source)) record.source = method;
+    }
     completeRepair(bike,day);
+    bike.lastRepair.beforeValue = beforeValue;
+    bike.lastRepair.cost = (bike.repairCost ?? bike.lastRepair.cost)-(bike.repairPayout ?? 0);
+    delete bike.repairPayout;
+    delete bike.openIncident;
+    delete bike.repairMethod;
     bike.stage = 'ready';
     delete bike.repairCost;
     delete bike.repairProgress;
@@ -458,6 +700,17 @@ function workRepairs(branch, day, availableMs) {
 }
 
 // Called under the cross-tab save lock. Work is applied once to the latest persisted anchor.
+export function nextRiskEvent(state) {
+  let due = Infinity;
+  for (const item of state.listings) for (const report of item.inspections ?? []) {
+    if (!report.result) due = Math.min(due,report.due);
+  }
+  for (const branch of state.branches) for (const bike of branch.garage) {
+    due = Math.min(due,bike.claim?.due ?? Infinity,bike.ride?.end ?? Infinity);
+  }
+  return due;
+}
+
 export function synchronize(state, now) {
   if (!state.clock) {
     return {state:{...state,clock:startClock(now)},summary:null};
@@ -468,11 +721,13 @@ export function synchronize(state, now) {
   const next = JSON.parse(JSON.stringify(state));
   const clock = next.clock;
   clock.wall = Math.max(now,clock.wall);
-  const summary = {days:0,completed:0,returned:0,delivered:0,visits:0,income:0,expenses:0,capped};
+  const summary = {days:0,completed:0,returned:0,delivered:0,visits:0,inspected:0,approved:0,accidents:0,complaints:0,rides:0,income:0,expenses:0,capped};
   let remaining = millis;
   const ledgerLength = next.ledger.length;
   while (remaining > 0) {
-    const step = Math.min(remaining,DAY_MS-clock.offset);
+    const current = gameTime(next.day,clock.offset);
+    const due = nextRiskEvent(next);
+    const step = Math.min(remaining,DAY_MS-clock.offset,Math.max(0,due-current));
     remaining -= step;
     clock.offset += step;
     summary.delivered += deliver(next,gameTime(next.day,clock.offset));
@@ -481,10 +736,14 @@ export function synchronize(state, now) {
       const capacity = Math.max(0,repairCapacity(branch)*HOUR_MS-branch.workMs);
       summary.completed += workRepairs(branch,next.day,Math.min(step*(1+branch.staff),capacity));
     }
+    if (due<=current+step) {
+      const events = applyAction(next,'settle-events',undefined,undefined,1,true);
+      for (const key of ['inspected','approved','accidents','rides']) summary[key] += events[key];
+    }
     if (clock.offset === DAY_MS) {
       const result = applyAction(next,'advance',undefined,undefined,1,true);
       summary.days++;
-      for (const key of ['completed','returned','delivered','visits']) summary[key] += result[key];
+      for (const key of ['completed','returned','delivered','visits','accidents','complaints']) summary[key] += result[key];
     }
   }
   if (summary.days) next.listings.push(...generateMarket(next.day));
@@ -494,6 +753,7 @@ export function synchronize(state, now) {
   }
   summary.income = decimal(summary.income);
   summary.expenses = decimal(summary.expenses);
+  if (!validMoney(next.cash) || !validMoney(next.debt)) throw new Error('Nakit veya borç sınırı aşıldı.');
   return {state:next,summary};
 }
 
@@ -506,23 +766,33 @@ function validBike(bike) {
     && (bike.cleanBase === undefined || validAmount(bike.cleanBase))
     && (bike.urgency === undefined || Object.prototype.hasOwnProperty.call(SELLER_URGENCY,bike.urgency))
     && (bike.province === undefined || Boolean(provinceOf(bike.province)))
+    && (bike.inspections === undefined || (Array.isArray(bike.inspections) && bike.inspections.length<=3
+      && bike.inspections.every(report=>report && typeof report.id==='string'
+        && Object.prototype.hasOwnProperty.call(PACKAGES,report.package) && report.cost===PACKAGES[report.package].cost
+        && Number.isSafeInteger(report.due) && report.due>=0
+        && (report.result===undefined || (Array.isArray(report.result) && Number.isSafeInteger(report.completedDay)
+          && report.result.every(area=>area && Array.isArray(area.codes) && area.codes.every(knownPart)))))))
     && Array.isArray(bike.faults) && bike.faults.every(knownPart)
     && (bike.damageHistory === undefined || (Array.isArray(bike.damageHistory)
       && bike.damageHistory.every(code=>knownPart(code) && PARTS[code].kind !== 'maintenance')));
 }
 
-function validGarageBike(bike, day) {
+function validGarageBike(bike, day, offset) {
   if (!validBike(bike) || !validMoney(bike.spent)
       || !Number.isInteger(bike.condition) || bike.condition < 25 || bike.condition > 100) return false;
   switch (bike.stage) {
     case 'unchecked': case 'inspected': case 'ready': return true;
+    case 'claiming': return Number.isSafeInteger(bike.claim?.due) && bike.claim.due>gameTime(day,offset)
+      && validAmount(bike.claim.payout) && bike.claim.payout<=bike.spent && Number.isSafeInteger(bike.claim.hours)
+      && bike.claim.hours>0;
+    case 'riding': return Number.isSafeInteger(bike.ride?.end) && bike.ride.end>gameTime(day,offset);
     case 'shipping': {
       const quote = shippingQuote(bike.province);
       return quote.days > 0 && (bike.shipping?.arrivalMs === undefined ||
         (Number.isSafeInteger(bike.shipping.arrivalMs) && bike.shipping.arrivalMs >= gameTime(bike.shipping.arrivalDay)
           && bike.shipping.arrivalMs < gameTime(bike.shipping.arrivalDay+1))) && bike.shipping?.km === quote.km && bike.shipping.fee === quote.fee
         && bike.shipping.days === quote.days && bike.spent >= quote.fee
-        && Number.isSafeInteger(bike.shipping.arrivalDay) && bike.shipping.arrivalDay > day
+        && Number.isSafeInteger(bike.shipping.arrivalDay) && (bike.shipping.arrivalMs === undefined ? bike.shipping.arrivalDay>day : bike.shipping.arrivalMs>gameTime(day,offset))
         && bike.shipping.arrivalDay <= day+quote.days;
     }
     case 'repairing':
@@ -544,7 +814,7 @@ function validGarageBike(bike, day) {
 }
 
 function validSave(saved) {
-  if (saved?.version !== 8 || !validMoney(saved.cash) || !validMoney(saved.debt)
+  if (saved?.version !== 9 || !validMoney(saved.cash) || !validMoney(saved.debt)
       || !Number.isSafeInteger(saved.day) || saved.day < 1
       || (saved.clock !== undefined && (!saved.clock || !Number.isSafeInteger(saved.clock.wall) || saved.clock.wall < 0
         || !Number.isSafeInteger(saved.clock.offset) || saved.clock.offset < 0 || saved.clock.offset >= DAY_MS
@@ -574,7 +844,7 @@ function validSave(saved) {
         || !Array.isArray(branch.garage)) return false;
     const slots = [];
     for (const bike of branch.garage) {
-      if (!validGarageBike(bike,saved.day) || ids.includes(bike.id) || !Number.isInteger(bike.slot)
+      if (!validGarageBike(bike,saved.day,saved.clock?.offset ?? 0) || ids.includes(bike.id) || !Number.isInteger(bike.slot)
           || bike.slot < 0 || bike.slot >= branchCapacity(branch) || slots.includes(bike.slot)) return false;
       ids.push(bike.id);
       slots.push(bike.slot);
@@ -604,7 +874,7 @@ function validMeeting(meeting,kind) {
 
 export function loadGame(storage) {
   const raw = storage.getItem(STORAGE_KEY);
-  const keys = [FINANCE_STORAGE_KEY,TURKEY_STORAGE_KEY,DAMAGE_STORAGE_KEY,MARKET_STORAGE_KEY,
+  const keys = [CLOCK_STORAGE_KEY,FINANCE_STORAGE_KEY,TURKEY_STORAGE_KEY,DAMAGE_STORAGE_KEY,MARKET_STORAGE_KEY,
     PREVIOUS_STORAGE_KEY,BUSINESS_STORAGE_KEY,LEGACY_STORAGE_KEY];
   let archived = null;
   let source;
@@ -668,6 +938,7 @@ export function loadGame(storage) {
     state.ledger = state.ledger.map(entry=>entry && ({...entry,...entryDetails(entry)}));
   }
   if (raw === null && state?.version === 7) state.version = 8;
+  if (raw === null && state?.version === 8) state.version = 9;
   if (!validSave(state)) throw new Error('Kayıt biçimi geçersiz.');
   return state;
 }

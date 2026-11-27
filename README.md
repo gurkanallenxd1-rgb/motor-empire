@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.11
+# MOTOR EMPIRE v0.12
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -24,7 +24,7 @@ GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a
 
 ## Grafikler ve kayıtlar
 
-Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.10 kayıtları ilk açılışta v0.11 biçimine aktarılır. Yeni kayıt `motor-empire.v8` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
+Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.11 kayıtları ilk açılışta v0.12 biçimine aktarılır. Yeni kayıt `motor-empire.v9` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
 
 Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahnede iki parmakla yakınlaştırabilirsin. Mobilde varsayılan yakın kadrajdan uzaklaştırarak garajın tüm kenarlarını görebilirsin. Yakınlaştırdıktan sonra sahne içinde sürükle. Motosiklete dokunarak yakın planı aç. Yerel WebP varlıklarının üretim planı [görsel varlık belgesinde](docs/v03-varlik-plani.md) bulunur.
 
@@ -117,3 +117,11 @@ Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve d
 - Aynı kayda erişen sekmeler Web Locks veya IndexedDB yazma kilidi üzerinden ilerler. Her işlem en güncel kaydı okur ve finans kapanışı, zaman damgasıyla aynı kayda yazılır.
 - Tamir işçiliği oyun saatiyle ilerler. Mevcut usta başına günlük 8 saatlik kapasite korunur. Yeni nakliyeler satın alındıkları saatten itibaren 1–3 oyun günü sürer ve ayrılmış bölmeyi korur. Önceki sürümden gelen işlerin söz verilen teslim günü korunur.
 - Açılmış alıcı görüşmeleri, pazarlığa başlanmış teklifler ve açık satıcı görüşmeleri gün değişiminden etkilenmez. Satış oyuncunun onayıyla gerçekleşir.
+
+## v0.12 Ekspertiz, hasar geçmişi ve sigorta
+
+- Satın alma öncesi ekspertiz paketleri 600, 1.350 ve 2.400 TL tutar; 2, 4 ve 6 oyun saati sürer. Sonuçlar pazarlıkta kullanılabilir. Ödenen ücret satın alımda stok maliyetine taşınır, alımdan vazgeçildiğinde giderleşir. Tam paket tamamlanmışsa garajda tekrar ekspertiz ücreti alınmaz.
+- İlan beyanı ve gerçek durum ayrı tutulur. Hasar kayıtlarında tarih, bilinen tutar, kaynak ve onarım yöntemi bulunur. Önceki sürümden gelen eksik bilgiler bilinmiyor olarak gösterilir.
+- Trafik sigortası üçüncü kişi zararını kapsar. Trafiğe çıkmadan önce alınır ve park halindeki araçlar için prim kesilmez. Kasko ayrı bir poliçedir ve poliçe başladıktan sonraki çarpışmalarda muafiyet ve limit uygulanır. Kasko onarımında servis bedeli başta ödenir, dört oyun saati sonraki onayda kapsam bedeli iade edilir ve net masraf stok maliyetinde kalır.
+- Özel servis ve yetkili servis farklı ücret, süre ve kalıcı değer etkilerine sahiptir. Yeni kaza yalnızca kiralamada veya onaylanan test sürüşünde ortaya çıkabilir.
+- Açık hasar beyanı müşteri memnuniyetini etkiler. Hasarı gizleyen satışlarda şikâyet, tazminat veya iade oluşabilir. İade garaj doluyken teslim kuyruğuna alınır.

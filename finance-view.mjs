@@ -1,4 +1,4 @@
-import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts } from './finance.mjs?v=0.11';
+import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts } from './finance.mjs?v=0.12';
 
 const colors = {green:'#9dd7ae',red:'#ff9a85',orange:'#ffad74',blue:'#a7c3f1'};
 const chartTypes = [
@@ -6,7 +6,7 @@ const chartTypes = [
   {title:'Gelir ve gider',keys:[['revenue','İşletme geliri',colors.green],['operatingCost','İşletme gideri',colors.red]],bars:true},
   {title:'Nakit değişimi',keys:[['cash','Kasa bakiyesi',colors.orange]]},
   {title:'Net servet gelişimi',keys:[['netWorth','Net servet',colors.blue]]},
-  {title:'Satış ve kiralama',keys:[['salesCount','Satılan motosiklet',colors.green],['rentalDays','Ücretli kiralama günü',colors.orange]],
+  {title:'Satış ve kiralama',keys:[['salesCount','Net satılan motosiklet',colors.green],['rentalDays','Ücretli kiralama günü',colors.orange]],
     bars:true,counts:true},
 ];
 
@@ -60,7 +60,7 @@ function drawChart(canvas,series,keys,selected,bars) {
       series.forEach((row,index)=>{
         if (!row[key]) return;
         const top = y(row[key]);
-        ctx.fillRect(x(index)+(column-1)*barWidth,top,barWidth,Math.max(1,y(0)-top));
+        ctx.fillRect(x(index)+(column-1)*barWidth,Math.min(top,y(0)),barWidth,Math.max(1,Math.abs(y(0)-top)));
       });
       return;
     }
@@ -85,7 +85,7 @@ function drawChart(canvas,series,keys,selected,bars) {
   });
 }
 
-export function createFinanceView({byId,element,metric,money,signed,repairForecast,inspectionFee,loanLimit,tradeSummary}) {
+export function createFinanceView({byId,element,metric,money,signed,repairForecast,inspectionFee,loanLimit,tradeSummary,issueDetails,reportCard}) {
   const periodSelect = byId('finance-period');
   const filters = byId('finance-filters');
   const branchFilter = byId('finance-branch');
@@ -211,9 +211,19 @@ export function createFinanceView({byId,element,metric,money,signed,repairForeca
     const trades = state.trade.history.slice(0,archiveLimit).map(item=>row(item.name,
       `Gün ${item.day} · ${item.person} · ${outcomes[item.outcome]} · ${item.rounds} tur`,money(item.price)));
     const sales = state.sales.slice(0,archiveLimit).map(sale=>{
-      const profit = (Math.round(sale.price*100)-Math.round(sale.spent*100))/100;
-      return row(sale.name,`Gün ${sale.day} · Satış ${money(sale.price)} · Maliyet ${money(sale.spent)}`,
+      const profit = sale.returnedDay ? 0 : (Math.round(sale.price*100)-Math.round(sale.spent*100))/100;
+      const summary = row(sale.name,`Gün ${sale.day} · Satış ${money(sale.price)} · Maliyet ${money(sale.spent)}${sale.returnedDay
+        ? ` · İade: Gün ${sale.returnedDay}` : sale.compensation ? ` · Tazminat: ${money(sale.compensation)}` : ''}`,
         signed(profit),profit < 0 ? 'negative' : 'positive');
+      if (!sale.damageRecords?.length && !sale.inspections?.length) return summary;
+      const item = element('div','');
+      const evidence = element('details','','risk-panel');
+      evidence.append(element('summary','Satış dosyası'));
+      const bike = {faults:[],damageRecords:sale.damageRecords ?? []};
+      if (bike.damageRecords.length) evidence.append(issueDetails(bike,{active:false}));
+      for (const inspection of sale.inspections ?? []) evidence.append(reportCard(inspection));
+      item.append(summary,evidence);
+      return item;
     });
     byId('trade-history').replaceChildren(...(trades.length ? trades : [element('p','Henüz görüşme tamamlanmadı.','muted')]));
     byId('sales').replaceChildren(...(sales.length ? sales : [element('p','Henüz satış yok.','muted')]));
@@ -248,7 +258,7 @@ export function createFinanceView({byId,element,metric,money,signed,repairForeca
       card('Nakit çıkışı',money(periodTotals.cashOut),{tone:'negative'}),
       card('Net nakit akışı',signed(periodTotals.cashIn-periodTotals.cashOut)),
       card('Tahmini stok satış kârı',signed(pending.estimatedStockProfit),{note:'Mevcut stok · Piyasa değerine göre'}));
-    const values = [card('Satılan motosiklet',number.format(periodTotals.salesCount)),card('Satış hasılatı',money(periodTotals.salesRevenue)),
+    const values = [card('Net satılan motosiklet',number.format(periodTotals.salesCount)),card('Satış hasılatı',money(periodTotals.salesRevenue)),
       card('Satıştan net kâr',signed(periodTotals.salesRevenue-periodTotals.salesCost)),
       card('Ücretli kiralama günü',number.format(periodTotals.rentalDays)),card('Kiralama geliri',money(periodTotals.rentalRevenue)),
       card('Faiz gideri',money(periodTotals.interest))];
