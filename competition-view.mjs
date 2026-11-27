@@ -1,3 +1,4 @@
+import { financeReport } from './finance.mjs?v=0.18';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
 import { rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18';
@@ -48,15 +49,25 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const scope=province ? state.branches.filter(b=>branchProvince(b)===province):state.branches;
     const cutoff=state.day-29;
     const sales=state.sales.filter(s=>s.day>=cutoff&&!s.returnedDay&&(!province||scope.some(b=>b.id===s.branchId)));
-    const portfolio=assets(state).net;
-    const player={name:'MOTOR EMPIRE · Siz',player:true,worth:portfolio,branches:scope.length,
-      revenue:sales.reduce((total,row)=>total+row.price,0),profit:sales.reduce((total,row)=>total+row.price-row.spent,0),
-      sold:sales.length,reputation:state.trade.reputation};
-    // Financial totals refer to the consolidated company. City selection scopes activity and branch counts.
+    const worth=assets(state);
+    const portfolio=province ? scope.reduce((value,branch)=>value+
+      (branch.tier===undefined?0:BRANCH_TIERS[branch.tier].cost)+branch.garage.reduce((sum,bike)=>sum+bike.value,0),
+      (state.cash-state.debt)*scope.length/state.branches.length):worth.net;
+    const finance=province?{...state,ledger:state.ledger.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId)),
+      sales:state.sales.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId))}:state;
+    const result=financeReport(finance,worth,30).periodTotals;
+    const player={name:'MOTOR EMPIRE · Siz',player:true,worth:Math.round(portfolio),branches:scope.length,
+      revenue:result.revenue,profit:result.profit,sold:sales.length,reputation:state.trade.reputation};
     const rows=state.competition.companies.filter(c=>!province||c.branches.some(b=>b.province===province)).map(c=>{
       const window=c.history.slice(-30);
-      return {id:c.id,name:c.name,worth:c.bookValue,revenue:sum(window,1),profit:sum(window,2),
-        sold:sum(window,3),branches:province?c.branches.filter(b=>b.province===province).length:c.branches.length,reputation:c.reputation};
+      const scope=province?c.branches.filter(b=>b.province===province):c.branches;
+      if(!province)return {id:c.id,name:c.name,worth:c.bookValue,revenue:sum(window,1),profit:sum(window,2),
+        sold:sum(window,3),branches:scope.length,reputation:c.reputation};
+      const local=(c.regional??[]).filter(row=>row[1]===province);
+      const property=scope.reduce((value,b)=>value+BRANCH_TIERS[b.tier].cost,0);
+      const inventory=c.stock.filter(bike=>scope.some(branch=>branch.id===bike.branch)).reduce((value,bike)=>value+bike.value,0);
+      return {id:c.id,name:c.name,worth:Math.round(property+inventory+(c.cash-c.debt)*scope.length/c.branches.length),
+        revenue:sum(local,2),profit:sum(local,3),sold:sum(local,4),branches:scope.length,reputation:c.reputation};
     });
     if(scope.length)rows.push(player);
     const count=rows.reduce((total,row)=>total+row.sold,0);
@@ -134,7 +145,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       card.append(content,element('strong',metrics(row,metric),'competition-value'));
       return card;
     });
-    if(city)cards.unshift(element('p','Şehirde şubesi bulunan şirketler. Finans ölçütleri şirket geneli değerleridir.','spec'));
+    if(city)cards.unshift(element('p','İlin cirosu, faaliyet kârı ve satışları yereldir. Şirket değerinde kasa ve borç şube sayısına göre paylaştırılır. İtibar şirket genelidir.','spec'));
     list('rival-rank-list',cards,'Bu ilde kayıtlı şirket yok.');
   }
   function renderAcquisitions(state) {
@@ -202,7 +213,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const quote=rivalOffer(company);
     const details=measures([['Kuruluş',`Oyun günü ${company.founded}`],['Merkez',cityName(company.province)],
       ['Sınıf',size(company)],['Strateji',STRATEGIES[company.strategy]],['Segment',segment[company.segment]],
-      ['Risk / büyüme puanı',`${company.risk} / ${company.growth}`],['Şube / personel',`${company.branches.length} / ${sum(company.branches.map(b=>[b.staff]),0)}`],
+      ['Risk / büyüme puanı',`${company.risk} / ${company.growth}`],['Şube / personel',`${company.branches.length} / ${company.branches.reduce((total,branch)=>total+branch.staff,0)}`],
       ['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],['Pazar payı (30 gün)',percent.format(company.marketShare)],
       ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],['Borç · tahmin',money(company.debt)],
       ['Günlük ciro',money(company.daily?.revenue??0)],['30 günlük ciro',money(sum(company.history.slice(-30),1))],

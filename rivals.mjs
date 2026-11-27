@@ -48,7 +48,7 @@ function companyFor(number,day) {
     founded:day,province,strategy,segment:segments[strategy],risk:strategy==='growth'?85:strategy==='safe'?15:30+number%40,
     growth:22+number%68,cash,debt,openingCash:cash,cashIn:0,cashOut:0,
     branches:[{id:1,province,tier,staff:Math.min(4,tier+1)}],stock:[],reputation:43+number%22,
-    satisfaction:55+number%24,history:[],events:[],status:number%17===0?'listed':'active',stress:0,
+    satisfaction:55+number%24,history:[],regional:[],events:[],status:number%17===0?'listed':'active',stress:0,
     nextBranch:2,nextBike:1,totalSold:0,turnover:0,profit:0,marketShare:0,bookValue:cash+BRANCH_TIERS[tier].cost-debt,
   };
 }
@@ -127,6 +127,10 @@ function quoteFor(company,bike,market,province,day,peers) {
   return terms;
 }
 
+function localTotals(company,province) {
+  return (company.localDay[province]??=[company.daily.day,Number(province),0,0,0]);
+}
+
 function tradeStock(world,company,market,peers) {
   const day=world.day;
   company.stock=company.stock.filter(bike=>{
@@ -146,7 +150,9 @@ function tradeStock(world,company,market,peers) {
     const terms=quoteFor(company,bike,market,branch.province,day,peers);
     if (company.strategy==='rental' && bike.rented<6 && company.stress<5
       && random(bike.id,day,'rent')<.55) {
-      post(company,'rent',money(bike.value*.006),bike);
+      const rent=money(bike.value*.006);
+      post(company,'rent',rent,bike);
+      const local=localTotals(company,branch.province);local[2]+=rent;local[3]+=rent;
       bike.rented++;
       bike.km+=85;bike.condition=Math.max(60,bike.condition-1);
       return true;
@@ -155,6 +161,8 @@ function tradeStock(world,company,market,peers) {
       *clamp(1+(bike.value/bike.ask-1)*2,.45,1.65),.04,.46);
     if (random(bike.id,day,'retail')>=probability) return true;
     post(company,'sale',bike.ask,bike);
+    const local=localTotals(company,branch.province);
+    local[2]+=bike.ask;local[3]+=bike.ask-bike.cost;local[4]++;
     world.sold++;world.turnover+=bike.ask;
     company.satisfaction=clamp(company.satisfaction+(bike.condition>=83?1:-1),25,96);
     company.reputation=clamp(company.reputation+(company.totalSold%6===0?1:0),20,93);
@@ -166,6 +174,10 @@ function settle(world,company) {
   const overhead=company.branches.length*250;
   const wages=company.branches.reduce((sum,branch)=>sum+RIVAL_ROLES.slice(0,branch.staff)
     .reduce((total,role)=>total+STAFF_ROLES[role].wage,0),0);
+  for(const branch of company.branches) {
+    const local=localTotals(company,branch.province);
+    local[3]-=250+RIVAL_ROLES.slice(0,branch.staff).reduce((total,role)=>total+STAFF_ROLES[role].wage,0);
+  }
   const interest=money(company.debt*(company.restructured?.00018:.00045));
   const required=overhead+wages+interest;
   const creditLimit=money(company.branches.reduce((sum,b)=>sum+BRANCH_TIERS[b.tier].cost,0)*(.29+company.risk*.002));
@@ -242,6 +254,7 @@ export function advanceCompetition(world,day,market,playerSales=[]) {
   const peers=new Map([...sums].map(([id,[sum,count]])=>[id,sum/count]));
   for(const company of world.companies){
     company.daily={day,revenue:0,profit:0,sold:0};
+    company.localDay={};
     tradeStock(world,company,market,peers);
     settle(world,company);
     if(company.status!=='bankrupt') {
@@ -256,10 +269,15 @@ export function advanceCompetition(world,day,market,playerSales=[]) {
     }
     company.bookValue=rivalValue(company);
     company.profit+=company.daily.profit;
+    const geography=company.regional??=[];
+    const cutoff=day-29;
+    company.regional=geography.filter(row=>row[0]>=cutoff).concat(Object.values(company.localDay));
+    delete company.localDay;
     bounded(company.history,[day,company.daily.revenue,company.daily.profit,company.daily.sold,company.bookValue],365);
   }
   for(const company of world.companies.filter(c=>c.status==='bankrupt')){
     bounded(world.retired,{id:company.id,name:company.name,day,status:'bankrupt',cash:company.cash,debt:company.debt,
+      openingCash:company.openingCash,cashIn:company.cashIn,cashOut:company.cashOut,
       sales:company.totalSold,profit:company.profit,recentSales:company.history.slice(-30).reduce((n,row)=>n+row[3],0),turnover:company.turnover},80);
   }
   world.companies=world.companies.filter(c=>c.status!=='bankrupt');
