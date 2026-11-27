@@ -1,10 +1,11 @@
+import { contactMap } from './surfaces.mjs?v=0.17.0.1';
 import { GARAGE_CAMERA,tapGesture } from './camera.mjs?v=0.17.0.1';
 import * as T from './vendor/three.module.min.js';
 import { OrbitControls,RoomEnvironment } from './vendor/addons.mjs';
-import { createAssets,DISPLAY_PLINTH,spriteTexture } from './assets.mjs?v=0.17-r2';
-import { initialQuality,qualityProfile,worldBays } from './config.mjs?v=0.17-r2';
-import { buildWorkshop } from './garage.mjs?v=0.17-r2';
-import { motorcycleAsset } from './registry.mjs?v=0.17-r2';
+import { createAssets,DISPLAY_PLINTH,spriteTexture } from './assets.mjs?v=0.17.0.1';
+import { initialQuality,qualityProfile,worldBays } from './config.mjs?v=0.17.0.1';
+import { buildWorkshop } from './garage.mjs?v=0.17.0.1';
+import { motorcycleAsset } from './registry.mjs?v=0.17.0.1';
 import { modelOf } from '../bikes.mjs?v=0.16.1';
 import { loadSprite,spriteKey } from '../sprite.mjs?v=0.16.1';
 
@@ -16,20 +17,20 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   if (!context || context.isContextLost()) throw new Error('WebGL 2 kullanılamıyor.');
   const renderer = new T.WebGLRenderer({canvas,context});
   renderer.toneMapping=T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.24;
+  renderer.toneMappingExposure=1.18;
   renderer.outputColorSpace=T.SRGBColorSpace;
   renderer.shadowMap.autoUpdate=false;
   renderer.shadowMap.type=T.PCFShadowMap;
   const scene = new T.Scene();
-  scene.background=new T.Color(0x191c20);
-  const ambient = new T.HemisphereLight(0xfff4e3,0x655e56,1.42);
+  scene.background=new T.Color(0x171d25);
+  const ambient = new T.HemisphereLight(0xfff4e3,0x5d6772,1.18);
   scene.add(ambient);
-  const sun=new T.DirectionalLight(0xffe5c6,2.6);
+  const sun=new T.DirectionalLight(0xffe5c6,2.85);
   sun.position.set(-6,11,7);sun.castShadow=true;
   Object.assign(sun.shadow.camera,{left:-12,right:12,top:10,bottom:-11,near:1,far:40});
   sun.shadow.normalBias=.034;
   scene.add(sun);
-  const cool=new T.DirectionalLight(0xafdcff,.9);
+  const cool=new T.DirectionalLight(0xafdcff,1.12);
   cool.position.set(7,6,-6);scene.add(cool);
   const camera = new T.PerspectiveCamera(39,1,.07,110);
   const controls = new OrbitControls(camera,canvas);
@@ -60,11 +61,14 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   let profile;
   let missed=0;
   let measuring=false;
+  let frameMillis=0;
+  let frameCount=0;
   let targetAnimation;
   let lastMeasure=0;
   const gesture=tapGesture();
-  const shadowGeometry=new T.CircleGeometry(.65,20);
-  const shadowMaterial=new T.MeshBasicMaterial({color:0x292321,transparent:true,opacity:.27,depthWrite:false});
+  const shadowGeometry=new T.PlaneGeometry(2.22,.92);
+  const contact=contactMap();
+  const shadowMaterial=new T.MeshBasicMaterial({map:contact,color:0x161a21,transparent:true,opacity:.55,depthWrite:false});
 
   function reflections(enabled) {
     if (!enabled) {
@@ -106,7 +110,9 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
       sun.shadow.map=null;
       if (profile.shadow) sun.shadow.mapSize.set(profile.shadow,profile.shadow);
     }
-    workshop?.texture(profile.texture);
+    const detail=profile.name==='high' || profile.name==='ultra';
+    workshop?.texture(profile.texture,detail);
+    callbacks.profile?.({...profile,detail,auto:settings.quality==='auto',fps:settings.fps,aa:settings.aa});
     for (const root of rows.values()) {
       const lod=root.userData.lod;
       if (lod) lod.levels[1].distance=profile.lod;
@@ -158,11 +164,13 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     if (workshop?.cutaway(camera.position,controls.target)) renderer.shadowMap.needsUpdate=true;
     renderer.render(scene,camera);
     const elapsed=now-lastFrame;
-    if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation)) {
-      if (settings.meter && now-lastMeasure>245) {
+    if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation) && lastFrame>=lastMeasure) {
+      frameMillis+=elapsed;frameCount++;
+      if (settings.meter && (frameMillis>=350 || frameCount>=20)) {
         lastMeasure=now;
-        callbacks.measure?.({fps:Math.round(1000/elapsed),triangles:renderer.info.render.triangles,
+        callbacks.measure?.({fps:Math.round(1000*frameCount/frameMillis),triangles:renderer.info.render.triangles,
           textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries});
+        frameMillis=0;frameCount=0;
       }
       missed=elapsed>1000/settings.fps*1.42 ? missed+1 : Math.max(0,missed-1);
       if (settings.quality==='auto' && automatic!=='low' && missed>=18) {
@@ -194,8 +202,9 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     entry.pending.then(map=>{
       if (!map || !alive || !root.parent) return;
       const sprite=new T.Sprite(new T.SpriteMaterial({map,transparent:true,alphaTest:.17,depthWrite:false,toneMapped:false}));
-      const height=2.35*(map.image.naturalHeight ?? map.image.height)/(map.image.naturalWidth ?? map.image.width);
-      sprite.scale.set(2.35,height,1);sprite.position.y=height*.47;
+      const width=2.24;
+      const height=width*(map.image.naturalHeight ?? map.image.height)/(map.image.naturalWidth ?? map.image.width);
+      sprite.scale.set(width,height,1);sprite.position.y=height*.49;
       root.add(sprite);
       countFallbacks();
       invalidate();
@@ -251,7 +260,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
         stock.add(root);
         rows.set(bike.id,root);
         const shadow=new T.Mesh(shadowGeometry,shadowMaterial);
-        shadow.position.y=.008;shadow.rotation.x=-Math.PI/2;shadow.scale.set(1.27,.50,1);
+        shadow.position.y=.008;shadow.rotation.x=-Math.PI/2;
         root.add(shadow);
         mountBike(bike,root);
       }
@@ -314,7 +323,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     lostpointercapture:up,contextmenu:suppress,selectstart:suppress,dragstart:suppress};
   for (const [event,listener] of Object.entries(events)) canvas.addEventListener(event,listener);
   controls.addEventListener('change',invalidate);
-  controls.addEventListener('start',()=>{measuring=true;targetAnimation=undefined;invalidate();});
+  controls.addEventListener('start',()=>{measuring=true;lastMeasure=performance.now();frameMillis=0;frameCount=0;targetAnimation=undefined;invalidate();});
   controls.addEventListener('end',()=>{measuring=false;});
   const observer=new ResizeObserver(resize);observer.observe(canvas);
   const intersection=new IntersectionObserver(([entry])=>{intersecting=entry.isIntersecting;invalidate();});
@@ -333,7 +342,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     rows.clear();
     for (const batch of garageBatches) {batch.removeFromParent();batch.dispose();}
     sun.shadow.map?.dispose();
-    shadowGeometry.dispose();shadowMaterial.dispose();assets.dispose();envTarget?.dispose();
+    shadowGeometry.dispose();shadowMaterial.dispose();contact.dispose();assets.dispose();envTarget?.dispose();
     renderer.dispose();
     if (!context.isContextLost()) renderer.forceContextLoss();
   }
