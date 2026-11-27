@@ -1,3 +1,4 @@
+import { mergeSpareProps } from './static-props.mjs?v=0.17.0.1';
 import { brushedMetalMap,tiledSurface } from './surfaces.mjs?v=0.17.0.1';
 import { cutaway } from './camera.mjs?v=0.17.0.1';
 import * as T from './vendor/three.module.min.js';
@@ -257,6 +258,9 @@ export function buildWorkshop(scene) {
     batch.computeBoundingSphere();
     root.add(batch);
   }
+  const propGeometries=new Set();
+  root.traverse(node=>{if(node.geometry)propGeometries.add(node.geometry);});
+  mergeSpareProps(root);
   function texture(size,detail) {
     if (surface?.color.image.width===size && mapsEnabled===detail) return;
     if(surface) for(const map of Object.values(surface)) map.dispose();
@@ -289,7 +293,7 @@ export function buildWorkshop(scene) {
     textureSize:()=>surface?.color.image.width,dispose(){
     if(surface) for(const map of Object.values(surface)) map.dispose();
     metalMap?.dispose();
-    const mats=new Set(),geos=new Set();
+    const mats=new Set(),geos=propGeometries;
     root.traverse(node=>{if(node.isInstancedMesh)node.dispose();if(node.material)mats.add(node.material);if(node.geometry)geos.add(node.geometry);});
     for(const item of signs) item.material.map.dispose();
     for(const m of mats)m.dispose();
