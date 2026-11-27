@@ -13,7 +13,8 @@
 | v0.16 | Deterministik piyasa, mevsim ve konjonktür, fiyat geçmişi ve ekonomi haberleri |
 | v0.16.1 | Tam sayfa piyasa merkezi ve depo içi proje hafızası, PR #32 |
 | v0.17 | İsteğe bağlı 10 bölmeli Three.js prototipi, PR #33 |
-| v0.17.0.1 | Kamera kesiti ve mobil giriş düzeltmesi, ayrıntılı garaj ekipmanı ve profil bilgisi |
+| v0.17.0.1 | Kamera ve mobil giriş düzeltmesi, PR #34. Kullanıcının fiziksel iPhone testi kamera ve metin seçimini doğruladı. |
+| v0.18 | 50 rakip galeri, günlük rekabet, şirket devralma ve Rekabet Merkezi |
 
 Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bulunur.
 
@@ -21,13 +22,13 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 
 | Sürüm | Hedef |
 | --- | --- |
-
-| v0.18 | Hareketli personeller ve müşteriler |
-| v0.19 | Rakip galeriler |
+| v0.19 | Sıradaki oynanış kapsamı kullanıcı kararıyla belirlenecek. |
 | v0.20 | Kullanıcı hesapları ve bulut kayıt |
 | v0.21 | Reklam entegrasyonu |
 | v0.22 | Premium üyelik ve oyun içi mağaza |
 | v0.23 | Android ve iOS uygulaması |
 | v1.0 | Resmî yayın |
 
-PR #33 denetiminde KTX2 ve dört grafik profili doğrulandı. Sırada düzeltmenin fiziksel iPhone testi, üç lisanslı model ve gerçek 3D inceleme var. Kataloğu veya ek garaj seviyelerini dönüştürmeden önce kullanıcı onayı gerekir. [Gereksinim denetimi](docs/v017-audit.md)
+Grafik çalışmaları ertelendi. Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri, hareketli personel/müşteriler ve görsel hasar açık işler olarak saklanır. Genişleme kullanıcı onayı gerektirir.
+
+[v0.18 rekabet raporu](docs/v018-competition.md) · [v0.17 grafik denetimi](docs/v017-audit.md)

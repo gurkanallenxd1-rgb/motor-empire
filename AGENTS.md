@@ -15,6 +15,7 @@ Oyun statik HTML, CSS, standart JavaScript ES modülleri ve varsayılan Canvas 2
 | `economy.mjs`, `provinces.mjs`, `valuation.mjs` | Deterministik piyasa, 81 il, nakliye ve fiyat tahminleri |
 | `trade.mjs`, `characters.mjs`, `damage.mjs`, `risk.mjs` | Pazarlık, müşteri profilleri, hasar, ekspertiz ve sigorta |
 | `business.mjs`, `automation.mjs`, `finance.mjs` | Şube, personel, otomasyon ve defter kuralları |
+| `rivals.mjs`, `competition-view.mjs` | Günlük rakip bilançosu, müşteri alternatifleri, devralma ve Rekabet Merkezi |
 | `market-view.mjs`, `finance-view.mjs`, `notification-view.mjs`, `notifications.mjs` | Ekran gösterimleri ve kayıtlı bildirimler |
 | `art.mjs`, `garage-layout.mjs`, `garage-scene.mjs`, `sprite.mjs`, `bikes.mjs`, `catalog-data.mjs` | İzometrik sahne, kamera, yerleşim, katalog ve model görselleri |
 | `assets/`, `docs/`, `visual-audit.html` | Yerel WebP varlıkları, görsel belgeler ve geliştirici görsel denetimi |
@@ -41,7 +42,15 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 - Katalog ve görsel dosyalarını temel envanterle otomatik karşılaştır. Varlık lisanslarını [ASSET_LICENSES.md](ASSET_LICENSES.md) dosyasına belgele. Mimari için [GRAPHICS_ARCHITECTURE.md](GRAPHICS_ARCHITECTURE.md) dosyasını oku.
 - [v0.17 gereksinim denetimi](docs/v017-audit.md) doğrulanan özellikleri ve açık işleri listeler. Performans karşılaştırmalarında tarayıcı, donanım, profil ve ölçüm yöntemini kaydet. Fiziksel iPhone sonucu diye emülasyon ölçümü kullanma.
 - Kamera ve dokunma değişikliklerini gerçek WebKit emülasyonu ile hem dikey hem yatay dene. Kamera kesit ve etkileşim kurallarını [grafik mimarisinde](GRAPHICS_ARCHITECTURE.md#kamera-ve-dokunma) sürümle.
+- Grafik geliştirmeleri v0.18’de ertelendi. Gerçek motosiklet mesh’leri, diğer garaj seviyeleri ve görsel hasar projede açık iş olarak kalır.
 - İlk prototip 10 bölme ve üç hedef motosikletle sınırlı. Katalog veya garaj seviyelerini genişletmeden önce kullanıcı onayı al. PR'ı otomatik birleştirme.
+
+## Rekabet kuralları
+
+- Simülasyonu mevcut gün kapanışı ve kayıt kilidi içinde bir kere çalıştır. Model fiyatını v0.16 piyasa gözleminden al. Rakip tedariki oyuncunun açık ilanlarını, Yusuf'u veya anlaşılmış teklifleri tüketmez.
+- Rakip satışına stok kimliği, hazırlık maliyeti ve tahsilat eşlik etmeli. Getiriyi rastgele kasa artışıyla verme. Rekabet verileri eski oyuncu varlıklarından ayrı oluşturulur.
+- Devralma teklifini güncel gün, şirket durumu, kasadaki brüt bedel ve açık onay ile doğrula. Kasa, borç, şube, personel, stok ve rakip listesi aynı kayıt işleminde değişir. Devralınan kasa işletme cirosuna girmez.
+- `node tests/rival-simulation.mjs` ile 30/90/365/1000 gün ölç. Test ve tasarım sınırları [v0.18 rekabet raporunda](docs/v018-competition.md).
 
 ## Git ve teslim
 
