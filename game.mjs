@@ -1,4 +1,4 @@
-import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18';
+import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18';
 import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16.1';
 import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.18';
 import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16.1';
@@ -206,6 +206,13 @@ export function assets(state) {
   for (const {bike} of state.waitingReturns ?? []) inventory += roadValue(bike);
   const total = state.cash + equipment + inventory;
   return { equipment, inventory, total, net: total - state.debt };
+}
+
+export function regionalPlayerValue(state,province) {
+  const branches=state.branches.filter(branch=>branchProvince(branch)===province);
+  const cashShare=branches.length/state.branches.length;
+  return assets({...state,branches,cash:state.cash*cashShare,debt:state.debt*cashShare,
+    waitingReturns:(state.waitingReturns??[]).filter(row=>branches.some(b=>b.id===row.branchId))}).net;
 }
 
 export function dailyTotals(ledger, day) {
@@ -896,7 +903,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
     }
     case 'acquire-rival': {
       const company=next.competition?.companies.find(item=>String(item.id)===String(id));
-      if(!company || amount?.confirmed!==true || !validAmount(amount.price) || !Number.isSafeInteger(amount.price))
+      if(!company || amount?.confirmed!==true || !validAmount(amount.price) || !Number.isSafeInteger(amount.price) || amount.price>1e9)
         throw new Error('Onaylı ve geçerli bir devralma teklifi gerekli.');
       const quote=rivalOffer(company,amount.price);
       if(amount.stamp!==next.competition.day)throw new Error('Değerleme değişti. Teklifi tekrar açın.');
@@ -1009,8 +1016,9 @@ function applyAction(next, action, id, amount, branchId, worker) {
       const worth=assets(next).net;
       rivalMarket.rank=1+rivalMarket.companies.filter(company=>company.bookValue>worth).length;
       const headquarters=branchProvince(next.branches[0]);
+      const regionalWorth=regionalPlayerValue(next,headquarters);
       rivalMarket.cityRank=1+rivalMarket.companies.filter(company=>company.branches.some(office=>office.province===headquarters)
-        && company.bookValue>worth).length;
+        && regionalRivalValue(company,headquarters)>regionalWorth).length;
       if(tomorrow%7===0 && (rivalMarket.rank<oldRank || rivalMarket.cityRank<oldCityRank)) {
         const text=rivalMarket.rank<oldRank?`Türkiye sıralamasında ${rivalMarket.rank}. sıraya yükseldiniz.`
           : `${provinceName(headquarters)} sıralamasında ${rivalMarket.cityRank}. sıraya yükseldiniz.`;

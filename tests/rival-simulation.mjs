@@ -11,6 +11,7 @@ export function rivalSimulation(days) {
   const world=createCompetition(1,market);
   const elapsed=[];
   const prices=[];
+  const soldIds=new Set();
   for(let day=2;day<=days+1;day++){
     market=nextEconomy({economy:market,sales:[]},day);
     market=observeMarket(market,generateMarket(day,marketRandom(day),true,market));
@@ -27,8 +28,12 @@ export function rivalSimulation(days) {
       for(const branch of company.branches) {
         assert.ok(company.stock.filter(bike=>bike.branch===branch.id).length<=BRANCH_TIERS[branch.tier].capacity);
       }
+      for(const row of company.events.filter(row=>row[0]===day&&row[1]==='sale')) {
+        assert.ok(row[4]&&!soldIds.has(row[4]));
+        soldIds.add(row[4]);
+      }
       for(const bike of company.stock){
-        assert.ok(!ids.has(bike.id));ids.add(bike.id);
+        assert.ok(!ids.has(bike.id)&&!soldIds.has(bike.id));ids.add(bike.id);
         assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
         if(bike.ask)prices.push(bike.ask/bike.value);
       }

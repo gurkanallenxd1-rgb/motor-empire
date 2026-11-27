@@ -1,9 +1,9 @@
-import { roadValue } from './damage.mjs?v=0.16.1';
+import { regionalPlayerValue } from './game.mjs?v=0.18';
 import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
 import { financeReport } from './finance.mjs?v=0.18';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
-import { rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18';
+import { regionalRivalValue,rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18';
 
 const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
@@ -53,9 +53,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const cutoff=state.day-29;
     const sales=state.sales.filter(s=>s.day>=cutoff&&!s.returnedDay&&(!province||scope.some(b=>b.id===s.branchId)));
     const worth=assets(state);
-    const portfolio=province ? scope.reduce((value,branch)=>value+
-      (branch.tier===undefined?0:BRANCH_TIERS[branch.tier].cost)+branch.garage.reduce((sum,bike)=>sum+roadValue(bike),0),
-      (state.cash-state.debt)*scope.length/state.branches.length):worth.net;
+    const portfolio=province?regionalPlayerValue(state,province):worth.net;
     const finance=province?{...state,ledger:state.ledger.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId)),
       sales:state.sales.filter(row=>row.day>=cutoff&&scope.some(b=>b.id===row.branchId))}:state;
     const result=financeReport(finance,worth,30).periodTotals;
@@ -67,9 +65,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       if(!province)return {id:c.id,name:c.name,worth:c.bookValue,revenue:sum(window,1),profit:sum(window,2),
         sold:sum(window,3),branches:scope.length,reputation:c.reputation};
       const local=(c.regional??[]).filter(row=>row[1]===province);
-      const property=scope.reduce((value,b)=>value+BRANCH_TIERS[b.tier].cost,0);
-      const inventory=c.stock.filter(bike=>scope.some(branch=>branch.id===bike.branch)).reduce((value,bike)=>value+bike.value,0);
-      return {id:c.id,name:c.name,worth:Math.round(property+inventory+(c.cash-c.debt)*scope.length/c.branches.length),
+      return {id:c.id,name:c.name,worth:Math.round(regionalRivalValue(c,province)),
         revenue:sum(local,2),profit:sum(local,3),sold:sum(local,4),branches:scope.length,reputation:c.reputation};
     });
     if(scope.length)rows.push(player);
@@ -220,7 +216,8 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       ['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],['Pazar payı (30 gün)',percent.format(company.marketShare)],
       ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],['Borç · tahmin',money(company.debt)],
       ['Günlük ciro',money(company.daily?.revenue??0)],['30 günlük ciro',money(sum(company.history.slice(-30),1))],
-      ['365 günlük ciro',money(sum(company.history,1))],['30 günlük net kâr',signed(quote.profit)]]);
+      ['365 günlük ciro',money(sum(company.history,1))],['Günlük net kâr',signed(company.daily?.profit??0)],
+      ['30 günlük net kâr',signed(quote.profit)],['365 günlük net kâr',signed(sum(company.history,2))]]);
     const branchRows=company.branches.map(b=>element('p',`${cityName(b.province)} · ${company.stock.filter(item=>item.branch===b.id).length}/${BRANCH_TIERS[b.tier].capacity} stok · ${b.staff} çalışan`,'competition-story'));
     const statusNames={ready:'satışa hazır',transit:'nakliyede',inspected:'hazırlıkta'};
     const counts=Object.keys(statusNames).map(key=>`${company.stock.filter(b=>b.state===key).length} ${statusNames[key]}`);

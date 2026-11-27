@@ -76,7 +76,7 @@ function post(company,kind,amount,bike) {
   if (['wages','overhead','interest'].includes(kind)) company.daily.profit-=amount;
   if (kind==='liquidation') company.daily.profit+=amount-(bike?.cost??amount);
   if (!['wages','overhead'].includes(kind)) {
-    bounded(company.events,[company.daily.day,kind,bike?.model??null,amount],12);
+    bounded(company.events,[company.daily.day,kind,bike?.model??null,amount,bike?.id??null],12);
   }
 }
 
@@ -302,6 +302,13 @@ export function advanceCompetition(world,day,market,playerSales=[]) {
     }
   }
   return true;
+}
+
+export function regionalRivalValue(company,province) {
+  const offices=company.branches.filter(branch=>branch.province===province);
+  const localStock=company.stock.filter(bike=>offices.some(branch=>branch.id===bike.branch));
+  return offices.reduce((sum,b)=>sum+BRANCH_TIERS[b.tier].cost,0)+localStock.reduce((sum,b)=>sum+b.value,0)
+    +(company.cash-company.debt)*offices.length/company.branches.length;
 }
 
 export function rivalOffer(company,amount) {
