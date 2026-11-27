@@ -1,4 +1,4 @@
-import { modelOf } from './bikes.mjs?v=0.12.4';
+import { modelOf } from './bikes.mjs?v=0.12.5';
 
 export const MAX_ROUNDS = 3;
 export const createTrade = () => ({ reputation:50, history:[] });
@@ -18,6 +18,16 @@ const roles = [
 const firstNames = ['Deniz','Ece','Mert','Selin','Kerem','İpek','Bora','Derya','Emir','Aylin','Can','Elif'];
 const lastNames = ['Kaya','Demir','Aksoy','Şahin','Kurt','Aydın','Arslan','Yıldız','Koç','Çelik','Öztürk','Tan'];
 const avatars = ['🧑','👩','👨','👩🏻','👨🏽','🧑🏾','👩🏽','👨🏻'];
+
+const feminineNames = new Set(['Ece','Selin','İpek','Aylin','Elif']);
+const masculineNames = new Set(['Mert','Kerem','Bora','Emir','Can']);
+
+export function avatarForName(name) {
+  const first = name?.trim().split(/\s+/,1)[0];
+  if (feminineNames.has(first)) return '👩';
+  if (masculineNames.has(first)) return '👨';
+  return '🧑';
+}
 
 export function stableNumber(key) {
   let result = 2166136261;

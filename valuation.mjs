@@ -1,5 +1,5 @@
-import { activeIssues, cleanValue, historicalIssues, listingForecast, PARTS, roadValue } from './damage.mjs?v=0.12.4';
-import { verifiedFindings, visibleListing } from './risk.mjs?v=0.12.4';
+import { activeIssues, cleanValue, historicalIssues, listingForecast, PARTS, roadValue } from './damage.mjs?v=0.12.5';
+import { verifiedFindings, visibleListing } from './risk.mjs?v=0.12.5';
 
 const money = value => Math.round(value*100)/100;
 const ratio = (amount,base) => base ? amount/base : 0;

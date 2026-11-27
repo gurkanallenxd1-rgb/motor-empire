@@ -1,15 +1,15 @@
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.4';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.5';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.4';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.4';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.4';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.4';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.4';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.4';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.5';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.5';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.5';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.5';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.5';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.5';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.4';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.4';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.5';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.5';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';

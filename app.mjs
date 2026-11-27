@@ -1,24 +1,24 @@
-import { purchasePreview } from './valuation.mjs?v=0.12.4';
+import { purchasePreview } from './valuation.mjs?v=0.12.5';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.4';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.4';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.4';
-import { createFinanceView } from './finance-view.mjs?v=0.12.4';
-import { dailyCashMovement } from './finance.mjs?v=0.12.4';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.4';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.5';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.5';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.5';
+import { createFinanceView } from './finance-view.mjs?v=0.12.5';
+import { dailyCashMovement } from './finance.mjs?v=0.12.5';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.5';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12.4';
-import { createGarageRenderer } from './art.mjs?v=0.12.4';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.4';
+} from './game.mjs?v=0.12.5';
+import { createGarageRenderer } from './art.mjs?v=0.12.5';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.5';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.4';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.4';
+import { MAX_ROUNDS, avatarForName, isActive, tradeSummary } from './trade.mjs?v=0.12.5';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.5';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12.4';
+  repairForecast } from './damage.mjs?v=0.12.5';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -554,12 +554,18 @@ function renderInspectionSummary(container,analysis,meeting = false) {
 }
 
 function refreshOfferPreview(view) {
-  const preview = purchasePreview(view.analysis,view.draft);
+  const amount = view.canNegotiate ? view.draft : view.analysis.offer;
+  const preview = purchasePreview(view.analysis,amount);
   const input = byId('player-offer');
   const offerAccepted = Boolean(preview && input.validity.valid && view.draft<=view.analysis.offer);
   byId('meeting-negotiate').disabled = !view.canNegotiate || !offerAccepted;
-  byId('offer-warning').textContent = preview && view.draft>view.analysis.offer
+  byId('offer-warning').textContent = view.canNegotiate && preview && view.draft>view.analysis.offer
     ? 'Gönderilecek teklif satıcının fiyatını aşamaz.' : '';
+  const range = byId('player-offer-range');
+  range.setAttribute('aria-valuetext',money(range.valueAsNumber));
+  const extra = preview ? Math.round((view.analysis.offer-preview.amount)*100)/100 : undefined;
+  byId('live-seller-discount').textContent = signedRatio(view.analysis.discount,view.analysis.discountShare);
+  byId('live-extra-discount').textContent = extra===undefined ? '—' : signedRatio(extra,extra/view.analysis.offer);
   for (const [id,amount,ratio,colored] of [
     ['live-advantage',preview?.advantage,preview?.advantageShare,true],
     ['live-potential-discount',preview?.discount,preview?.discountShare,true],
@@ -575,37 +581,41 @@ function refreshOfferPreview(view) {
 
 function showOfferEditor(view,analysis,meeting,canNegotiate) {
   const input = byId('player-offer');
+  const range = byId('player-offer-range');
   const maximum = Math.min(Number.MAX_SAFE_INTEGER/100,Math.max(analysis.initialPrice,analysis.offer)*2);
-  input.max = String(maximum);
-  if (view.draft === undefined) {
-    view.draft = meeting.playerOffer ?? analysis.offer;
-    input.value = String(view.draft);
-  }
+  input.max = range.max = String(maximum);
+  view.draft ??= meeting.playerOffer ?? analysis.offer;
+  if (meeting.status==='agreed') view.draft = analysis.offer;
   view.analysis = analysis;
   view.canNegotiate = canNegotiate;
-  input.disabled = meeting.status!=='open';
+  input.disabled = range.disabled = !canNegotiate;
   for (const button of byId('offer-shortcuts').querySelectorAll('button')) {
-    button.disabled = input.disabled || analysis.offer<=Number(button.dataset.discount);
+    button.disabled = !canNegotiate || analysis.offer<=Number(button.dataset.discount);
   }
-  if (meeting.status==='agreed' && view.draft!==analysis.offer) {
-    view.draft = analysis.offer;
-    input.value = String(analysis.offer);
-  }
+  const amount = canNegotiate ? view.draft : analysis.offer;
+  if (input.valueAsNumber!==amount) input.value = Number.isFinite(amount) ? String(amount) : '';
+  syncOfferRange(view,amount);
   refreshOfferPreview(view);
 }
 
-byId('player-offer').addEventListener('input',event=>{
-  if (!meetingView?.analysis) return;
-  meetingView.draft = event.target.valueAsNumber;
-  refreshOfferPreview(meetingView);
-});
+function syncOfferRange(view,amount) {
+  byId('player-offer-range').value = String(Number.isFinite(amount) ? amount : view.analysis.offer);
+}
+
+function setOfferDraft(view,amount,source) {
+  if (!view?.canNegotiate) return;
+  view.draft = amount;
+  if (source!=='input') byId('player-offer').value = String(amount);
+  if (source!=='range') syncOfferRange(view,amount);
+  refreshOfferPreview(view);
+}
+byId('player-offer').addEventListener('input',event=>setOfferDraft(meetingView,event.target.valueAsNumber,'input'));
+byId('player-offer-range').addEventListener('input',event=>setOfferDraft(meetingView,event.target.valueAsNumber,'range'));
 byId('offer-shortcuts').addEventListener('click',event=>{
   const button = event.target.closest('button[data-discount]');
   if (!button || button.disabled || !meetingView?.analysis) return;
   const offer = meetingView.analysis.offer;
-  meetingView.draft = (Math.round(offer*100)-Number(button.dataset.discount)*100)/100;
-  byId('player-offer').value = String(meetingView.draft);
-  refreshOfferPreview(meetingView);
+  setOfferDraft(meetingView,(Math.round(offer*100)-Number(button.dataset.discount)*100)/100,'shortcut');
 });
 
 function renderPurchaseAnalysis(container, analysis, meeting = false) {
@@ -621,8 +631,8 @@ function renderPurchaseAnalysis(container, analysis, meeting = false) {
   const comparison = element('dl','','valuation-list');
   comparison.append(
     pair('Hasarsız piyasa değeri',money(analysis.clean)),
-    priceSummaryRow('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection),meeting ? 'live-before-value' : ''),
-    priceSummaryRow('Satıcının pazarlık indirimi',signedRatio(analysis.discount,analysis.discountShare),meeting ? 'live-seller-discount' : ''));
+    priceSummaryRow('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection),meeting ? 'live-before-value' : ''));
+  if (!meeting) comparison.append(priceSummaryRow('Satıcının pazarlık indirimi',signedRatio(analysis.discount,analysis.discountShare)));
   if (meeting) comparison.prepend(priceSummaryRow('Başlangıç ilan fiyatı',money(analysis.initialPrice),'live-start-price'));
   else if (analysis.offer!==analysis.initialPrice) comparison.append(pair('Satıcının güncel teklifi',money(analysis.offer)));
   if (!meeting) comparison.append(
@@ -942,7 +952,7 @@ function updateMeeting() {
   const {profile} = meeting;
   byId('meeting-title').textContent = isSale ? 'Müşteri görüşmesi' : 'Satıcı görüşmesi';
   byId('meeting-role').textContent = isSale ? profile.type : 'İKİNCİ EL PAZARI';
-  byId('meeting-avatar').textContent = profile.avatar;
+  byId('meeting-avatar').textContent = avatarForName(profile.name);
   byId('meeting-name').textContent = profile.name;
   byId('meeting-job').textContent = `${profile.age} yaş · ${profile.job}`;
   byId('meeting-speech').textContent = meeting.speech;
