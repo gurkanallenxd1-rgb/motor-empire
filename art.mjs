@@ -1,6 +1,6 @@
-import { loadSprite, spriteKey } from './sprite.mjs?v=0.16';
-import { bikeBounds, fitGarage, garageBikeAt } from './garage-layout.mjs?v=0.16';
-import { paintBay, paintStation, paintWorkshop, workshopArt } from './garage-scene.mjs?v=0.16';
+import { loadSprite, spriteKey } from './sprite.mjs?v=0.16.1';
+import { bikeBounds, fitGarage, garageBikeAt } from './garage-layout.mjs?v=0.16.1';
+import { paintBay, paintStation, paintWorkshop, workshopArt } from './garage-scene.mjs?v=0.16.1';
 
 const clamp = (value,min,max)=>Math.min(max,Math.max(min,value));
 const activeRepair = new Set(['repairing','claiming','internalRepair']);

@@ -1,8 +1,8 @@
-import { modelOf } from './bikes.mjs?v=0.16';
-import { availableStaff, firstWorkshopJob, hasManager, workshopRate } from './business.mjs?v=0.16';
-import { DAY_MS, gameTime } from './clock.mjs?v=0.16';
-import { isYusufListing } from './easter-eggs.mjs?v=0.16';
-import { visibleListing } from './risk.mjs?v=0.16';
+import { modelOf } from './bikes.mjs?v=0.16.1';
+import { availableStaff, firstWorkshopJob, hasManager, workshopRate } from './business.mjs?v=0.16.1';
+import { DAY_MS, gameTime } from './clock.mjs?v=0.16.1';
+import { isYusufListing } from './easter-eggs.mjs?v=0.16.1';
+import { visibleListing } from './risk.mjs?v=0.16.1';
 
 export const AUTO_STEPS = {
   buy:'Alım',inspect:'Ekspertiz',repair:'Tamir',list:'İlan açma',negotiate:'Müşteri görüşmesi',sell:'Satış',

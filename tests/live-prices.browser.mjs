@@ -455,7 +455,7 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   await ui.market();
   await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
   const colors = await ui.page.evaluate(async ()=>{
-    const {loadSprite} = await import('/sprite.mjs?v=0.16');
+    const {loadSprite} = await import('/sprite.mjs?v=0.16.1');
     const name = 'Vespa Primavera 125';
     const red = await loadSprite({name,year:2024,color:'#c93838'});
     const white = await loadSprite({name,year:2024,color:'#eae6da'});
@@ -714,15 +714,20 @@ test('320px WebKit shows sparse real market history, period selection, regional 
   const {page} = ui;
   await ui.market();
   await ui.tap('#market-analysis-open');
-  await page.locator('#market-analysis[open]').waitFor();
+  await page.locator('#market-analysis-page').waitFor({state:'visible'});
   assert.match(await page.locator('#analysis-history-status').innerText(),/yeterli geçmiş veri/);
   assert.equal(await page.locator('#analysis-chart').isVisible(),false);
+  assert.equal(await page.locator('#analysis-current-price').innerText(),'Güncel ilan yok');
+  assert.match(await page.locator('#analysis-latest-price').innerText(),/48\.000 TL · Gün 1/);
   await page.selectOption('#analysis-period','30');
-  await page.selectOption('#analysis-province','69');
   await page.selectOption('#analysis-year','2021');
-  await ui.tap('#market-analysis details:last-of-type summary');
-  assert.equal(await page.locator('#analysis-regions > p').count(),82);
-  assert.match(await page.locator('#analysis-regions .analysis-selected').innerText(),/Bayburt/);
+  assert.match(await page.locator('#analysis-current-price').innerText(),/48\.000 TL/);
+  await ui.tap('#analysis-tab-cities');
+  assert.equal(await page.locator('#analysis-regions > article').count(),81);
+  await page.fill('#analysis-city-search','Bayburt');
+  assert.match(await page.locator('#analysis-regions').innerText(),/Bayburt/);
+  assert.equal(await page.locator('#analysis-regions > article').count(),1);
+  await ui.tap('#analysis-tab-summary');
   await ui.jump(31*DAY_MS);
   await page.locator('#analysis-chart').waitFor({state:'visible'});
   assert.match(await page.locator('#analysis-history-status').innerText(),/30 günlük aralıkta/);
@@ -755,4 +760,62 @@ test('landscape WebKit retrieves offline market news once through the existing b
   await ui.ready();
   const saved = await ui.state();
   assert.equal(saved.inbox.items.filter(row=>row.type==='economy').length,1);
+});
+
+test('390px WebKit four full-screen tabs show deals, ranked cities and persisted economics without writing to the save',async t=>{
+  let seed = synchronize(synchronize(initial(),T+60*DAY_MS).state,T+78*DAY_MS).state;
+  const ui = await open(t,390,844,seed);
+  const {page} = ui;
+  await ui.market();
+  await ui.tap('#market-analysis-open');
+  const saved = await ui.state();
+  const screenshot = async id=>{
+    if (!process.env.MARKET_SCREENSHOTS) return;
+    const viewport = page.viewportSize();
+    const height = {ozet:1130,ekonomi:1020}[id];
+    if (height) await page.setViewportSize({...viewport,height});
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.waitForTimeout(220);
+    await page.screenshot({path:`${process.env.MARKET_SCREENSHOTS}/${id}.png`});
+    if (height) await page.setViewportSize(viewport);
+  };
+  await page.locator('#analysis-bike').waitFor({state:'visible'});
+  await page.selectOption('#analysis-period','30');
+  await screenshot('ozet');
+  await ui.tap('#analysis-tab-opportunities');
+  assert.match(await page.locator('#analysis-opportunities').innerText(),/Tahmini satış.*Nakliye.*Net kâr.*ROI/s);
+  await screenshot('firsatlar');
+  await ui.tap('.analysis-deal button');
+  await page.locator('#listing-detail[open]').waitFor();
+  await ui.tap('#listing-detail form button');
+  assert.equal(await page.locator('#analysis-deals').isVisible(),true);
+  await ui.tap('#analysis-tab-cities');
+  const amounts = index=>page.locator(`.analysis-city dd:nth-of-type(${index})`).allTextContents()
+    .then(values=>values.map(value=>Number(value.replace(/[^0-9-]/g,''))));
+  const prices = await amounts(1);
+  assert.deepEqual(prices,[...prices].sort((a,b)=>a-b));
+  await page.selectOption('#analysis-city-sort','profit');
+  const profits = await amounts(3);
+  assert.deepEqual(profits,[...profits].sort((a,b)=>b-a));
+  await screenshot('sehirler');
+  await page.fill('#analysis-city-search','sanliurfa');
+  assert.equal(await page.locator('.analysis-city h4').innerText(),'Şanlıurfa');
+  await ui.tap('#analysis-tab-economy');
+  assert.equal(await page.locator('#analysis-macro .analysis-reading').count(),7);
+  assert.match(await page.locator('#analysis-news').innerText(),/Denge dönemi/);
+  await screenshot('ekonomi');
+  assert.deepEqual(await ui.state(),saved);
+  await ui.tap('.market-center-back');
+  assert.equal(await page.locator('#market-page').isVisible(),true);
+});
+
+test('landscape WebKit shows an empty opportunity list and allows keyboard tab navigation',async t=>{
+  const ui = await open(t,844,390,{...initial(),listings:[]});
+  await ui.market();
+  await ui.tap('#market-analysis-open');
+  await ui.page.locator('#analysis-tab-summary').press('ArrowRight');
+  assert.equal(await ui.page.locator('#analysis-tab-opportunities').getAttribute('aria-selected'),'true');
+  assert.match(await ui.page.locator('#analysis-opportunities').innerText(),/beklenen net kârı pozitif olan ilan yok/);
+  await ui.page.locator('#analysis-tab-opportunities').press('End');
+  assert.equal(await ui.page.locator('#analysis-economy').isVisible(),true);
 });

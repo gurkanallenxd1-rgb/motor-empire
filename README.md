@@ -1,238 +1,51 @@
-# MOTOR EMPIRE v0.16
+# MOTOR EMPIRE v0.16.1
 
-iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
+MOTOR EMPIRE, iPhone Safari ve masaüstü tarayıcılar için Türkçe bir motosiklet işletme oyunudur. HTML, CSS, JavaScript ES modülleri ve Canvas 2D kullanır. Oyun yerelde çalışırken hesap, sunucu API'si veya derleme gerektirmez.
 
-## Oynama
+## Yerelde çalıştırma
 
-1. 75.000 TL ile ikinci el pazarından motosiklet al. Garaj iki motosiklet alır.
-2. 450 TL karşılığında ekspertiz yaptır. Arızalı parçalar, fiyatları ve işçilik saatleri garajda görünür.
-3. Ekspertizden sonra tamiri başlat. Oyun saati ilerledikçe servis ve nakliye işlemleri tamamlanır.
-4. Tamiri biten motosiklete ilan fiyatı belirle. Sonraki günlerde gelen müşterilerle görüş veya bir teklifi kabul ederek satışı tamamla. Satış geçmişi, alış, ekspertiz ve tamir giderleri düşüldükten sonraki kâr veya zararı gösterir.
-5. Her yeni günde pazar ilanları yenilenir ve satış ilanlarının müşteri talebi hesaplanır. İlerleme tarayıcıdaki localStorage ile kaydedilir.
-
-## Çalıştırma
-
-Yerel önizleme için depo dizininde çalıştır.
+Git ve Python 3 ile proje kökünden bir HTTP sunucusu başlat.
 
 ```sh
+git clone https://github.com/gurkanallenxd1-rgb/motor-empire.git
+cd motor-empire
 python3 -m http.server 8000
 ```
 
-Tarayıcıda http://localhost:8000/ adresini aç.
+Tarayıcıda [localhost:8000](http://localhost:8000/) adresini aç. Aynı kaydı kullanmak için aynı URL ve portta çalış. Bir telefonda yerel test yapmak için bilgisayarın yerel ağ adresine bağlan. Tarayıcı depolama ve kilit izinlerini de kontrol et.
 
-GitHub Pages üzerinden yayımlamak için **Settings → Pages → Deploy from a branch** altında yayımlamak istediğin dalı ve `/ (root)` dizinini seç. Uygulama dosyaları proje alt adreslerinde çalışacak şekilde bağıl yollar kullanır.
+## Oynama
 
-## Grafikler ve kayıtlar
+1. **İlanlar** bölümünde motosiklet seç. Ekspertiz yaptırabilir, pazarlık edebilir ve satın alabilirsin.
+2. **Garaj** bölümünde nakliyeyi, servis işlerini ve stoku takip et. Sürükleme ve iki parmakla yakınlaştırma desteklenir.
+3. **İşletmeler** üzerinden şube ve personel yönet. Uygun kadro kurulduğunda müdür otomasyonunu açabilirsin.
+4. **Finans** bölümünde nakit, masraflar ve satış sonuçlarını incele. Üst menü zili bildirimleri açar.
+5. **İlanlar → Piyasa Analizi** yoluyla fiyat geçmişi, alım fırsatları, il karşılaştırması ve ekonomi haberlerine ulaş.
 
-Atölye ve motosikletlerin model görselleri yerel WebP varlıklarıyla Canvas üzerinde birleştirilir. Kamera tuvali ekran piksel oranına göre ölçeklenir. Hareket azaltma tercihi garaj animasyonlarını durdurur. v0.1–v0.11 kayıtları ilk açılışta v0.12 biçimine aktarılır. Yeni kayıt `motor-empire.v9` anahtarına yazılır. Eski anahtarlar korunur. Aktif tamirlerin teslim günü ve mevcut müşteri tekliflerinin tutarı aktarılır.
+Oyun tarayıcıda `motor-empire.v9` anahtarını kullanarak kaydeder. Önceki sürüm anahtarları saklanır. Test amacıyla canlı sitenin yerel kayıtlarını silmek yerine ayrı bir tarayıcı profili veya yerel adres kullan.
 
-Garaj kamerası başlangıçta sahneye ortalanır. Kamera düğmeleri veya sahnede iki parmakla yakınlaştırabilirsin. Mobilde varsayılan yakın kadrajdan uzaklaştırarak garajın tüm kenarlarını görebilirsin. Yakınlaştırdıktan sonra sahne içinde sürükle. Motosiklete dokunarak yakın planı aç. Yerel WebP varlıklarının üretim planı [görsel varlık belgesinde](docs/v03-varlik-plani.md) bulunur.
+## Test ve görsel denetim
 
-## İşletme kuralları
-
-- Gün kapanışında her şubeye 250 TL işletme gideri ve çalışan usta başına 750 TL maaş yazılır. Kiralar aynı günün geliri olarak giderlerden önce tahsil edilir.
-- Hazır motosiklet 1, 3 veya 7 gün kiralanır. Sözleşme başındaki kondisyonla düzeltilmiş değerin günlük %0,6’sı sabitlenir. Dönüşte her gün için 85 km ve 1 kondisyon puanı işlenir. Kondisyonun alt sınırı %25’tir.
-- Garaj seviyeleri 2, 4, 6 ve 10 araç alır. Ardışık yükseltmeler 50.000, 125.000 ve 250.000 TL’dir. Büyük garajda iki liftli atölye sahnesi bölme sayfalarına ayrılır.
-- İstanbul’da her ek şube 250.000 TL’ye açılır. Şubeler aynı kasayı ve pazarı kullanır. Garaj, tamir sırası, ustalar ve giderler şube bazında tutulur.
-- İsteğe bağlı faizsiz borç için toplam bakiye sınırı 250.000 TL’dir. Zorunlu giderin nakit açığı kadar otomatik borç yazılır ve bu borç bakiyesi sınırı aşabilir. İsteğe bağlı harcamalar yeterli nakit gerektirir.
-- Günlük net, o gün kaydedilen nakit gelirlerinden giderleri çıkarır. Borç alma ve ödeme finansman hareketidir. Toplam varlık nakit, motosiklet stoku ve maliyet bedeliyle şube yatırımlarını içerir. Net varlık borcu düşer.
-
-Oyun kurallarını test etmek için `node --test` çalıştır.
-
-GitHub Pages dağıtımında HTML’deki CSS ve giriş modülü adresleri ile tarayıcı modüllerinin tüm içe aktarma adresleri aynı `?v=` sürümünü kullanır. Yeni sürüm yayımlarken bu adresleri birlikte güncelle.
-
-## Model görselleri ve ilanlar
-
-- Katalog 19 markadan 100 model içerir. Yıl aralıkları seçilmiş kasa nesillerini kapsar. Teknik değerler o neslin oyundaki temsilî donanımına aittir. Fiyatlar Türkiye’deki ikinci el örneklerine göre ölçeklenmiş oyun tahminleridir, canlı fiyat verisi veya bütün modeller için piyasa doğrulaması bulunmaz.
-- Her yeni gün 30 farklı ilan oluşur. Bunların 8’i ekonomik, 14’ü orta, 6’sı premium, 2’si nadir segmenttedir. İlanlar 10’ar kartlık sayfalara bölünür. Yıl, kilometre, renk, kondisyon ve arızalar üretilir. Boya rengi ayrı alfa maskesinden kaportaya uygulanır. Maske dışındaki parçalar orijinal renklerini korur.
-- Kayıtlı motosikletlerin teknik bilgileri model adından okunur. Devam eden günün mevcut ilanları gün kapanışına kadar korunur.
-- `assets/models/` içindeki 480 × 400 şeffaf WebP dosyaları bu oyun için OpenAI ImageGen ile oluşturulan model temsilleridir. Üretici fotoğrafı veya resmî teknik referans kullanılmadı. Yıl ve donanım ayrıntıları çizimlerde değişiklik gösterebilir. Temsili oldukları oyun ekranlarında etiketlenir. Yeni 78 model için ImageGen ile üretilmiş 320 × 248 hücreli 13 şeffaf WebP atlası ve karşılık gelen 13 boya maskesi kullanılır. Bu dosyalar üretici fotoğrafı içermez.
-
-### Görsel denetim
-
-[Geliştirici karşılaştırma sayfası](visual-audit.html?dev=1) 22 mevcut çizimi ve yıl bazında onay durumunu gösterir. Doğrulanmış kasa dosyası yoksa oyun aynı modelin v0.5 WebP çizimini veya yeni WebP atlasındaki hücresini kullanır. Boya maskeleri ayrıdır. Model dosyası yüklenemezse yer tutucu gösterilir. Başka bir motosikletin görseli seçilmez. Kasa yılı ve üretici ayrıntıları doğrulanmış dosya kapsamı 0/100’dür. 100 modelin denetim sayfası kaydırıldıkça çizimleri yükler.
-
-Yeni görsel için `sprite-catalog.mjs` içinde model kimliği, doğrulanmış kasa yılı aralığı, yaratıcı, kaynak ve lisans bağlantılarını kaydet. Kullanım izni, türetme ve yeniden dağıtımı kapsamalı. `assets/verified/` içinde sağ ön üç çeyrek açıdan, ön teker sağda, aynı kadrajda en az 960 px genişliğinde şeffaf WebP oluştur. Aynı ölçülerde ayrı WebP maskesinin alfa kanalı yalnızca boyalı kaportayı kapsamalı. Siyah plastik, lastik, jant, egzoz, motor ve metal parçalar maskenin dışında kalmalı. Bir görseli onaylamadan önce far, depo, egzoz, jant, grenaj ve şasiyi tarihli kaynaklarla karşılaştır.
-
-İncelenen örnek kaynaklar arasında [2016 Yamaha MT-25](https://commons.wikimedia.org/wiki/File:2016_Yamaha_MT-25.JPG), [2022 Yamaha MT-09](https://commons.wikimedia.org/wiki/File:2022_Yamaha_MT-09.jpg) ve [Honda CBR250R](https://commons.wikimedia.org/wiki/File:Honda_CBR250R.jpeg) yer alır. Bunlar araştırma referanslarıdır. Ortak kamera ve boya maskesi doğrulanmadığı için paketlenmemiştir.
-
-## Görüşmeler
-
-- Satıcıyla pazarlık, ilandaki doğrudan satın alma seçeneğinin yanında yer alır. Satıcı görüşmesi ilanla birlikte gün sonunda sona erer.
-- Satış ilanına müşteriler sonraki günlerde gelebilir. Talep sınıf, istenen fiyat, kilometre, kondisyon ve işletme itibarına göre hesaplanır. Alıcı görüşmesi üç oyun günü sürer.
-- Pazarlık yap düğmesi en fazla üç otomatik tur çalıştırır. Alıcı teklifini yükseltebilir, satıcı fiyatını düşürebilir. Karşı taraf sabrı veya fiyat sınırı nedeniyle son fiyatını koruyabilir ya da kalkabilir. Yapılan turlar ve son fiyat kayda yazılır. Sat veya Satın al düğmesi işlemi tamamlar.
-- İtibar tamamlanan satışlar ve müşteri deneyimiyle değişir. Finans ekranındaki başarı oranı sonuçlanan alıcı görüşmelerini esas alır. Süresi dolan görüşmeler bu orana girmez.
-
-### v0.7 teknik notlar
-
-- Önceki kayıt nesnesi ayrı anahtarda kalır. Yeni kayda taşınırken desteklenmeyen eski boya renkleri o yılın mevcut paletindeki uygun renge geçirilir. Önceki pazarlık turu, fiyatı ve itibar korunur. Eski günün ilanları ilk gün kapanışında genişler.
-- Satış geliri tahsil edilen fiyat, gerçekleşen satış kârı ise satış fiyatı eksi birikmiş alım, ekspertiz ve tamir maliyetidir. Günlük nakit farkı, o gün kasaya yazılan gelir ve giderlerin farkıdır. Kredi hareketleri ayrı tutulur.
-- Temiz araç birçok ilanda arızasız olabilir. Ekspertiz varsa arızaları açığa çıkarır, yoksa ücret kaydıyla araç doğrudan satışa hazır olur. Yeni stokta servis katsayısı modele göre belirlenir ve aynı tutar ekspertiz, tamir ve maliyet kaydında kullanılır.
-- Renk paletleri kasa yılına göre sınırlandırılmış temsili renk aileleridir. Tüm ülkeler ve donanımlar için birebir fabrika kodu doğrulanmamıştır. Örnek kaynaklar [KTM 2023 renkleri](https://press.ktm.com/news-ktm-updates-its-2023-street-range-with-fresh-new-colorways?id=168537&l=international&menueid=3050), [KTM Türkiye teknik sayfası](https://www.ktm.com/en-tr/models/naked-bike/2023-ktm-390-duke/technical-specifications.html), [Yamaha Tracer teknik broşürü](https://www.yamaha-motor.eu/content/dam/yme/pl/pl/broszury/Sport%20Touring%202023.pdf) ve [Türkiye ikinci el ilan örnekleri](https://www.sahibinden.com/motosiklet-honda/adana/manuel).
-
-
-### v0.7.1 ilan görünümü
-
-- Marka ve model araması açık, ayrıntılı filtre paneli varsayılan olarak kapalıdır. Marka filtresi model seçeneklerini sınırlar. Arama, sıralama ve tüm filtreler o gün kaydedilmiş ilanlar üzerinde çalışır.
-- İlan satırı detay penceresini açar. Doğrudan satın alma ve mevcut satıcı pazarlığı burada başlar. Tahmini kâr, tamir sonrası tahmini değer eksi ilan tutarı, ekspertiz bedeli ve listelenen onarım tahminidir.
-- Pazar bir sayfada en çok 10 ilan kurar. WebP yalnızca satır ekrana yaklaştığında yüklenir.
-- Kayıt biçimi değişmedi. Satış ve alış işlemleri model adı, yıl, ana renk ve varsa ikinci kaporta rengini aynı kayıtta tutar.
-- Uygulamada geliştirici denetim bağlantısını görmek için adresin sonuna `?dev=1` ekle.
-
-### v0.7.1 kasa çizimleri
-
-Sekiz modelde 21 kasa veya renk paketi varyantı eklendi. Yamaha MT-07, MT-09, MT-25 ve R25, Honda CB125F ve PCX 125, Kawasaki Z900 ve KTM Duke 390. `generations.mjs` her seçimin yıl aralığını ve üretici referansını listeler. 2023 Duke 390 için üreticinin turuncu/mavi-gri ve siyah/mat gri renk aileleri iki bağımsız kaporta maskesi kullanır. Motor, teker, egzoz ve sabit malzemeler bu maskelerin dışındadır. Önceden satın alınan veya mevcut ilana kaydedilmiş renk saklanır.
-
-Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve dört kayıpsız renk maskesi atlası içerir. Kırmızı kanal ana kaportayı, yeşil kanal ikinci kaportayı seçer. Çizimler bu oyun için ImageGen ile üretildi. Üretici fotoğrafı paketlenmedi. Referans bağlantısı, çizimin bütün parçalarının ve fiziksel ölçeğinin üretici tarafından doğrulandığı anlamına gelmez. Oyun, doğrulanmış bir eşleşme yüklenene kadar temsili etiketi gösterir. Diğer 92 modelin önceki modele özel çizimleri korunur.
-
-
-## v0.8 Hasar, tamir ve ekonomi
-
-- Bakım eksikleri, mekanik sorunlar ve kaza hasarı farklı gruplarda yer alır. `damage.mjs` her arıza için maliyet, işçilik, kondisyon artışı ve varsa kalıcı değer kaybını tanımlar.
-- Tamir başlarken parça masrafı kasaya ve motosikletin maliyetine bir kez yazılır. İşçilik tamamlanınca kondisyon artar, aktif arızalar temizlenir, kalıcı geçmiş saklanır. Garaj, işlem öncesi ve sonrası kondisyonu ve değeri gösterir.
-- Temiz değer, marka ve model için katalog değerinden, model yılından ve kilometreden hesaplanır. Mevcut değer için kondisyon kaybı, aktif hasar bandı ve kalıcı geçmiş kaybının en büyüğü alınır. Şase, ağır hasar ve pert gibi aynı yapısal gruptaki geçmiş kayıtları en ağır kayıp üzerinden değerlendirilir. Farklı gruplardaki bağımsız kayıplar kalan değer üzerinden birleşir.
-- Aktif hasar indirimleri `DAMAGE_DISCOUNTS` içinde ayarlanır. Bakımsız %5–20, hafif hasarlı %10–25, orta hasarlı %20–40, ağır hasarlı %40–60 ve pert geçmişli %50–75. Satıcı aciliyeti mevcut piyasa değerinden bağımsız bir ilan fiyatı çarpanı uygular. Alıcı teklifi tahmini satış değerinden farklı olabilir.
-- Eski ilan fiyatları, pazarlık durumu, nakit ve maliyetler korunur. Önceki sürümlerde hazır, ilandaki veya kiradaki motosikletlerde kalan eski arızalar tamamlanmış kabul edilir. Bunun için geçmişe dönük kondisyon artışı veya masraf işlenmez. Devam eden ücretli işler önceki süreleriyle biter.
-
-
-## v0.9 Türkiye motosiklet pazarı
-
-- İstanbul'da günde 30, diğer 80 ilde altışar ilan yenilenir. Pazar şehir filtresini ve Tüm Türkiye görünümünü paylaşır. Yenileme yalnızca oyun günü ilerlediğinde gerçekleşir.
-- İlan fiyatı, hasarlı piyasa değeri ve satıcı aciliyeti üzerinden hesaplanır. Kategori talebi, yerel ilan stoğu ve günlük şehir döngüsü fiyatı en fazla yüzde 5 düşürebilir veya artırabilir.
-- Mevcut şubeler İstanbul'da olduğu için İstanbul içi teslimat ücretsiz ve anındadır. Diğer iller için il merkezleri arasındaki kuş uçuşu mesafe 1,25 ile çarpılarak yaklaşık yol mesafesi bulunur. Nakliye 350 TL + km başına 2,40 TL olarak hesaplanır ve 350 ile 900 km eşiklerine göre 1–3 oyun günü sürer.
-- Nakliye alım gününde ayrı gider olarak kaydedilir, araç maliyetine eklenir ve teslimata kadar satın alan şubenin bir garaj bölmesini ayırır. Tahmini net kâr ekspertiz, tamir ve nakliyeyi içerir.
-- Eski günün ilanları ve açık satıcı görüşmeleri korunur. İstanbul dışı ilanlar ilk açılışta eklenir.
-
-## v0.10 Finans merkezi
-
-- Nakit akışı alış, yatırım ve finansman dahil gerçek kasa hareketlerini gösterir. Gerçekleşen net kâr satış hasılatı, satışların toplam araç maliyeti, kiralama gelirleri, işletme giderleri ve varsa faiz gideri üzerinden hesaplanır.
-- Nakliye ve başlayan tamirler önceden ödenir. Bekleyen maliyet kartlarında ödenen tutar ile henüz başlamamış, ekspertizi tamamlanan tamirlerin tahmini ayrı gösterilir.
-- Net servet kapanış bakiyeleri v0.10 ile kaydedilmeye başlar. Eski nakit bakiyeleri yalnızca işlem defteri açılış bakiyesiyle uzlaşıyorsa hesaplanır. Kayıt olmayan grafik noktaları boş kalır.
-- Mevcut kredi faizsiz ve taksit planı olmadan işler. Toplam geri ödeme kartı geçmiş anapara ve faiz ödemeleri ile kalan anaparayı birlikte gösterir. Kalan anapara istenen tutarda ödenebilir.
-
-## v0.11 Otomatik zaman
-
-- Bir oyun saati 2,5 saniye, bir oyun günü 60 saniye sürer. Üstteki zaman çubuğu saati, kalan süreyi ve duraklatma durumunu gösterir. Gün kapanışı kira, ücretler, işletme giderleri, alıcı ziyaretleri ve ilan yenilemesini işler.
-- Arka planda ve tarayıcı kapalıyken geçen süre gerçek zaman damgasıyla hesaplanır. Dönüşte en fazla 60 oyun günü işlenir. Duraklatılmış süre ilerlemez. Cihaz saati geri alınırsa zaman son kayıt damgasının aşılmasını bekler.
-- Aynı kayda erişen sekmeler Web Locks veya IndexedDB yazma kilidi üzerinden ilerler. Her işlem en güncel kaydı okur ve finans kapanışı, zaman damgasıyla aynı kayda yazılır.
-- Tamir işçiliği oyun saatiyle ilerler. Mevcut usta başına günlük 8 saatlik kapasite korunur. Yeni nakliyeler satın alındıkları saatten itibaren 1–3 oyun günü sürer ve ayrılmış bölmeyi korur. Önceki sürümden gelen işlerin söz verilen teslim günü korunur.
-- Açılmış alıcı görüşmeleri, pazarlığa başlanmış teklifler ve açık satıcı görüşmeleri gün değişiminden etkilenmez. Satış oyuncunun onayıyla gerçekleşir.
-
-## v0.12 Ekspertiz, hasar geçmişi ve sigorta
-
-- Satın alma öncesi ekspertiz paketleri 600, 1.350 ve 2.400 TL tutar; 2, 4 ve 6 oyun saati sürer. Sonuçlar pazarlıkta kullanılabilir. Ödenen ücret satın alımda stok maliyetine taşınır, alımdan vazgeçildiğinde giderleşir. Tam paket tamamlanmışsa garajda tekrar ekspertiz ücreti alınmaz.
-- İlan beyanı ve gerçek durum ayrı tutulur. Hasar kayıtlarında tarih, bilinen tutar, kaynak ve onarım yöntemi bulunur. Önceki sürümden gelen eksik bilgiler bilinmiyor olarak gösterilir.
-- Trafik sigortası üçüncü kişi zararını kapsar. Trafiğe çıkmadan önce alınır ve park halindeki araçlar için prim kesilmez. Kasko ayrı bir poliçedir ve poliçe başladıktan sonraki çarpışmalarda muafiyet ve limit uygulanır. Kasko onarımında servis bedeli başta ödenir, dört oyun saati sonraki onayda kapsam bedeli iade edilir ve net masraf stok maliyetinde kalır.
-- Özel servis ve yetkili servis farklı ücret, süre ve kalıcı değer etkilerine sahiptir. Yeni kaza yalnızca kiralamada veya onaylanan test sürüşünde ortaya çıkabilir.
-- Açık hasar beyanı müşteri memnuniyetini etkiler. Hasarı gizleyen satışlarda şikâyet, tazminat veya iade oluşabilir. İade garaj doluyken teslim kuyruğuna alınır.
-
-## v0.12.1 Düzeltmeleri
-
-- Ücretli ekspertizlerin bağlı ilanı, günlük pazardan kalktıktan sonra arşivden tekrar açılabilir. Açık satıcı görüşmeleri kullanılmış pazarlık haklarıyla korunur. Tamamlanan ekspertizin doğruladığı bulgular görüşme ekranında görünür.
-- Gizli hasar şikâyetleri satıştan sonra kaydedilen oyun saatinde işlenir. İade veya tazminat bildirimi, oyuncu okuyana kadar kalır. Garajda yer bulunmayan iadeler mevcut teslim kuyruğunu kullanır.
-- v0.12 ile aynı kayıt anahtarı sürdürülür. Bu sürümden önce arşivlenmiş ve araç ayrıntısı saklanmamış raporlar okunabilir, ancak orijinal ilan yeniden açılamaz.
-
-## v0.12.2 Ekspertiz fiyat analizi
-
-- İlan ve pazarlık aynı değerlemeyi kullanır. Rapor öncesi fiyat, ilan beyanından hesaplanır. Sonraki değerlemeye yalnızca beyan edilen ve seçilen paketlerin doğruladığı bilgiler girer.
-- Bulgu başına TL ve yüzde kaybı, hasarsız piyasa değerine göre verilir. Aynı değeri etkileyen bulguların marjinal katkıları paylaştırılır. Tamir gideri yalnızca toplam maliyete girer.
-- Teklif avantajı güncel piyasa tahminine, satış kâr yüzdesi ise ekspertiz, nakliye ve tamir dahil toplam maliyete göre hesaplanır. Rapor, satıcının mevcut fiyatını değiştirmez.
-
-## v0.12.3 Canlı fiyat analizi
-
-- İlk ekspertiz öncesindeki piyasa tahmini ilanla birlikte kaydedilir. Eski raporlar için ilan beyanından yeniden oluşturulur. Fark, TL ve ekspertiz öncesi değere oran olarak görüşmede gösterilir.
-- Satıcının verdiği indirim ile taslak teklif kabul edilirse oluşacak indirim ayrı hesaplanır. Değer kaybı bu indirimlere eklenmez.
-- Fiyat alanı ve kaydırıcı, teklif göndermeden tahmini maliyeti, piyasa avantajını ve satış kârını günceller. Geçerli teklif gönderilirse mevcut pazarlık kuralları bir tur uygular. Kabul edilen teklif ayrı bir satın alma onayı gerektirir.
-
-Mobil DOM regresyonlarını Playwright WebKit ile çalıştır:
+Node.js 24 ve npm ile aşağıdaki komutlar kullanılabilir. Playwright yalnızca test için gerekir.
 
 ```sh
-npm install --no-save --package-lock=false playwright
-npx playwright install webkit
-node --test tests/live-prices.browser.mjs
+node --test --test-isolation=none
+node tests/economy-simulation.mjs
+
+test_deps="$(mktemp -d)"
+npm install --prefix "$test_deps" playwright
+"$test_deps/node_modules/.bin/playwright" install webkit
+PLAYWRIGHT_MODULE="$test_deps/node_modules/playwright" node --test --test-isolation=none tests/live-prices.browser.mjs
 ```
 
-## v0.12.4 Mobil pazarlık görünümü
+Playwright WebKit, çalıştırıldığı işletim sisteminin tarayıcı bağımlılıklarını gerektirir. Yalnızca görsel denetim için `visual-audit.html?dev=1` adresini aç. Piyasa ekranı görsellerini yeniden üretmek için WebKit çalıştırmadan önce `MARKET_SCREENSHOTS` değişkenini var olan bir çıktı klasörüne ayarla.
 
-İlan ve görüşme aynı motosiklet ve fiyat özetini kullanır. Sayıyla girilen teklifin yanında, satıcının güncel fiyatından 5.000, 10.000 veya 20.000 TL düşüren kısayollar bulunur. Kısayollar sadece taslağı değiştirir. Kâr, maliyet ve alım farkı anında görünür. Formüller ve kayıt anahtarı değişmedi.
+## Yayınlama ve proje hafızası
 
-## v0.12.5 Pazarlık kontrolleri
+GitHub Pages kullanırken depo ayarlarında **Pages → Deploy from a branch** üzerinden etkin yayın dalını ve `/ (root)` dizinini seç. Bağıl varlık yolları proje alt adresinde çalışır. Tarayıcı önbelleği için HTML ve modül adreslerindeki `?v=` sürümü birlikte güncellenir.
 
-Kaydırıcı, sayı alanı ve üç indirim kısayolu aynı taslağı düzenler. Satıcının verdiği indirim ile talep edilen ek indirim ayrı gösterilir. Pazarlık hakkı bittiğinde önizleme, satın alma düğmesinin kullandığı satıcı fiyatına döner.
-
-## v0.12.6 Alış pazarlığı
-
-Alış görüşmesinde **Pazarlık yap** düğmesi teklif kontrollerini açar. Taslak **Teklifi gönder** ile iletilir. Pazarlık hakkı kalmadığında mevcut fiyatın maliyet ve kâr özeti görünür.
-
-## v0.12.7 Otomatik alış pazarlığı
-
-**Pazarlık yap** alış ve satış görüşmelerinde tek tur çalıştırır. Manuel teklif kontrolleri varsayılan olarak kapalı **Gelişmiş pazarlık** bölümündedir.
-
-## v0.13 Karakterler, riskli ticaret ve itibar
-
-- Yeni karakterlerin kimliği ve özellikleri deterministiktir. Meslek ve mekanik bilgi bağımsız seçilir. Şüphe, güven, bütçe, aciliyet ve tercihler görüşmeyi etkiler. Açık görüşmeler ve eski kayıt anahtarı korunur.
-- Garajda hasarlı, onarılmış, belgeli ve iki riskli satış yöntemi sunulur. Görsel bakım yalnızca sunumu iyileştirir. Hasar geçmişi kalır. Servis yöntemi ve doğrulanmış belgeler değerlemeyi etkiler.
-- Müşteri soruları, yanıtlar, geri dönen müşteriler, yorumlar ve itibar değişiklikleri saklanır. Eski satışlara yapay yorum eklenmez.
-- Yeni şikâyetler oyun zamanı sonunda karar bekler. Önceki sürümden bekleyen otomatik şikâyetler kendi kurallarıyla tamamlanır. Ücretsiz onarım, müşterinin aracına servis bedelinin ödenmesi olarak modellenir.
-
-## v0.13.1 Müşteri cevapları
-
-Müşteri cevapları teklif, güven, şüphe ve görüşme sabrını etkiler. Her konu bir kez cevaplanabilir. Cevaplar pazarlık turu harcamaz. Teklif değişirse önceki ve güncel fiyat, fark ve net kâr görüşmede görünür.
-
-## v0.14 Yusuf Belge Easter Egg
-
-Yusuf Belge tamamen kurgusal bir oyun karakteridir. İstanbul pazarında 120 oyun günlük her dönemde bir gün karşılaşılabilir. Açık bir Yusuf ilanı varken ikinci ilan eklenmez. Ekspertiz ve pazarlık 1.350.000 TL satış fiyatını değiştirmez.
-
-## v0.15 Şube ve personel yönetimi
-
-- **Şubelerim** ekranından 81 ilde şube açılabilir. Küçük, orta, büyük, premium ve satış merkezi seviyelerinin kapasitesi sırasıyla 2, 5, 10, 20 ve 40 motosiklettir. Yükseltmede önceden ödenen yatırım mahsup edilir.
-- **Personellerim** ekranı aktif şubenin kadrosunu gösterir. Eğitim 1.500 TL tutar ve bir oyun günü sürer. Şehirler arası personel ve stok transferinde mevcut nakliye süreleri ve ücretleri uygulanır. Motosikletin hedef bölmesi transfer başlarken ayrılır.
-- Şirket içi ekspertiz için görevde bir ekspertiz uzmanı, tamir için bir usta gerekir. Teknisyen ve çırak tamir hızına katkıda bulunur. Her iş türü kendi sırasıyla ilerler. Şirket içi tamirde mevcut parça bedelleri tahsil edilir.
-- Müdür otomasyonu şube bazında ve varsayılan olarak kapalıdır. Gün değiştiğinde çalışır. Alım bütçesi nakliye ve tahmini hazırlık maliyetlerini kapsar. Müdür etkin görüşmeleri, riskli satışları ve Yusuf Belge ilanını atlar. Otomatik alım için kredi kullanılmaz.
-- Eski şubelerin kapasitesi ve mevcut kadronun ücretleri korunur. Yeni ücretler yalnızca işe alınan personele uygulanır.
-
-## v0.15.1 Katalog ve otomasyon
-
-- Atlas hücreleri katalog sırasından bağımsız, sabit model kimliklerine bağlıdır. Yusuf'un KTM modelinin araya eklenmesiyle 30 modele yayılan hücre kayması düzeltildi.
-- Vespa Primavera 125'in 2021–2023 ve 2024 çizimleri ile KTM 1390 Super Duke R'ın 2024 çizimi oyun için ImageGen ile üretildi. Şeffaf WebP varlıkları gövde renk maskeleriyle birlikte dağıtılır. Üretici teknik belgeleri tasarım referansıdır. Paket, üretici fotoğrafı içermez. Modeller ve nesiller [geliştirici denetiminde](visual-audit.html?dev=1) incelenebilir. Çizimler temsili kalır.
-- Müdür, günlük pazarı tahmini kâr, yatırım getirisi, model talebi, kondisyon, nakliye ve tamir maliyetine göre sıralar. Bütçe tahmini toplam edinim maliyetini kapsar. Nakit rezervi hem alımda hem otomatik tamirde korunur. Otomasyon borçlanmaz.
-- Alım, ekspertiz, tamir, ilan, müşteri görüşmesi ve satış ayrı ayrı açılabilir. Her aşama gereken personeli bekler. Yapılandırılmış otomasyon, duraklatılmamış oyun zamanında ve çevrimdışı ilerlemede çalışır. Bir motosiklet manuel yönetime alınabilir. Başlatılmış iş ve ödenmiş parça masrafı korunur.
-- Şube raporu zamanlamayı, iş sırasını, işlemleri ve tüm pazar için ret sayılarını gerekçe bazında gösterir. Ret listelerinde her gerekçe için en fazla üç örnek, işlem geçmişinde son 40 kayıt saklanır.
-
-## v0.15.2 Bildirim merkezi
-
-Üst menüdeki zil, okunmamış bildirim sayısını ve son 200 kaydı gösterir. Kategori filtresi okundu işaretleme ve temizleme işlemlerini de sınırlar. Türler ve isteğe bağlı satış sesi ayarlardan değiştirilebilir.
-
-Canlı satış kartı sekiz saniye görünür. Kartı açınca satış anındaki fiyat, maliyet, kâr veya zarar ve yatırım getirisi gösterilir. Çevrim dışı satışlar geçmişe eklenir. Önceki sürümlerde maliyeti kalemlere ayrılmamış stok için kayıtlı toplam kullanılır.
-
-## v0.15.3 Tek sahneli garaj
-
-Garaj, kapasiteye göre 80, 180, 350, 700 veya 1.400 m² tek bir izometrik kat planı gösterir. Kamera iki parmakla veya düğmelerle yakınlaştırılır. Sürükleme ve ok tuşları sahnede gezinir. **Tüm garajı göster** kamerayı sıfırlar. Motosiklete dokununca yakın plan açılır. Nakliye rezervasyonları stok listesinde takip edilir. Servis ve galeri bölmeleri ihtiyaç olduğunda komşu park yerlerine genişleyebilir.
-
-Yükseltme önizlemesi mevcut fiyatı ve yeni kat planını gösterir. Onay, mevcut şube yükseltmesini kullanır. Garaj kapasiteleri, yatırım bedelleri ve eski stok kayıtları korunur. Ortam ekipmanı ve zemin dokuları oyun için ImageGen ile üretildi ve yerel WebP olarak paketlendi.
-
-## v0.15.4 Garaj grafik revizyonu
-
-İki bölmeli atölyenin özgün görseli korunur. Geniş kat planları servis ve sergileme alanlarını cam bölmelerle ayırır. Ekspertiz, depo, resepsiyon, yönetim ve nakliye alanları kapasiteye göre eklenir. Hidrolik lift, cam kapı, yönetim mobilyası, parça rafı ve sergileme platformları yerel WebP atlasından yüklenir. Mevcut motosiklet, lastik ve kompresör varlıkları kullanılır. Statik mimari ve istasyonlar, kamera hareketinden bağımsız olarak önbelleğe alınır.
-
-Görsel denetim, mobil Playwright WebKit ekran görüntülerini kapsar. [Beş seviye](docs/v0154-garaj-seviyeleri.webp) ve [%100, %200, %300, %500 yakınlaştırma karşılaştırması](docs/v0154-yakinlastirma.webp).
-
-## v0.16 Dinamik piyasa
-
-Model, üretim yılı, motor hacmi ve 81 ilin nüfus ve satın alma gücü ağırlıkları piyasa değerini etkiler. Mevsim, talep ve ekonomik dönemler ilan fiyatlarına, müşteri bütçelerine ve yeni parça tekliflerine yansır. Nüfus ve satın alma gücü değerleri oyun için yuvarlatılmış simülasyon ağırlıklarıdır. İl seçimi nakliye ücretini değiştirebilir. Tamir ve ekspertiz maliyetleriyle birlikte beklenen satış fiyatı, şubenin bulunduğu ile göre hesaplanır.
-
-**Piyasa Analizi** 7, 30 ve 90 günlük gerçek oyun içi ilan örneklerini, karşılaştırılabilir model endekslerini ve 81 ilin referans değerlerini gösterir. Grafikteki ilan ortalamaları Türkiye genelinde model yılından bağımsızdır. İl karşılaştırması seçilen model yılını kullanır. Gerçekleşen satış süresi, oyuncunun ilan günü kayıtlı satışlarından hesaplanır. İlk kayıt öncesi veya modelin ilana çıkmadığı günlere veri eklenmez.
-
-Müdür, talep, güncel değer, bekleme süresi ve sermaye riskiyle birlikte maliyetleri değerlendirir. Beyan edilen kondisyona göre sıra dışı ucuz ilanları eler. Günlük bütçe, nakit rezervi ve satış kârı tabanı uygulanmaya devam eder. Açık pazarlık teklifleri ve geçmiş maliyetler korunur. Piyasa haberleri bildirim merkezinde en az yedi oyun günü arayla yayınlanır.
-
-### Ekonomi simülasyonu
-
-`node tests/economy-simulation.mjs` aynı üç kontrol noktasını yeniden üretir. Otomasyon senaryosu 750.000 TL ile iki bölmeli şubede müdür, satış danışmanı, ekspertiz uzmanı ve ustayla başlar. Günlük alım bütçesi 160.000 TL, rezerv 45.000 TL ve asgari satış kârı 4.500 TL'dir.
-
-| Oyun günü | Referans fiyat aralığı (baz 1.000) | Gerçekleşen satış | Kapanış nakdi | Beklenen kâr / zarar gösteren açık ilan |
-| ---: | ---: | ---: | ---: | ---: |
-| 30 | 1.052–1.140 | 9 | 834.978 TL | 298 / 212 |
-| 90 | 1.052–1.183 | 30 | 1.279.923 TL | 339 / 171 |
-| 365 | 1.048–1.225 | 122 | 2.927.662 TL | 281 / 229 |
-
-En büyük günlük model endeksi değişimi %3,04, parça endeksi aralığı %102,74–%115,77 oldu. Otomasyon dalında nakit ile işlem defteri farkı 0 TL ve borç 0 TL kaldı. İşlem yapmayan 75.000 TL'lik kontrol şubesi gelir üretmedi ve 365. gün sonunda 16.250 TL işletme borcu birikti.
+- [AGENTS.md](AGENTS.md) geliştirme kuralları ve modül haritası
+- [PROJECT_STATE.md](PROJECT_STATE.md) güncel durum, kurallar, sınırlar ve testler
+- [CHANGELOG.md](CHANGELOG.md) sürümler, doğrulamalar ve geçmiş PR'lar
+- [ROADMAP.md](ROADMAP.md) sonraki sürümler
+- Mobil WebKit görüntüleri · [Özet](docs/v0161-piyasa-ozet.webp) · [Fırsatlar](docs/v0161-piyasa-firsatlar.webp) · [Şehirler](docs/v0161-piyasa-sehirler.webp) · [Ekonomi](docs/v0161-piyasa-ekonomi.webp)
