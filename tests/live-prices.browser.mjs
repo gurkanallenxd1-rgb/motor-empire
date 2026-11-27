@@ -1066,7 +1066,10 @@ test('graphics four profiles apply distinct real render settings and explicit re
   assert.deepEqual(result.profiles.map(p=>p.reflection),[.22,.50,.78,1]);
   for(const pair of result.profiles.slice(1).entries()) assert.ok(pair[1].width>result.profiles[pair[0]].width);
   assert.equal(result.off.aa,false);
+  assert.deepEqual(result.profiles.map(p=>p.environmentSize),[64,128,128,256]);
+  assert.deepEqual(result.profiles.map(p=>p.detailedSurfaces),[false,false,true,true]);
   assert.equal(result.off.environment,false);
+  assert.equal(result.off.environmentSize,0);
   assert.equal(result.off.shadow,0);
 });
 

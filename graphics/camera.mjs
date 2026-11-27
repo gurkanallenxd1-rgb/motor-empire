@@ -35,6 +35,5 @@ export function tapGesture() {
       initial=undefined;
       return accepted;
     },
-    cancel() {pointers.clear();initial=undefined;},
   };
 }
