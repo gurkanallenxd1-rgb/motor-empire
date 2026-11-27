@@ -10,12 +10,13 @@ import { roadValue } from '../damage.mjs';
 import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
 import { catalog,paintOptions } from '../bikes.mjs';
+import { worldBays } from '../graphics/config.mjs';
 import { fitGarage,garageLayout,garageParking } from '../garage-layout.mjs';
 
 const require = createRequire(import.meta.url);
-const {webkit,devices} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
+const {webkit,chromium,devices} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const T = 1800000000000;
-const contentTypes = {html:'text/html',mjs:'text/javascript',css:'text/css',webp:'image/webp'};
+const contentTypes = {html:'text/html',mjs:'text/javascript',css:'text/css',webp:'image/webp',js:'text/javascript',glb:'model/gltf-binary',wasm:'application/wasm'};
 const fixture = {id:'holiday-prices',name:'Yamaha R25',year:2021,km:22000,price:48000,value:100000,
   province:41,condition:47,faults:['saseDegisim','lastik'],damageHistory:['saseDegisim'],color:'#3560ab',colorName:'Mavi',
   disclosure:{trust:.11,condition:85,hidden:['saseDegisim','lastik']}};
@@ -31,7 +32,7 @@ const inspected = ()=>{
 };
 
 let browser;
-before(async()=>{browser=await webkit.launch();});
+before(async()=>{browser=process.env.GRAPHICS_CHROMIUM ? await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']}) : await webkit.launch();});
 after(async()=>{await browser?.close();});
 
 async function open(t,width,height,seed) {
@@ -68,7 +69,7 @@ async function open(t,width,height,seed) {
   const negotiation = ()=>tap('#listing-detail-actions [data-action=meet-seller]');
   const editOffer = ()=>tap('#purchase-offer-editor > summary');
   await page.goto('https://motor.test/');
-  await ready();
+  await ready().catch(error=>{throw new Error(errors.join(' | ') || error.message);});
   return {page,tap,ready,state,jump,text,market,row,negotiation,editOffer};
 }
 
@@ -818,4 +819,253 @@ test('landscape WebKit shows an empty opportunity list and allows keyboard tab n
   assert.match(await ui.page.locator('#analysis-opportunities').innerText(),/beklenen net kârı pozitif olan ilan yok/);
   await ui.page.locator('#analysis-tab-opportunities').press('End');
   assert.equal(await ui.page.locator('#analysis-economy').isVisible(),true);
+});
+
+test('graphics 3D settings are opt-in and a non-prototype garage retains 2D and its save',async t=>{
+  const seed = garageFixture(1,1);
+  const ui = await open(t,320,568,seed);
+  await ui.tap('[data-page=garage]');
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.equal(await ui.page.locator('#garage-3d-host canvas').count(),0);
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.match(await ui.page.locator('#graphics-message').innerText(),/10/);
+  assert.deepEqual((await ui.state()).branches,JSON.parse(JSON.stringify(seed.branches)));
+  await ui.page.reload();
+  await ui.ready();
+  await ui.tap('[data-page=garage]');
+  assert.equal(await ui.page.locator('#graphics-form [name=mode]').inputValue(),'3d');
+});
+
+test('graphics WebGL failure falls back to the original 2D garage',async t=>{
+  const ui = await open(t,390,844,garageFixture(2,1));
+  await ui.page.evaluate(()=>{
+    const get = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(kind,...options){
+      return kind==='webgl2' ? null : get.call(this,kind,...options);
+    };
+  });
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  await ui.page.waitForFunction(()=>/WebGL/.test(document.querySelector('#graphics-message').textContent));
+  assert.ok(await ui.page.locator('#garage-art').isVisible());
+  assert.equal((await ui.state()).branches[0].garage.length,1);
+});
+
+test('graphics garage loads GLB, applies quality, moves camera and switches back to 2D',async t=>{
+  const seed = garageFixture(2,0);
+  const models = [['yamaha-mt25',2024,'#292b2e'],['kawasaki-z900',2025,'#639d34'],['ktm-super-duke1390',2024,'#e86920','#292b2e']];
+  seed.branches[0].garage = models.map(([id,year,color,paintAccent],slot)=>({
+    id:'graphics-'+id,name:catalog.find(model=>model.key===id || model.id===id).name,slot:[0,4,8][slot],
+    stage:slot===0?'inspected':'ready',year,color,paintAccent,condition:100,km:1390,value:160000,price:120000,spent:120000,
+    faults:slot===0?['lastik']:[],
+  }));
+  const ui = await open(t,390,844,seed);
+  const {page} = ui;
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await page.selectOption('#graphics-form [name=fps]','30');
+  await page.selectOption('#graphics-form [name=quality]','medium');
+  await page.locator('#graphics-form [name=meter]').check();
+  const webgl = await page.evaluate(()=>!!document.createElement('canvas').getContext('webgl2'));
+  await page.selectOption('#graphics-form [name=mode]','3d');
+  if (!webgl) {
+    await page.waitForFunction(()=>/WebGL/.test(document.querySelector('#graphics-message').textContent));
+    assert.ok(await page.locator('#garage-art').isVisible());
+    t.diagnostic('Browser has no WebGL2. Verified fallback.');
+    return;
+  }
+  const canvas = page.locator('#garage-3d-host canvas');
+  await page.waitForFunction(()=>document.querySelector('#garage-3d-host canvas')?.dataset.glb==='ready');
+  await canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
+  assert.equal(await canvas.getAttribute('data-quality'),'medium');
+  assert.equal(await canvas.getAttribute('data-visible-bikes'),'3');
+  assert.match(await page.locator('#graphics-stock-note').innerText(),/3 motosiklet özgün 2D/);
+  assert.ok(await page.locator('#graphics-meter').isVisible());
+  const name = process.env.GRAPHICS_SCREENSHOTS;
+  if(name) await canvas.screenshot({path:name+'/garage-angle-1.png'});
+  const before = await canvas.screenshot();
+  const bounds = await canvas.boundingBox();
+  await page.mouse.move(bounds.x+bounds.width*.55,bounds.y+bounds.height*.55);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x+bounds.width*.79,bounds.y+bounds.height*.62,{steps:12});
+  await page.mouse.up();
+  await page.waitForTimeout(350);
+  assert.notDeepEqual(await canvas.screenshot(),before);
+  if(name) await canvas.screenshot({path:name+'/garage-angle-2.png'});
+  if (process.env.GRAPHICS_CHROMIUM) {
+    const session=await page.context().newCDPSession(page);
+    const x=bounds.x+bounds.width/2, y=bounds.y+bounds.height/2;
+    const gesture=(type,spacing=0)=>session.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'
+      ? [] : [{x:x-spacing,y,id:1},{x:x+spacing,y,id:2}]});
+    const unzoomed=await canvas.screenshot();
+    await gesture('touchStart',18);
+    for(const distance of [25,35,49,62]) await gesture('touchMove',distance);
+    await gesture('touchEnd');
+    await page.waitForTimeout(300);
+    assert.notDeepEqual(await canvas.screenshot(),unzoomed);
+    await session.detach();
+  }
+  t.diagnostic('Three render sample '+await canvas.getAttribute('data-measure'));
+  for (const {bike,bay} of garageParking(garageLayout(10),seed.branches[0].garage)) {
+    await ui.tap('#graphics-reset-camera');
+    await canvas.evaluate(node=>node.scrollIntoView({block:'center'}));
+    await page.waitForTimeout(520);
+    const [x,z]=worldBays[bay.index];
+    const point=await canvas.evaluate(async (node,{x,z,y})=>{
+      const Three=await import('/graphics/vendor/three.module.min.js');
+      const {width,height}=node.getBoundingClientRect();
+      const camera=new Three.PerspectiveCamera(39,width/height,.07,110);
+      camera.position.set(15,17.2,21);
+      camera.lookAt(0,.2,0);
+      camera.updateMatrixWorld();
+      const p=new Three.Vector3(x,y,z).project(camera);
+      return {x:(p.x+1)*width/2,y:(1-p.y)*height/2};
+    },{x,z,y:(bay.index<3?.466:.109)+.58});
+    await canvas.tap({position:point});
+    const detail=page.locator('#bike-detail');
+    await detail.waitFor({state:'visible',timeout:4000});
+    assert.equal(await page.locator('#detail-name').innerText(),bike.name);
+    assert.match(await page.locator('#graphics-detail-status').innerText(),/Özgün 2D/);
+    if(name) {
+      await page.locator('#detail-image').waitFor();
+      await detail.screenshot({path:name+'/'+bike.id+'.png'});
+    }
+    await ui.tap('#bike-detail form button');
+  }
+  const canLose=await canvas.evaluate(node=>{
+    const extension=node.getContext('webgl2').getExtension('WEBGL_lose_context');
+    if (!extension) return false;
+    window.restoreTestContext=()=>extension.restoreContext();
+    extension.loseContext();
+    return true;
+  });
+  if (canLose) {
+    await page.locator('#garage-3d[data-renderer=lost]').waitFor({state:'attached'});
+    assert.ok(await page.locator('#garage-art').isVisible());
+    await page.evaluate(()=>window.restoreTestContext());
+    await canvas.waitFor({state:'visible'});
+  }
+  await page.selectOption('#graphics-form [name=mode]','2d');
+  assert.ok(await page.locator('#garage-art').isVisible());
+  assert.equal(await canvas.count(),0);
+  assert.equal((await ui.state()).branches[0].garage.length,3);
+});
+
+test('graphics inventory refreshes after manager sale and excludes transport',async t=>{
+  const seed=notificationSeed({auto:true});
+  seed.branches[0].tier=2;
+  const listing={...fixture,id:'graphics-shipping',province:65};
+  seed.cash=150000;
+  seed.listings=[listing];
+  const withTransport=act(seed,'buy',listing.id);
+  assert.equal(withTransport.branches[0].garage.length,2);
+  const ui=await open(t,390,844,withTransport);
+  await ui.tap('[data-page=garage]');
+  await ui.tap('#graphics-settings summary');
+  await ui.page.selectOption('#graphics-form [name=mode]','3d');
+  await ui.page.waitForFunction(()=>['ready','unavailable'].includes(document.querySelector('#garage-3d').dataset.renderer));
+  const canvas=ui.page.locator('#garage-webgl');
+  if(await canvas.count()) assert.equal(await canvas.getAttribute('data-visible-bikes'),'1');
+  await ui.jump(DAY_MS);
+  await ui.page.locator('.sale-toast').waitFor({state:'visible'});
+  assert.equal((await ui.state()).sales.length,1);
+  if(await canvas.count()) {
+    await ui.page.waitForFunction(()=>document.querySelector('#garage-webgl')?.dataset.visibleBikes==='0');
+  }
+});
+
+test('graphics UASTC GLB transcodes, uploads and releases shared texture and geometry once',async t=>{
+  const {page}=await open(t,390,844,initial());
+  const outcome=await page.evaluate(async ()=>{
+    const three=await import('/graphics/vendor/three.module.min.js');
+    const {createAssets}=await import('/graphics/assets.mjs');
+    const canvas=document.createElement('canvas');
+    if (!canvas.getContext('webgl2')) return null;
+    const renderer=new three.WebGLRenderer({canvas});
+    renderer.setSize(64,64,false);
+    const pool=createAssets(renderer);
+    const url='/tests/fixtures/checker-basis.glb';
+    const a=pool.acquire(url), b=pool.acquire(url);
+    const [first,second]=await Promise.all([a.model,b.model]);
+    let mesh,clone;
+    first.traverse(node=>{if(node.isMesh) mesh=node;});
+    second.traverse(node=>{if(node.isMesh) clone=node;});
+    const texture=mesh.material.map;
+    const scene=new three.Scene();
+    const camera=new three.PerspectiveCamera(45,1,.1,10);
+    camera.position.z=3;
+    scene.add(first,new three.AmbientLight(0xffffff,3));
+    renderer.render(scene,camera);
+    const gl=renderer.getContext();
+    const texels=[[16,16],[26,16]].map(([x,y])=>{
+      const pixel=new Uint8Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+      return [...pixel];
+    });
+    const before={...renderer.info.memory};
+    let disposed=0;
+    texture.addEventListener('dispose',()=>disposed++);
+    a.release();
+    await Promise.resolve();
+    const afterFirst=disposed;
+    first.removeFromParent();
+    b.release();
+    await Promise.resolve();
+    const result={shared:mesh.geometry===clone.geometry&&texture===clone.material.map,
+      width:texture.image.width,height:texture.image.height,mips:texture.mipmaps.length,
+      compressed:texture.isCompressedTexture,texels,before,after:{...renderer.info.memory},afterFirst,disposed};
+    const pending=pool.acquire(url);
+    pool.dispose();
+    pool.dispose();
+    result.canceled=await pending.model.then(()=>false,error=>error.name==='AbortError');
+    renderer.dispose();
+    renderer.forceContextLoss();
+    return result;
+  });
+  if(!outcome) {t.skip('WebGL2 unavailable');return;}
+  assert.deepEqual([outcome.width,outcome.height,outcome.mips],[32,32,6]);
+  assert.equal(outcome.shared,true);
+  assert.equal(outcome.compressed,true);
+  assert.notDeepEqual(outcome.texels[0],outcome.texels[1]);
+  assert.equal(outcome.afterFirst,0);
+  assert.equal(outcome.disposed,1);
+  assert.ok(outcome.after.textures<outcome.before.textures);
+  assert.ok(outcome.after.geometries<outcome.before.geometries);
+  assert.equal(outcome.canceled,true);
+  t.diagnostic(JSON.stringify(outcome));
+});
+
+test('graphics four profiles apply distinct real render settings and explicit reflection and MSAA overrides',async t=>{
+  const {page}=await open(t,390,844,initial());
+  const result=await page.evaluate(async ()=>{
+    const {createRenderer}=await import('/graphics/renderer.mjs');
+    const {DEFAULT_GRAPHICS}=await import('/graphics/config.mjs');
+    const canvas=document.createElement('canvas');
+    canvas.style.cssText='position:fixed;inset:0;width:320px;height:210px';
+    if(!canvas.getContext('webgl2',{antialias:false})) return null;
+    document.body.append(canvas);
+    const settings={...DEFAULT_GRAPHICS,aa:false};
+    const scene=createRenderer(canvas,settings,{status(){}});
+    const profiles=[];
+    for (const quality of ['low','medium','high','ultra']) {
+      scene.updateOptions({...settings,quality});
+      profiles.push(scene.metrics());
+    }
+    scene.updateOptions({...settings,reflections:'off',shadows:'off'});
+    const off=scene.metrics();
+    scene.dispose();
+    canvas.remove();
+    return {profiles,off};
+  });
+  if(!result) {t.skip('WebGL2 unavailable');return;}
+  assert.deepEqual(result.profiles.map(p=>p.surface),[128,256,512,1024]);
+  assert.deepEqual(result.profiles.map(p=>p.shadow),[0,512,1024,2048]);
+  assert.deepEqual(result.profiles.map(p=>p.reflection),[.22,.50,.78,1]);
+  for(const pair of result.profiles.slice(1).entries()) assert.ok(pair[1].width>result.profiles[pair[0]].width);
+  assert.equal(result.off.aa,false);
+  assert.equal(result.off.environment,false);
+  assert.equal(result.off.shadow,0);
 });

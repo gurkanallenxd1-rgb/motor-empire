@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.16.1**. Temel sürüm v0.16, [PR #31](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/31) ile birleştirildi. v0.16.1, İlanlar üzerinden erişilen Özet, Fırsatlar, Şehirler ve Ekonomi sekmelerini içerir.
+Bu dalın sürümü **v0.17 deneysel 3D prototip**. Temel sürüm [v0.16.1, PR #32](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/32). Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -29,5 +29,11 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - Statik, hesapsız kullanım ve GitHub Pages yayını korunur. Kayıtlar tarayıcıya özeldir. Hesaplar ve bulut kayıt v0.20 için planlanıyor.
 - Model çizimleri yerel WebP ve boya maskeleri kullanır. Bütün model ve kasa varyantları üretici düzeyinde doğrulanmış değildir. Görsel denetim sayfası temsilî varlıkları işaretler. Fiziksel iPhone kare hızı ölçümü bu sürümde yapılmadı.
 - Fiyat grafiği Türkiye genelinde tüm model yıllarını kapsar. Şehir karşılaştırması seçilen yılın temiz motosiklet referansıdır ve işlem garantisi içermez.
-- Mevcut doğrulama **122 Node.js + 29 mobil Playwright WebKit = 151 başarılı test**. v0.16'nın 149 testi korunur. 320×568, 390×844 ve 844×390 boyutları kullanıldı. Fiziksel iPhone testi yapılmadı.
-- Sıradaki görev **v0.17 yeni grafik altyapısı ve gerçekçi motosikletler**. Önce görsel envanter, üretici referansı, lisans ve mobil render bütçesini doğrula. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.
+- Mevcut doğrulama **127 Node.js + 35 mobil Playwright WebKit = 162 başarılı test**. PR #33 başındaki 160 test korunur. Chromium yazılımsal WebGL’de 6 grafik testi geçti. Fiziksel iPhone testi yapılmadı.
+- Sıradaki görev üç prototip modelin ticari kullanım, düzenleme ve açık dağıtım izni, gerçek 3D inceleme, garaj varlık ayrıntıları ve fiziksel iPhone performans ölçümü. KTX2, iki tarayıcıda özgün bir test varlığıyla doğrulandı. Daha geniş 3D dönüşüm kullanıcı onayı gerektirir. Sonraki sürümler [ROADMAP.md](ROADMAP.md) dosyasında.
+
+## PR #33 devam noktası
+
+- Zorunlu gereksinimlerin durumu [v0.17 denetiminde](docs/v017-audit.md). 0/3 lisanslı motosiklet modeli var. Bir sonraki varlık çalışması üç hedef modelle sınırlı.
+- İki farklı 3D garaj açısı ve üç 2D ayrıntı yenilendi. [Görseller](README.md#v017-prototip-ekran-görüntüleri)
+- Çizim çağrıları instancing ile azaltıldı. FPS ve kaynak ölçümünün yöntemi, sınırları ve tekrar komutu [grafik mimarisinde](GRAPHICS_ARCHITECTURE.md#performans-doğrulaması).

@@ -1,6 +1,16 @@
 # MOTOR EMPIRE sürüm geçmişi
 
-## v0.16.1
+## v0.17 · Deneysel
+
+- Varsayılan 2D garaja ek olarak 10 bölmeli, isteğe bağlı Three.js garajı, kamera ve grafik ayarları eklendi. Grafik seçimi ayrı kaydedilir.
+- GLB yükleyici sergileme platformuyla çalışır. Grafik altyapısında PBR, yerel ortam yansımaları, KTX2 desteği ve WebGL hatasında 2D geri dönüşü bulunur.
+- Üç hedef motosiklet için uygun yeniden dağıtım hakkı ile görsel doğruluk birlikte doğrulanamadı. Stok ve ayrıntılar özgün 2D varlıkları kullanır. [Varlık araştırması](ASSET_LICENSES.md)
+
+- PR #33 devamında KTX2 UASTC GLB iki tarayıcıda render edildi. Referans sayımı, GPU kaynak bırakımı ve bekleyen yük iptali test edildi. Dört profil, iki parmakla yakınlaştırma ve 2D geri dönüşü kontrol edildi.
+- Platform ve cephe dikmeleri görsel geometri korunarak instancing ile gruplandı. Yazılımsal WebGL ölçümü ve lisans adayları belgelendi.
+- **127 Node.js ve 35 mobil Playwright WebKit testi geçti.** Önceki 160 test dahil. Altı grafik senaryosu SwiftShader Chromium’da da geçti. Fiziksel iPhone ölçümü yapılmadı. [Gereksinim denetimi](docs/v017-audit.md)
+
+## v0.16.1 · [PR #32](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/32)
 
 - Piyasa Analizi, dört sekmeli tam sayfa Piyasa Merkezi oldu. Özet güncel ilan ortalamasını son kayıtlı model gözleminden ayırıyor. Grafik oyun günü ve TL eksenlerine sahip.
 - Fırsatlar maliyetleri, tahmini kapanış fiyatını, net kârı ve yatırım getirisini gösteriyor. Şehirler seçili yılın referans fiyatını ve nakliyeli tahmini karşılaştırıyor. Ekonomi, mevcut göstergeleri ve bildirim geçmişini okuyor.

@@ -1,3 +1,4 @@
+import { createGraphicsController } from './graphics/controller.mjs?v=0.17-r2';
 import { createMarketAnalysis } from './market-view.mjs?v=0.16.1';
 import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
 import { drawGaragePreview } from './garage-scene.mjs?v=0.16.1';
@@ -532,14 +533,25 @@ function bikeSpecs(bike) {
   return specs.join(' · ');
 }
 
-function openBike(bike) {
+function openBike(bike,from3d=false) {
   const model = modelOf(bike);
   byId('detail-image').setAttribute('aria-label',bike.name + ' model görseli');
   renderSprite(byId('detail-image'),byId('detail-image-missing'),bike,byId('detail-representative'));
   byId('detail-name').textContent = bike.name;
   byId('detail-class').textContent = categoryLabel[model?.category] ?? '';
   byId('detail-spec').textContent = `${bikeSpecs(bike)} · ${stages[bike.stage]}`;
+  const facts = byId('graphics-detail-facts');
+  facts.hidden = !from3d;
+  if (from3d) {
+    const condition = conditionBreakdown(bike);
+    facts.replaceChildren(...[
+      ['Mekanik kondisyon',`%${condition.mechanical}`],['Görsel kondisyon',`%${condition.visual}`],
+      ['Yapısal kondisyon',`%${condition.structural}`],['Alış fiyatı',money(bike.noticeCosts?.purchase ?? bike.price)],
+      [bike.ask ? 'Satış ilanı' : 'Piyasa değeri',money(bike.ask ?? roadValue(bike))],
+    ].flatMap(([label,value])=>[element('dt',label),element('dd',value)]));
+  }
   byId('bike-detail').showModal();
+  garageGraphics.inspect(bike,model,from3d);
 }
 
 const lazyMarketImages = new WeakMap();
@@ -877,7 +889,8 @@ function renderGarage(branch, action, bike) {
   }
   byId('garage-returns').replaceChildren(...(state.waitingReturns ?? []).filter(item=>item.branchId===branch.id)
     .map(item=>actionButton(`İade bekliyor · ${item.bike.name}`,'take-return',item.bike.id,branch.garage.length>=capacity)));
-  drawGarage(parking,action,bike,layout,branch.id);
+  const webgl = garageGraphics.show(parking,capacity,branch.id);
+  if (!webgl) drawGarage(parking,action,bike,layout,branch.id);
 }
 
 function previewUpgrade(id) {
@@ -1122,6 +1135,7 @@ function render(action, animationBike) {
 }
 
 function showPage(page) {
+  if (page!=='garage' && currentPage==='garage') garageGraphics.leave();
   currentPage = page;
   document.body.dataset.view = page;
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== `${page}-page`; });
@@ -1489,4 +1503,7 @@ window.addEventListener('pageshow',async event=>{
 const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
 const marketAnalysis = createMarketAnalysis({byId,element,money,signed,
   getState:()=>state,getDestination:()=>branchProvince(activeBranch()),estimate:purchaseForecast,openListing});
+const garageGraphics = createGraphicsController({byId,select:openBike,refresh:()=>{
+  if (currentPage==='garage') render();
+}});
 startGame();
