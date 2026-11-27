@@ -1,3 +1,4 @@
+import { complaintReview,saleReview,starsFor } from './reviews.mjs?v=0.18.1';
 import { catalog, modelOf } from './bikes.mjs?v=0.16.1';
 
 export const clamp = (value,min,max)=>Math.max(min,Math.min(max,value));
@@ -59,22 +60,21 @@ export function setReputation(state,delta,reason) {
   if (history.at(-1).score!==trade.reputation) history.push({day:state.day,score:trade.reputation,reason});
 }
 
-export function rememberSale(state,sale,meeting) {
+export function rememberSale(state,sale,meeting,bike,worker) {
   const profile = meeting.profile;
-  if (!profile.id) return;
-  const customers = state.trade.customers ??= {};
-  const member = customers[profile.id] ?? {id:profile.id,purchases:0,visits:0};
-  member.purchases++;
-  member.lastModel = sale.name;
-  member.lastAnswers = meeting.dialogue?.answers ?? [];
-  member.lastDay = sale.day;
-  member.satisfaction = state.trade.history[0].satisfaction;
-  customers[profile.id] = member;
-  const notes = isRisky(sale.strategy) ? 'Satış tamamlandı. Araç hakkında daha fazla bilgi faydalı olurdu.'
-    : sale.strategy==='documented' ? 'Raporları ve servis kayıtlarını inceleyerek aldım.'
-    : 'Satıcı aracın durumunu anlaşılır biçimde paylaştı.';
-  (state.trade.reviews ??= []).unshift({saleId:sale.id,customerId:profile.id,person:profile.name,
-    day:sale.day,stars:clamp(Math.round(member.satisfaction/20),1,5),text:notes});
+  const satisfaction=state.trade.history[0].satisfaction;
+  if(profile.id){
+    const customers=state.trade.customers??={};
+    const member=customers[profile.id]??={id:profile.id,purchases:0,visits:0};
+    member.purchases++;
+    member.lastModel=sale.name;
+    member.lastAnswers=meeting.dialogue?.answers??[];
+    member.lastDay=sale.day;
+    member.satisfaction=satisfaction;
+  }
+  const text=saleReview(bike,meeting,sale,satisfaction,worker,stableNumber(sale.id));
+  (state.trade.reviews??=[]).unshift({saleId:sale.id,...(profile.id?{customerId:profile.id}:{}),person:profile.name,
+    day:sale.day,branchId:sale.branchId,stars:starsFor(satisfaction),text});
 }
 
 export function complaintCost(sale,choice,repairQuote) {
@@ -87,14 +87,7 @@ export function complaintCost(sale,choice,repairQuote) {
 export function reviewComplaint(state,sale,choice,day = state.day) {
   const review = state.trade.reviews?.find(item=>item.saleId===sale.id);
   if (!review) return;
-  const feedback = {
-    open:[2,'Satıştan sonra açıklanmayan hasar ortaya çıktı.'],
-    repair:[4,'Hasar sonradan ortaya çıktı. Galeri ücretsiz onarım sağladı.'],
-    compensation:[3,'Galeri hasar için kısmi tazminat ödedi.'],
-    refund:[3,'Hasar nedeniyle aracı iade ettim. Galeri ücreti geri ödedi.'],
-    dismiss:[1,'Bildirdiğim hasar için çözüm sunulmadı.'],
-  };
-  [review.stars,review.text] = feedback[choice];
+  [review.stars,review.text] = complaintReview(choice,stableNumber(`${sale.id}:${choice}`));
   review.day = day;
   const customer = state.trade.customers?.[review.customerId];
   if (customer) customer.satisfaction = review.stars*20;

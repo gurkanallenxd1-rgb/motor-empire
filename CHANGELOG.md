@@ -1,5 +1,12 @@
 # MOTOR EMPIRE sürüm geçmişi
 
+## v0.18.1
+
+- Kronolojik, kaydırılabilir kompakt satış tepsisi. Tümünü kapatma, mevcut bildirim geçmişini korur.
+- Gerçek kondisyon, fiyat, ekspertiz, açıklama, personel, pazarlık ve müşteri profiliyle yeni satış puanı. 84 kanıta bağlı yorum ve satış sonrası güncellemeler.
+- İtibar Merkezi, yıldız ve şube filtreleri. Rakip özet paneli, aktif/toplam ayrımı, kalıcı devralma kaydı ve ayrı şirket yatırımı kategorisi.
+- [Önce/sonra görüntüleri, denge ve doğrulama](docs/v0181-hotfix.md)
+
 ## v0.18
 
 - Türkiye genelinde 50 kurgusal şirket, 10 strateji, bölgesel sıralamalar, işlem tabanlı finans ve sürdürülemeyen borçta tasfiye.

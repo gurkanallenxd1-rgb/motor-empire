@@ -1,4 +1,4 @@
-import { stableNumber } from './characters.mjs?v=0.16.1';
+import { stableNumber } from './characters.mjs?v=0.18.1';
 import { DAY_MS,HOUR_MS } from './clock.mjs?v=0.16.1';
 import { ISTANBUL, provinceOf } from './provinces.mjs?v=0.16.1';
 

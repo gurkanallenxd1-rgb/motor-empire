@@ -1,7 +1,8 @@
+import { evaluateSale } from './reviews.mjs?v=0.18.1';
 import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.16.1';
-export { stableNumber } from './characters.mjs?v=0.16.1';
+  setReputation, stableNumber } from './characters.mjs?v=0.18.1';
+export { stableNumber } from './characters.mjs?v=0.18.1';
 import { modelOf } from './bikes.mjs?v=0.16.1';
 
 export const MAX_ROUNDS = 3;
@@ -277,11 +278,12 @@ export function negotiate(meeting,offer) {
     : ['Sizin için fiyatı biraz düşürdüm.','Bu indirimle anlaşabiliriz.','Bundan biraz daha aşağı inebilirim.'][roll % 3];
 }
 
-export function finishTrade(state,meeting,bike,outcome) {
+export function finishTrade(state,meeting,bike,outcome,worker) {
   meeting.status = outcome;
   const sold = outcome === 'sold';
-  const satisfaction = sold ? clamp(Math.round(90 - meeting.round * 4
-    - Math.max(0,meeting.price / meeting.anchor - 1) * 44 + (meeting.patience - 1) * 2 + (bike.disclosureMode==='disclose' && bike.damageHistory?.length ? 5 : 0)),30,100) : null;
+  const satisfaction = sold ? evaluateSale(bike,meeting,{worker,
+    honest:bike.disclosureMode!=='conceal'||meeting.dialogue?.disclosed===true,
+    roll:stableNumber(meeting.id)%9-4}) : null;
   if (sold) setReputation(state,(satisfaction>=80 ? 3 : 1)+(bike.tradeStrategy && !isRisky(bike.tradeStrategy) ? 1 : 0),'Motosiklet satışı');
   if (outcome==='left' && meeting.kind==='sale') setReputation(state,-1,'Müşteri görüşmeden ayrıldı');
   state.trade.history.unshift({

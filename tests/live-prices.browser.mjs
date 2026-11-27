@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { after, before, test } from 'node:test';
 import { DAY_MS,HOUR_MS } from '../clock.mjs';
 import { newGame,perform,purchaseAnalysis,synchronize } from '../game.mjs';
@@ -55,7 +56,7 @@ async function open(t,width,height,seed) {
     const url = new URL(route.request().url());
     const file = url.pathname.slice(1)||'index.html';
     if(file==='favicon.ico')return route.fulfill({status:204});
-    const body = await readFile(new URL('../'+file,import.meta.url));
+    const body = await readFile(new URL(file,process.env.MOTOR_BASE_ROOT ? pathToFileURL(process.env.MOTOR_BASE_ROOT+'/') : new URL('../',import.meta.url)));
     return route.fulfill({body,contentType:contentTypes[file.split('.').at(-1)]});
   });
   const tap = selector=>page.locator(selector).first().tap();
@@ -335,9 +336,9 @@ test('mobile documented trade saves a customer answer and shows reviews and repu
   await ui.tap('#meeting-confirm');
   await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).trade.reviews?.length===1);
   await ui.tap('.bottom-nav [data-page=home]');
-  await ui.tap('summary:text-is("Galeri profili")');
-  assert.match(await ui.page.locator('#gallery-rating').innerText(),/1 yorum/);
-  assert.match(await ui.page.locator('#gallery-reviews').innerText(),/servis kayıtlarını/);
+  await ui.tap('[data-page=gallery-profile]');
+  assert.match(await ui.page.locator('#gallery-rating').textContent(),/1 yorum/);
+  assert.match(await ui.page.locator('#gallery-reviews').innerText(),/Deniz|\d\/5 ★/);
   await ui.tap('.bottom-nav [data-page=finance]');
   await ui.tap('summary:text-is("Satış stratejileri ve şikâyetler")');
   assert.match(await ui.page.locator('#finance-after-sales').innerText(),/Dürüst satış kârı/);
@@ -1202,6 +1203,9 @@ test('320px acquisition requires review and confirmation and commits one deal',a
   assert.equal(result.competition.acquired,1);
   assert.equal(result.branches.length,2);
   assert.equal(result.competition.companies.length,49);
+  await ui.tap('#competition-tab-rivals');
+  assert.match(await ui.page.locator('#rival-roster').innerText(),/49 aktif · 50 kurulmuş · 1 devralınmış/);
+
   await ui.tap('#notification-bell');
   await ui.page.selectOption('#notification-filter','competition');
   assert.equal(await ui.page.locator('.notification-row').count(),1);
@@ -1218,4 +1222,68 @@ test('844px competition center keeps business navigation and keyboard tabs',asyn
   assert.ok(await ui.page.locator('#competition-rivals').isVisible());
   await ui.tap('#competition-page [data-page=business]');
   assert.ok(await ui.page.locator('#business-page').isVisible());
+});
+
+test('320px compact sale tray keeps nine chronological sales available and closes without clearing history',async t=>{
+  const initialBranch=notificationSeed({auto:true});
+  initialBranch.cash=500000;
+  initialBranch.branches=Array.from({length:9},(_,index)=>{
+    const branch=structuredClone(initialBranch.branches[0]);
+    branch.id=index+1;branch.name=`Şube ${index+1}`;
+    branch.garage[0].id='parallel-sale-'+index;
+    branch.garage[0].meetings[0].id='parallel-buyer-'+index;
+    return branch;
+  });
+  const ui=await open(t,320,568,initialBranch);
+  await ui.tap('.bottom-nav [data-page=finance]');
+  await ui.jump(DAY_MS);
+  await ui.page.locator('.sale-toast').first().waitFor({state:'visible'});
+  const shots=process.env.HOTFIX_SCREENSHOTS;
+  if(shots)await ui.page.screenshot({path:shots+'/sales.png'});
+  if(process.env.MOTOR_BASE_ROOT)return;
+  assert.equal(await ui.page.locator('.sale-toast').count(),9);
+  const rows=await ui.page.locator('.sale-toast-copy .spec').allTextContents();
+  assert.deepEqual(rows,Array.from({length:9},(_,i)=>`Şube ${i+1}`));
+  const layout=await ui.page.evaluate(()=>{
+    const tray=document.querySelector('#sale-toast-list');
+    return {height:tray.clientHeight,inner:tray.scrollHeight,bottom:tray.getBoundingClientRect().bottom,
+      nav:document.querySelector('.bottom-nav').getBoundingClientRect().top};
+  });
+  assert.ok(layout.inner>layout.height && layout.bottom<=layout.nav);
+  await ui.tap('#sale-dismiss-all');
+  assert.equal(await ui.page.locator('.sale-toast').count(),0);
+  const inbox=(await ui.state()).inbox.items.filter(row=>row.type==='sale');
+  assert.equal(inbox.length,9);
+});
+
+test('390px reputation filters keep legacy reviews and rival detail scroll stays contained',async t=>{
+  const seed=initial();
+  seed.trade.reviews=[
+    {saleId:'legacy',person:'Aslı',day:1,stars:4,text:'Önceki yorum.'},
+    {saleId:'recent',person:'Bora',day:1,stars:5,branchId:1,text:'Temiz motosiklet.'},
+  ];
+  seed.trade.reputationHistory=[{day:1,score:50,reason:'Başlangıç'},{day:1,score:55,reason:'Satış'}];
+  const ui=await open(t,390,844,seed);
+  const shots=process.env.HOTFIX_SCREENSHOTS;
+  if(process.env.MOTOR_BASE_ROOT)await ui.tap('summary:text-is("Galeri profili")');
+  else await ui.tap('[data-page=gallery-profile]');
+  if(shots)await ui.page.screenshot({path:shots+'/gallery.png',fullPage:true});
+  if(!process.env.MOTOR_BASE_ROOT){
+    assert.equal(await ui.page.locator('#gallery-distribution progress').count(),5);
+    await ui.page.selectOption('#gallery-stars-filter','4');
+    assert.match(await ui.page.locator('#gallery-reviews').innerText(),/Önceki yorum/);
+    await ui.page.selectOption('#gallery-branch-filter','1');
+    assert.match(await ui.page.locator('#gallery-reviews').innerText(),/yorum yok/);
+  }
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  await ui.tap('#competition-tab-rivals');
+  await ui.tap('#rival-list button');
+  if(shots)await ui.page.screenshot({path:shots+'/rival.png'});
+  if(!process.env.MOTOR_BASE_ROOT){
+    assert.equal(await ui.page.evaluate(()=>getComputedStyle(document.documentElement).overflow),'hidden');
+    assert.match(await ui.page.locator('#rival-detail-data').innerText(),/Türkiye \/ merkez ili/);
+    await ui.tap('#rival-detail [aria-label="Şirket ayrıntısını kapat"]');
+    assert.notEqual(await ui.page.evaluate(()=>getComputedStyle(document.documentElement).overflow),'hidden');
+  }
 });

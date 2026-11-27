@@ -9,7 +9,8 @@ export function createNotifications({byId,element,money,signed,dispatch}) {
   const detail = byId('notification-detail');
   const soundInput = byId('notification-sound');
   const toggles = new Map();
-  const pending = [];
+  const tray=byId('sale-toast-list');
+  const liveCards=new Map();
   let box = inbox({});
   let cursor;
   let sound;
@@ -143,24 +144,34 @@ export function createNotifications({byId,element,money,signed,dispatch}) {
     card.append(picture(sale.bike));
     const copy = element('span','','sale-toast-copy');
     copy.append(element('strong',`${item.title} · ${sale.bike.year}`),
-      element('span',`${item.branch} · ${sale.worker}`,'spec'),
-      element('span',`${money(sale.price)} · Net ${signed(sale.profit)}`,'sale-toast-result'),
-      element('span',noticeTime(item.time)+' · Detayları aç','spec'));
+      element('span',item.branch,'spec'),
+      element('span',`${money(sale.price)} · Net ${signed(sale.profit)}`,'sale-toast-result'));
+    card.title=noticeTime(item.time);
     card.append(copy);
-    function dismiss() {
-      if (!card.isConnected) return;
-      card.remove();
-      showPending();
-    }
-    card.addEventListener('click',()=>{ dismiss(); showDetail(item); });
-    mountToasts();
-    stack.append(card);
-    setTimeout(dismiss,SALE_TOAST_MS);
+    const timer=setTimeout(()=>dismiss(item.id),SALE_TOAST_MS);
+    liveCards.set(item.id,{item,card,timer});
+    card.addEventListener('click',()=>{dismiss(item.id);showDetail(item);});
   }
 
-  function showPending() {
-    while (pending.length && stack.children.length<3) toast(pending.shift());
+  function renderToasts() {
+    const rows=[...liveCards.values()].sort((a,b)=>a.item.time-b.item.time||a.item.id-b.item.id);
+    // Keep the same nodes when reordering so thumbnails are not decoded again.
+    tray.append(...rows.map(row=>row.card));
+    stack.hidden=!rows.length;
   }
+
+  function dismiss(id) {
+    const current=liveCards.get(id);
+    if(!current)return;
+    clearTimeout(current.timer);
+    current.card.remove();
+    liveCards.delete(id);
+    stack.hidden=!liveCards.size;
+  }
+
+  byId('sale-dismiss-all').addEventListener('click',()=>{
+    for(const id of liveCards.keys())dismiss(id);
+  });
 
   byId('notification-bell').addEventListener('click',()=>{
     showHistory();
@@ -208,8 +219,10 @@ export function createNotifications({byId,element,money,signed,dispatch}) {
     for (const [type,input] of toggles) input.checked = !box.muted[type];
     if (dialog.open && detailId===undefined) updateList();
     if (newSales.length) {
-      pending.push(...newSales);
-      showPending();
+      for(const sale of newSales)toast(sale);
+      while(liveCards.size>25)dismiss(liveCards.keys().next().value);
+      mountToasts();
+      renderToasts();
       playSound();
     }
   };

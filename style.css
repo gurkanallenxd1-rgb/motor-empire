@@ -503,14 +503,19 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 .notice-bike canvas { width:100%; max-height:138px; object-fit:contain }
 #notification-detail-content .notice-bike { margin-block:8px }
 #sale-toasts {
-  position:fixed; z-index:5; inset:auto 10px calc(69px + env(safe-area-inset-bottom)) auto;
-  display:grid; gap:6px; width:min(380px,calc(100% - 20px)); pointer-events:none
+  position:fixed; z-index:5; inset:auto 8px calc(72px + env(safe-area-inset-bottom)) auto;
+  width:min(335px,calc(100% - 16px)); pointer-events:none
 }
-dialog #sale-toasts { inset:auto 10px calc(13px + env(safe-area-inset-bottom)) auto }
-.sale-toast { pointer-events:auto; display:grid; grid-template-columns:66px minmax(0,1fr); gap:8px; text-align:left; border-inline-start:4px solid var(--notice-tone); min-width:0; box-shadow:0 3px 17px #0009 }
-.sale-toast .notice-bike canvas { max-height:58px }
-.sale-toast-copy { display:grid; gap:3px; overflow-wrap:anywhere }
-.sale-toast-result { color:var(--notice-tone) }
+#sale-toasts[hidden] { display:none }
+dialog #sale-toasts { inset:auto 8px calc(13px + env(safe-area-inset-bottom)) auto }
+#sale-dismiss-all { display:block; margin:0 0 3px auto; min-height:29px; font-size:11px; padding:3px 9px; pointer-events:auto }
+#sale-toast-list { display:grid; gap:3px; max-height:min(277px,34svh); overflow:auto; overscroll-behavior:contain; pointer-events:auto }
+.sale-toast { display:grid; grid-template-columns:41px minmax(0,1fr); gap:6px; min-height:49px;
+  padding:3px 6px; text-align:left; border-inline-start:3px solid var(--notice-tone); background:#242925; min-width:0 }
+.sale-toast .notice-bike canvas { max-height:29px }
+.sale-toast-copy { display:grid; gap:1px; min-width:0; font-size:11px; line-height:1.17 }
+.sale-toast-copy > :is(strong,.spec) { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:inherit; margin:0 }
+.sale-toast-result { color:var(--notice-tone); overflow-wrap:anywhere }
 [data-tone=gain] { --notice-tone:var(--green) }
 [data-tone=loss] { --notice-tone:#ff9a85 }
 [data-tone=even] { --notice-tone:#d0d3cb }
@@ -592,3 +597,23 @@ body[data-view="competition"] main { padding-top:13px }
 #rival-history svg { display:block; width:100%; background:#212523 }
 #rival-price { min-width:0; width:min(100%,160px); min-height:44px; font-size:16px }
 #rival-confirm-area { margin-top:9px; border-top:1px solid var(--line); padding-top:7px }
+
+
+html:has(#rival-detail[open]) { overflow:hidden }
+#rival-detail { padding:0 14px 16px; border:1px solid #5a4437; border-radius:14px; color:var(--text);
+  background:#202421; overscroll-behavior:contain; width:min(100% - 14px,580px); max-height:calc(100svh - 22px) }
+#rival-detail::backdrop { background:#070a08bd }
+.rival-dialog-head { position:sticky; top:0; z-index:2; background:#252821; display:flex; align-items:center;
+  justify-content:space-between; gap:10px; margin-inline:-14px; padding:9px 14px; border-bottom:1px solid #5a4437 }
+.rival-dialog-head form { position:static; margin:0 }
+.rival-dialog-head button { min-width:44px }
+.rival-section { border:1px solid var(--line); border-radius:9px; padding:7px 10px; margin-top:9px }
+.rival-section summary { min-height:38px; padding-top:7px; color:var(--accent); cursor:pointer }
+
+body[data-view="gallery-profile"] main > :is(.intro,.stats,.branch-bar) { display:none }
+.gallery-home { margin-block:8px }
+.gallery-filters { grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:7px }
+#gallery-distribution,#gallery-reviews { margin:4px 0; padding:0; list-style:none }
+.gallery-distribution-row { display:grid; grid-template-columns:36px minmax(0,1fr) 29px; align-items:center; gap:8px }
+.gallery-distribution-row progress { width:100%; accent-color:var(--accent) }
+#gallery-reputation-history svg { width:100%; display:block; background:#222724; border-radius:6px }

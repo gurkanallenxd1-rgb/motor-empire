@@ -1,4 +1,4 @@
-import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18';
+import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18.1';
 import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16.1';
 import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.18';
 import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16.1';
@@ -7,15 +7,15 @@ import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff
 import { modelOf } from './bikes.mjs?v=0.16.1';
 import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.16.1';
+  setReputation } from './characters.mjs?v=0.18.1';
 import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
   policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.16.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18.1';
 import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.16.1';
 import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.16.1';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18.1';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
   knownPart, repairForecast, repairQuote, roadValue } from './damage.mjs?v=0.16.1';
@@ -743,7 +743,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
       earn(meeting.price,`${bike.name} satışı`);
       const saleId = `${meeting.id}:settled`;
       const complaint = meeting.dialogue?.disclosed ? null : buyerComplaint(bike,saleId);
-      const sale = {id:saleId,name:bike.name,day:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
+      const sale = {id:saleId,name:bike.name,day:next.day,handedOverDay:next.day,price:meeting.price,spent:bike.spent,branchId:branch.id,
         ...(bike.listedDay===undefined ? {} : {daysListed:next.day-bike.listedDay}),
         damageRecords:legacyDamageRecords(bike),disclosureMode:bike.disclosureMode ?? 'disclose',
         ...(bike.tradeStrategy ? {strategy:meeting.dialogue?.disclosed && isRisky(bike.tradeStrategy) ? 'damaged' : bike.tradeStrategy,
@@ -756,9 +756,9 @@ function applyAction(next, action, id, amount, branchId, worker) {
       }
       next.sales.unshift(sale);
       notify(next,'sale',now,{title:bike.name,branch:branch.name,sale:saleSnapshot(bike,meeting.price,worker)});
-      finishTrade(next,meeting,bike,'sold');
+      finishTrade(next,meeting,bike,'sold',worker);
       next.trade.history[0].saleId = saleId;
-      rememberSale(next,sale,meeting);
+      rememberSale(next,sale,meeting,bike,worker);
       for (const other of bike.meetings.filter(isActive)) finishTrade(next,other,bike,'expired');
       message = `${bike.name}, ${meeting.profile.name} adlı müşteriye satıldı.`;
       break;
@@ -924,9 +924,9 @@ function applyAction(next, action, id, amount, branchId, worker) {
       next.cash=decimal(next.cash-quote.total+company.cash);
       next.debt=decimal(next.debt+company.debt);
       next.branches.push(...offices);
-      record('expense',quote.total,`${company.name} şirket devralması`,null,{category:'investment'});
+      record('expense',quote.total,`${company.name} şirket devralması`,null,{category:'company_investment'});
       if(company.cash)record('income',company.cash,'Devralınan kasa',null,{category:'takeover_cash'});
-      removeAcquired(next.competition,company);
+      removeAcquired(next.competition,company,quote,offices);
       notify(next,'competition',now,{title:'Şirket devralındı',body:`${company.name} · ${offices.length} şube`});
       message=`${company.name} devralındı.`;
       break;

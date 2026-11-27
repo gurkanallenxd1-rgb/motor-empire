@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.18
+# MOTOR EMPIRE v0.18.1
 
 MOTOR EMPIRE, iPhone Safari ve masaüstü tarayıcılar için Türkçe bir motosiklet işletme oyunudur. HTML, CSS, JavaScript ES modülleri ve Canvas 2D kullanır. Oyun yerelde çalışırken hesap, sunucu API'si veya derleme gerektirmez.
 
@@ -38,6 +38,10 @@ Oyun tarayıcıda `motor-empire.v9` anahtarını kullanarak kaydeder. Önceki s�
 
 Rakipler oyun günüyle ilerler. Yeni galerinin müşteri koruması ilk şubede ve altı satış kaydına kadar etkindir. Rakip tedariki oyuncunun mevcut ilanlarına dokunmaz. [Denge sonuçları ve ekran görüntüleri](docs/v018-competition.md)
 
+## Bildirimler ve itibar
+
+Satış tepsisi ekran yüksekliğine göre kaydırılır. **Tümünü kapat** canlı kartları kapatır. Bildirim zili kayıtlı satış raporunu açar. **Ana Sayfa → Galeri profili** yıldız dağılımı, itibar grafiği, şikâyetler ve filtrelenebilir yorumları gösterir. Şirket devralmaları finans merkezinde **Şirket yatırımı** olarak filtrelenebilir. [Düzeltme raporu](docs/v0181-hotfix.md)
+
 ## Test ve görsel denetim
 
 Node.js 24 ve npm ile aşağıdaki komutlar kullanılabilir. Playwright yalnızca test için gerekir.
@@ -46,6 +50,7 @@ Node.js 24 ve npm ile aşağıdaki komutlar kullanılabilir. Playwright yalnızc
 node --test --test-isolation=none
 node tests/economy-simulation.mjs
 node tests/rival-simulation.mjs
+node tests/competition-profiles.mjs
 
 test_deps="$(mktemp -d)"
 npm install --prefix "$test_deps" playwright
