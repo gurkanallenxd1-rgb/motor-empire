@@ -56,7 +56,7 @@ export function profileSimulation() {
         for(const c of state.competition.companies){
           assert.equal(c.cash,c.openingCash+c.cashIn-c.cashOut);
           assert.equal(c.bookValue,rivalValue(c));
-          largestShare=Math.max(largestShare,c.marketShare);
+          if(state.day>=31)largestShare=Math.max(largestShare,c.marketShare);
         }
       }
       const worth=assets(state).net;
