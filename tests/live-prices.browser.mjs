@@ -896,6 +896,19 @@ test('graphics garage loads GLB, applies quality, moves camera and switches back
   await page.waitForTimeout(350);
   assert.notDeepEqual(await canvas.screenshot(),before);
   if(name) await canvas.screenshot({path:name+'/garage-angle-2.png'});
+  if (process.env.GRAPHICS_CHROMIUM) {
+    const session=await page.context().newCDPSession(page);
+    const x=bounds.x+bounds.width/2, y=bounds.y+bounds.height/2;
+    const gesture=(type,spacing=0)=>session.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'
+      ? [] : [{x:x-spacing,y,id:1},{x:x+spacing,y,id:2}]});
+    const unzoomed=await canvas.screenshot();
+    await gesture('touchStart',18);
+    for(const distance of [25,35,49,62]) await gesture('touchMove',distance);
+    await gesture('touchEnd');
+    await page.waitForTimeout(300);
+    assert.notDeepEqual(await canvas.screenshot(),unzoomed);
+    await session.detach();
+  }
   t.diagnostic('Three render sample '+await canvas.getAttribute('data-measure'));
   for (const {bike,bay} of garageParking(garageLayout(10),seed.branches[0].garage)) {
     await ui.tap('#graphics-reset-camera');
