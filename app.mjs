@@ -1,32 +1,32 @@
-import { garageLayout, garageParking } from './garage-layout.mjs?v=0.15.3';
-import { drawGaragePreview } from './garage-scene.mjs?v=0.15.3';
-import { createNotifications } from './notification-view.mjs?v=0.15.3';
-import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.3';
+import { garageLayout, garageParking } from './garage-layout.mjs?v=0.15.4';
+import { drawGaragePreview } from './garage-scene.mjs?v=0.15.4';
+import { createNotifications } from './notification-view.mjs?v=0.15.4';
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.4';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.15.3';
-import { financeReport } from './finance.mjs?v=0.15.3';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.3';
-import { purchasePreview } from './valuation.mjs?v=0.15.3';
+  workshopRate } from './business.mjs?v=0.15.4';
+import { financeReport } from './finance.mjs?v=0.15.4';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.4';
+import { purchasePreview } from './valuation.mjs?v=0.15.4';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.3';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.3';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.3';
-import { createFinanceView } from './finance-view.mjs?v=0.15.3';
-import { dailyCashMovement } from './finance.mjs?v=0.15.3';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.3';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.4';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.4';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.4';
+import { createFinanceView } from './finance-view.mjs?v=0.15.4';
+import { dailyCashMovement } from './finance.mjs?v=0.15.4';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.4';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.15.3';
-import { createGarageRenderer } from './art.mjs?v=0.15.3';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.3';
+} from './game.mjs?v=0.15.4';
+import { createGarageRenderer } from './art.mjs?v=0.15.4';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.4';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.3';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.3';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.4';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.4';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.15.3';
+  repairForecast } from './damage.mjs?v=0.15.4';
 
 const byId = id => document.getElementById(id);
 let drawGarage;

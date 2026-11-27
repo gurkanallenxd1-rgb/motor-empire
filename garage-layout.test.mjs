@@ -60,3 +60,21 @@ test('upgrade preview rejects stale capacity or price and existing upgrade still
   const outcome = perform(state,'upgrade-office',undefined,{capacity:plan.capacity,increase:plan.increase});
   assert.equal(outcome.state.cash,state.cash-plan.increase);
 });
+
+test('expanded branches use compact footprints and room programs separate from parking rows',()=>{
+  const expected = {
+    5:['inspection','stock'],
+    10:['stock','reception'],
+    20:['stock','office','reception'],
+    40:['loading','stock','office','office','reception'],
+  };
+  for (const [capacity,types] of Object.entries(expected)) {
+    const plan = garageLayout(Number(capacity));
+    const ratio = plan.uSize/plan.vSize;
+    assert.ok(ratio>.70 && ratio<1.3);
+    assert.deepEqual(plan.rooms.map(room=>room.type),types);
+    assert.ok(plan.rooms.every(room=>plan.bays.every(bay=>bay.v>room.y+room.depth)));
+    assert.ok(plan.bays.every(bay=>bay.zone==='service' ? bay.v<plan.boundary : bay.v>plan.boundary));
+    assert.ok(plan.bikeWidth>=160);
+  }
+});

@@ -1,17 +1,18 @@
 // Coordinates are in scene units. The artboard, camera and hit testing share this plan.
 const plans = {
   2:{name:'Küçük atölye',area:80},
-  4:{name:'Geniş atölye',area:150,rows:[2,2],serviceRows:1,material:'concrete'},
-  5:{name:'Geniş atölye',area:180,rows:[3,2],serviceRows:1,material:'concrete'},
-  6:{name:'Servis ve galeri',area:220,rows:[3,3],serviceRows:1,material:'hybrid'},
-  10:{name:'Servis ve galeri',area:350,rows:[5,5],serviceRows:1,material:'hybrid'},
-  20:{name:'Premium galeri',area:700,rows:[5,5,5,5],serviceRows:1,material:'stone'},
-  40:{name:'Büyük satış merkezi',area:1400,rows:[8,8,8,8,8],serviceRows:2,material:'center'},
+  4:{name:'Geniş atölye',area:150,rows:[2,2],serviceRows:1,material:'concrete',rooms:['inspection']},
+  5:{name:'Geniş atölye',area:180,rows:[2,3],serviceRows:1,material:'concrete',rooms:['inspection','stock']},
+  6:{name:'Servis ve galeri',area:220,rows:[3,3],serviceRows:1,material:'hybrid',rooms:['stock','reception']},
+  10:{name:'Servis ve galeri',area:350,rows:[3,3,4],serviceRows:1,material:'hybrid',rooms:['stock','reception']},
+  20:{name:'Premium galeri',area:700,rows:[4,4,4,4,4],serviceRows:2,material:'stone',rooms:['stock','office','reception']},
+  40:{name:'Büyük satış merkezi',area:1400,rows:[6,6,6,6,6,6,4],serviceRows:3,material:'center',
+    rooms:['loading','stock','office','office','reception']},
 };
 
-const cellX = 210;
-const cellY = 202;
-const wallHeight = 134;
+const cellX = 214;
+const cellY = 212;
+const wallHeight = 150;
 const projection = (u,v,z=0)=>[(u-v)*.866,(u+v)*.5-z];
 const layouts = new Map();
 
@@ -28,8 +29,9 @@ export function garageLayout(capacity) {
     return plan;
   }
   const columns = Math.max(...spec.rows);
-  const uSize = columns*cellX+194;
-  const vSize = spec.rows.length*cellY+142+64;
+  const rear = spec.material==='center' ? 285 : 235;
+  const uSize = columns*cellX+175;
+  const vSize = spec.rows.length*cellY+rear+92;
   const pad = 30;
   const shiftX = vSize*.866+pad;
   const shiftY = wallHeight+pad;
@@ -40,15 +42,21 @@ export function garageLayout(capacity) {
   const bays = [];
   for (const [row,count] of spec.rows.entries()) {
     for (let col=0;col<count;col++) {
-      const u = 170+col*cellX+(columns-count)*cellX/2;
-      const v = 140+row*cellY+(row>=spec.serviceRows ? 64 : 0);
+      const u = 123+col*cellX+Math.floor((columns-count)/2)*cellX;
+      const v = rear+68+row*cellY+(row>=spec.serviceRows ? 49 : 0);
       const [x,y] = project(u,v,4);
       bays.push({index:bays.length,u,v,x,y,zone:row<spec.serviceRows?'service':'gallery'});
     }
   }
-  const plan = {...spec,bays,uSize,vSize,project,wallHeight,
+  const roomWidth = (uSize-72)/spec.rooms.length;
+  const depth = rear-50;
+  const rooms = spec.rooms.map((type,index)=>({
+    type,x:36+index*roomWidth,y:25,width:roomWidth,depth,
+  }));
+  const plan = {...spec,rooms,bays,uSize,vSize,project,wallHeight,rear,
+    boundary:rear+20+spec.serviceRows*cellY,
     width:Math.ceil((uSize+vSize)*.866+2*pad),
-    height:Math.ceil((uSize+vSize)*.5+wallHeight+2*pad+12),bikeWidth:124};
+    height:Math.ceil((uSize+vSize)*.5+wallHeight+2*pad+12),bikeWidth:163};
   layouts.set(capacity,plan);
   return plan;
 }
