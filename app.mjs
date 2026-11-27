@@ -1,30 +1,31 @@
+import { createCompetitionView } from './competition-view.mjs?v=0.18';
 import { createGraphicsController } from './graphics/controller.mjs?v=0.17.0.1';
 import { createMarketAnalysis } from './market-view.mjs?v=0.16.1';
 import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
 import { drawGaragePreview } from './garage-scene.mjs?v=0.16.1';
-import { createNotifications } from './notification-view.mjs?v=0.16.1';
+import { createNotifications } from './notification-view.mjs?v=0.18';
 import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.16.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
   workshopRate } from './business.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.16.1';
+import { financeReport } from './finance.mjs?v=0.18';
 import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.16.1';
 import { purchasePreview } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
   policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.16.1';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.16.1';
-import { createFinanceView } from './finance-view.mjs?v=0.16.1';
-import { dailyCashMovement } from './finance.mjs?v=0.16.1';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.18';
+import { createFinanceView } from './finance-view.mjs?v=0.18';
+import { dailyCashMovement } from './finance.mjs?v=0.18';
 import { PROVINCES, provinceName } from './provinces.mjs?v=0.16.1';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.16.1';
+} from './game.mjs?v=0.18';
 import { createGarageRenderer } from './art.mjs?v=0.16.1';
 import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.16.1';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.16.1';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.18';
 import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.16.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
@@ -1128,6 +1129,7 @@ function render(action, animationBike) {
   }
   if (currentPage === 'market-analysis') marketAnalysis.refresh();
   if (currentPage === 'business') renderBusiness();
+  if (currentPage === 'competition') competitionView.render();
   if (currentPage === 'staff') renderPersonnel();
   if (currentPage === 'finance') renderFinance(state,worth);
   renderComplaints();
@@ -1140,7 +1142,7 @@ function showPage(page) {
   document.body.dataset.view = page;
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== `${page}-page`; });
   document.querySelectorAll('.bottom-nav button').forEach(button => {
-    if (button.dataset.page === (page==='market-analysis' ? 'market' : page)) button.setAttribute('aria-current','page');
+    if (button.dataset.page === (page==='market-analysis' ? 'market' : page==='competition' ? 'business' : page)) button.setAttribute('aria-current','page');
     else button.removeAttribute('aria-current');
   });
   window.scrollTo(0,0);
@@ -1503,6 +1505,7 @@ window.addEventListener('pageshow',async event=>{
 const updateNotifications = createNotifications({byId,element,money,signed,dispatch:runAction});
 const marketAnalysis = createMarketAnalysis({byId,element,money,signed,
   getState:()=>state,getDestination:()=>branchProvince(activeBranch()),estimate:purchaseForecast,openListing});
+const competitionView=createCompetitionView({byId,element,money,signed,assets,getState:()=>state,dispatch:runAction});
 const garageGraphics = createGraphicsController({byId,select:openBike,refresh:()=>{
   if (currentPage==='garage') render();
 }});

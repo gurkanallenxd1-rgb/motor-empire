@@ -1,4 +1,4 @@
-import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts, saleNet } from './finance.mjs?v=0.16.1';
+import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts, saleNet } from './finance.mjs?v=0.18';
 
 const colors = {green:'#9dd7ae',red:'#ff9a85',orange:'#ffad74',blue:'#a7c3f1'};
 const chartTypes = [

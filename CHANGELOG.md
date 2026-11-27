@@ -1,10 +1,16 @@
 # MOTOR EMPIRE sürüm geçmişi
 
+## v0.18
+
+- Türkiye genelinde 50 kurgusal şirket, 10 strateji, bölgesel sıralamalar, işlem tabanlı finans ve sürdürülemeyen borçta tasfiye.
+- İşletmeler üzerinden Rekabet Merkezi, üç dönemli şirket değer grafiği, rekabet haberleri ve kullanıcı onaylı atomik şirket devralma.
+- Eski kayıtların ilk eşitlemede korunması, yeni galeri müşteri koruması, kayıt boyutu sınırları ve değişmeyen 2D/3D varlıkları. [Test, ölçüm ve ekran görüntüleri](docs/v018-competition.md)
+
 ## v0.17.0.1
 
 - 3D garajda göz yüksekliği ve yakınlaştırma sınırları, fiziksel hedef alanı ve görüşe göre duvar kesiti. Sürükleme, çoklu dokunma ve uzun basma seçimden ayrıldı.
 - Cam/metal cephe, yuvarlatılmış servis ekipmanı, hidrolik kollar, kompresör hattı, ofis ve showroom ayrıntıları. Yüksek ve Ultra’da normal/pürüzlülük/metal dokuları. Etkin profil ayarları panelde gösteriliyor.
-- **130 Node.js, 36 mobil Playwright WebKit ve 7 Chromium grafik testi geçti.** Fiziksel iPhone tekrarı açık.
+- **130 Node.js, 36 mobil Playwright WebKit ve 7 Chromium grafik testi geçti.** Kullanıcı fiziksel iPhone’da kamera ve metin seçimi düzeltmesini daha sonra doğruladı.
 - Yumuşak temas gölgesi ve ölçek ayarı mevcut 2D motosikletleri kullanır. Ekonomi ve kayıt şeması korunur. [Görsel karşılaştırma ve ölçümler](docs/v01701-comparison.md)
 
 ## v0.17 · Deneysel

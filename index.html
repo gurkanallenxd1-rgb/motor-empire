@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.17.0.1">
-  <script type="module" src="./app.mjs?v=0.17.0.1"></script>
+  <link rel="stylesheet" href="./style.css?v=0.18">
+  <script type="module" src="./app.mjs?v=0.18"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.17.0.1</span>
+      <span class="version">SÜRÜM 0.18</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
       <button id="notification-bell" type="button" aria-label="Bildirim merkezi" aria-haspopup="dialog">
         <span aria-hidden="true">🔔</span><span id="notification-count" hidden>0</span>
@@ -78,6 +78,7 @@
         </div>
         <details class="risk-panel" id="graphics-settings">
           <summary>Garaj grafik ayarları</summary>
+          <p class="spec">Deneysel 3D garaj şu anda yalnızca 10 motosiklet kapasiteli işletmelerde desteklenmektedir.</p>
           <form id="graphics-form" class="graphics-form">
             <label>Garaj modu<select name="mode"><option value="2d">2D Garaj</option><option value="3d">Deneysel 3D Garaj</option></select></label>
             <label>Kalite<select name="quality"><option value="auto">Otomatik</option><option value="low">Düşük</option><option value="medium">Orta</option><option value="high">Yüksek</option><option value="ultra">Ultra</option></select></label>
@@ -189,7 +190,7 @@
     </section>
     <section class="overview page" id="business-page" aria-labelledby="business-title" hidden>
       <header class="section-head"><div><p class="eyebrow">ŞUBE YÖNETİMİ</p><h2 id="business-title">Şubelerim</h2></div></header>
-      <div class="quick-actions"><button type="button" data-page="staff">Personellerim</button></div>
+      <div class="quick-actions"><button type="button" data-page="staff">Personellerim</button><button id="competition-open" type="button" data-page="competition">Rekabet Merkezi</button></div>
       <details class="risk-panel"><summary>Yeni şube aç</summary>
         <form id="open-office-form" class="office-form" data-office-action="open-office">
           <label>İl<select id="office-province" name="province" required></select></label>
@@ -198,6 +199,38 @@
         </form>
       </details>
       <div id="business" class="business-list"></div>
+    </section>
+    <section id="competition-page" class="page market-center" aria-labelledby="competition-title" hidden>
+      <header class="market-center-heading">
+        <button type="button" data-page="business" class="market-center-back">‹ İşletmeler</button>
+        <div><p class="eyebrow">TÜRKİYE MOTOSİKLET PAZARI</p><h2 id="competition-title">Rekabet Merkezi</h2></div>
+      </header>
+      <div class="market-center-tabs competition-tabs" role="tablist" aria-label="Rekabet merkezi">
+        <button id="competition-tab-summary" aria-controls="competition-summary" type="button" role="tab" data-competition-tab="summary" aria-selected="true">Özet</button>
+        <button id="competition-tab-rivals" aria-controls="competition-rivals" type="button" role="tab" data-competition-tab="rivals" aria-selected="false" tabindex="-1">Rakipler</button>
+        <button id="competition-tab-ranks" aria-controls="competition-ranks" type="button" role="tab" data-competition-tab="ranks" aria-selected="false" tabindex="-1">Sıralamalar</button>
+        <button id="competition-tab-acquisitions" aria-controls="competition-acquisitions" type="button" role="tab" data-competition-tab="acquisitions" aria-selected="false" tabindex="-1">Satın almalar</button>
+        <button id="competition-tab-news" aria-controls="competition-news" type="button" role="tab" data-competition-tab="news" aria-selected="false" tabindex="-1">Haberler</button>
+      </div>
+      <section id="competition-summary" role="tabpanel" aria-labelledby="competition-tab-summary"></section>
+      <section id="competition-rivals" role="tabpanel" aria-labelledby="competition-tab-rivals" hidden>
+        <div class="market-analysis-controls competition-filters">
+          <label>Şirket ara<input id="rival-search" type="search" placeholder="Örn. Kıvıltaş"></label>
+          <label>Şehir<select id="rival-city"></select></label>
+          <label>Büyüklük<select id="rival-size"></select></label>
+          <label>Strateji<select id="rival-strategy"></select></label>
+        </div>
+        <p class="spec" id="rival-count" aria-live="polite"></p><div id="rival-list"></div>
+      </section>
+      <section id="competition-ranks" role="tabpanel" aria-labelledby="competition-tab-ranks" hidden>
+        <div class="market-analysis-controls competition-filters">
+          <label>Bölge<select id="rival-rank-city"></select></label>
+          <label>Ölçüt<select id="rival-rank-metric"></select></label>
+        </div>
+        <div id="rival-rank-list"></div>
+      </section>
+      <section id="competition-acquisitions" role="tabpanel" aria-labelledby="competition-tab-acquisitions" hidden></section>
+      <section id="competition-news" role="tabpanel" aria-labelledby="competition-tab-news" hidden></section>
     </section>
     <section class="overview page" id="staff-page" aria-labelledby="staff-title" hidden>
       <header class="section-head"><div><p id="staff-branch" class="eyebrow"></p><h2 id="staff-title">Personellerim</h2></div>
@@ -287,6 +320,28 @@
     <canvas id="garage-upgrade-art" width="900" height="560" role="img"></canvas>
     <p id="garage-upgrade-error" class="spec" role="status"></p>
     <button id="garage-upgrade-confirm" class="primary" type="button">Yükselt</button>
+  </dialog>
+  <dialog id="rival-detail" aria-labelledby="rival-detail-name">
+    <form method="dialog"><button type="submit" aria-label="Şirket ayrıntısını kapat">×</button></form>
+    <h2 id="rival-detail-name"></h2>
+    <div id="rival-detail-data"></div>
+    <section class="analysis-chart-panel">
+      <header><h3>Şirket değeri karşılaştırması</h3><label class="analysis-period-label">Dönem<select id="rival-period">
+        <option value="7">7 gün</option><option value="30">30 gün</option><option value="90">90 gün</option>
+      </select></label></header>
+      <div id="rival-history"></div>
+    </section>
+    <div id="rival-offer-area" hidden>
+      <h3>Devralma teklifi</h3>
+      <label class="analysis-period-label">Teklif tutarı (TL)<input id="rival-price" type="number" min="1" max="1000000000" step="1" inputmode="numeric"></label>
+      <dl id="rival-offer-data" class="analysis-measures"></dl>
+      <p id="rival-offer-status" class="spec" aria-live="polite"></p>
+      <button id="rival-review-offer" type="button">Teklifi onaya hazırla</button>
+      <div id="rival-confirm-area" hidden>
+        <p id="rival-confirm-text" class="spec"></p>
+        <button id="rival-confirm" type="button" class="primary">Devralmayı onayla</button>
+      </div>
+    </div>
   </dialog>
   <dialog id="bike-detail" aria-labelledby="detail-name">
     <form method="dialog"><button type="submit" aria-label="Yakın planı kapat">×</button></form>

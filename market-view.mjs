@@ -1,6 +1,6 @@
 import { paintOptions } from './bikes.mjs?v=0.16.1';
 import { ECONOMY_MODELS,economyQuote,marketMovers,marketSeries,regionalEstimates } from './economy.mjs?v=0.16.1';
-import { inbox,noticeTime } from './notifications.mjs?v=0.16.1';
+import { inbox,noticeTime } from './notifications.mjs?v=0.18';
 import { provinceName } from './provinces.mjs?v=0.16.1';
 import { renderSprite } from './sprite.mjs?v=0.16.1';
 

@@ -1,4 +1,4 @@
-import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.16.1';
+import { inbox, NOTICE_TYPES, noticeTime, SALE_TOAST_MS } from './notifications.mjs?v=0.18';
 import { renderSprite } from './sprite.mjs?v=0.16.1';
 
 export function createNotifications({byId,element,money,signed,dispatch}) {

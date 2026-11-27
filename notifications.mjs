@@ -2,7 +2,7 @@ import { DAY_MS } from './clock.mjs?v=0.16.1';
 
 export const NOTICE_TYPES = Object.freeze({
   purchase:'Motosiklet alımı',sale:'Motosiklet satışı',inspection:'Ekspertiz tamamlandı',repair:'Tamir tamamlandı',
-  delivery:'Nakliye tamamlandı',training:'Personel eğitimi tamamlandı',automation:'Otomasyon uyarısı',complaint:'Müşteri şikâyeti',economy:'Piyasa haberi',
+  delivery:'Nakliye tamamlandı',training:'Personel eğitimi tamamlandı',automation:'Otomasyon uyarısı',complaint:'Müşteri şikâyeti',economy:'Piyasa haberi',competition:'Rekabet haberi',
 });
 export const MAX_NOTICES = 200;
 export const SALE_TOAST_MS = 8000;

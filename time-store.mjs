@@ -1,4 +1,4 @@
-import { loadGame, perform, saveGame, STORAGE_KEY, synchronize } from './game.mjs?v=0.16.1';
+import { loadGame, perform, saveGame, STORAGE_KEY, synchronize } from './game.mjs?v=0.18';
 
 // The IndexedDB write transaction provides mutual exclusion on Safari versions
 // without Web Locks. Keep the localStorage read, reduction and write synchronous.
