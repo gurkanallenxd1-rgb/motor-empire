@@ -2,7 +2,7 @@ import { BRANCH_TIERS,STAFF_ROLES } from './business.mjs?v=0.16.1';
 import { ECONOMY_MODELS,economyQuote } from './economy.mjs?v=0.16.1';
 import { paintOptions } from './bikes.mjs?v=0.16.1';
 import { PROVINCES,shippingQuote } from './provinces.mjs?v=0.16.1';
-import { stableNumber } from './characters.mjs?v=0.16.1';
+import { stableNumber } from './characters.mjs?v=0.18.1';
 
 export const STRATEGIES=Object.freeze({
   volume:'Düşük fiyat / yüksek hacim',premium:'Premium satış',scooter:'Scooter ve düşük hacim',

@@ -1,9 +1,9 @@
-import { regionalPlayerValue } from './game.mjs?v=0.18';
+import { regionalPlayerValue } from './game.mjs?v=0.18.1';
 import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.18';
+import { financeReport } from './finance.mjs?v=0.18.1';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
-import { regionalRivalValue,rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18';
+import { regionalRivalValue,rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.1';
 
 const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
@@ -110,6 +110,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const stats=measures([['Pazar payım',metrics(player,'share')],['Aylık satış',`${player.sold} motosiklet`],
       ['Aylık satış cirosu',money(player.revenue)],['En yakın rakip',closest?.name??'—'],
       [`${cityName(city)} rekabeti`,`${regional>=6?'Yüksek':regional>=3?'Orta':'Düşük'} · ${regional} rakip`],
+      ['Aktif / toplam kurulmuş',`${world.companies.length} / ${world.founded}`],['Devralınan',world.acquired],
       ['Yeni galeri koruması',state.sales.length<6&&state.branches.length===1?'Etkin':'Tam rekabet']]);
     const notes=[...world.customerNotes].reverse().slice(0,3).map(note=>
       element('p',`Gün ${note.day} · ${note.model} · ${note.lost?note.company+' seçildi':'Müşteri sizi seçti'} · ${note.reason}`,'competition-story'));
@@ -125,7 +126,8 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const matches=state.competition.companies.filter(c=>
       (!search||c.name.toLocaleLowerCase('tr').includes(search))&&(!city||c.branches.some(b=>b.province===city))
       &&(!tier||level(c)===Number(tier))&&(!strategy||c.strategy===strategy));
-    byId('rival-count').textContent=`${matches.length} şirket`;
+    byId('rival-roster').textContent=`${state.competition.companies.length} aktif · ${state.competition.founded} kurulmuş · ${state.competition.acquired} devralınmış`;
+    byId('rival-count').textContent=`${matches.length} eşleşen şirket`;
     const children=cards(matches.slice(0,limit));
     if(matches.length>limit){
       const more=element('button','Daha fazla şirket');more.type='button';more.dataset.rivalMore='';children.push(more);
@@ -149,8 +151,16 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   }
   function renderAcquisitions(state) {
     const available=state.competition.companies.filter(company=>rivalOffer(company).eligible);
-    list('competition-acquisitions',available.length?[element('p','Yönetim teklifi değerlendirir. Onaydan önce kasa, borç ve personel aktarımını inceleyin.','spec'),...cards(available)]:[],
-      'Şu anda devralmaya açık rakip şirket yok.');
+    const archive=(state.competition.takeovers??[]).map(row=>element('p',
+      `Gün ${row.day} · ${row.name} · ${money(row.total)} · ${row.stock} motosiklet / ${row.staff} çalışan`,'competition-story'));
+    const older=state.competition.retired.filter(row=>row.status==='acquired'&&!(state.competition.takeovers??[]).some(deal=>deal.id===row.id))
+      .map(row=>element('p',`Gün ${row.day} · ${row.name}`,'competition-story'));
+    list('competition-acquisitions',[
+      element('p','Yönetim teklifi değerlendirir. Onaydan önce kasa, borç ve personel aktarımını inceleyin.','spec'),
+      ...(available.length?cards(available):[element('p','Şu anda devralmaya açık rakip şirket yok.','spec')]),
+      ...((archive.length||older.length)?[element('h3','Tamamlanan devralmalar'),...archive,...older]:[]),
+    ]);
+
   }
   function render() {
     const state=getState();
@@ -222,8 +232,20 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const statusNames={ready:'satışa hazır',transit:'nakliyede',inspected:'hazırlıkta'};
     const counts=Object.keys(statusNames).map(key=>`${company.stock.filter(b=>b.state===key).length} ${statusNames[key]}`);
     const events=[...company.events].reverse().slice(0,5).map(([day,action,model,amount])=>element('p',`Gün ${day} · ${actions[action]} · ${model?modelNames.get(model)+' · ':''}${money(amount)}`,'competition-story'));
-    byId('rival-detail-data').replaceChildren(details,element('h3','Şubeler ve stok'),...branchRows,element('p',counts.join(' · '),'spec'),
-      element('h3','Son işlemler'),...(events.length?events:[element('p','İşlem kaydı yok.','spec')]));
+    const national=ranking(state,0).sort((a,b)=>b.worth-a.worth).findIndex(row=>row.id===company.id)+1;
+    const regional=ranking(state,company.province).sort((a,b)=>b.worth-a.worth).findIndex(row=>row.id===company.id)+1;
+    const section=(title,children)=>{
+      const block=element('details','','rival-section');
+      block.append(element('summary',title),...children);
+      return block;
+    };
+    const overview=measures([['Türkiye / merkez ili',`#${national} / #${regional}`],
+      ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],
+      ['Borç · tahmin',money(company.debt)],['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],
+      ['Pazar payı',percent.format(company.marketShare)],['Devralma',quote.eligible?'Teklife açık':'Şu anda uygun değil']]);
+    byId('rival-detail-data').replaceChildren(overview,section('Şirket ve finansal performans',[details]),
+      section('Şubeler, çalışanlar ve stok',[...branchRows,element('p',counts.join(' · '),'spec')]),
+      section('Son işlemler',events.length?events:[element('p','İşlem kaydı yok.','spec')]));
     byId('rival-offer-area').hidden=!quote.eligible;
     price.value=quote.threshold;
     confirmation=null;
@@ -244,7 +266,8 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       return null;
     }
     const quote=rivalOffer(company,amount);
-    measures([['Teklif',money(quote.price)],['İşlem gideri',money(quote.fees)],['Toplam bedel',money(quote.total)],
+    measures([['Başlangıç teklifi',money(quote.threshold)],['Güncel teklif',money(quote.price)],
+      ['Kabul edilen teklif',confirmation?money(confirmation.price):'—'],['Ek masraflar',money(quote.fees)],['Toplam ödeme',money(quote.total)],
       ['Şube / stok / personel',`${company.branches.length} / ${company.stock.length} / ${company.branches.reduce((n,b)=>n+b.staff,0)}`],
       ['Devralınacak kasa',money(company.cash)],['Devralınacak borç',money(company.debt)],
       ['Tahmini 30 günlük ROI',quote.roi===null?'—':percent.format(quote.roi)]],byId('rival-offer-data'));
@@ -284,6 +307,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       return;
     }
     confirmation={price:quote.price,stamp:getState().competition.day,confirmed:true};
+    offer();
     byId('rival-confirm-text').textContent=`${money(quote.total)} kasadan düşecek. Kasa, borç, stok, şube ve personeli devralmayı onaylayın.`;
     byId('rival-confirm-area').hidden=false;
   });

@@ -609,3 +609,11 @@ html:has(#rival-detail[open]) { overflow:hidden }
 .rival-dialog-head button { min-width:44px }
 .rival-section { border:1px solid var(--line); border-radius:9px; padding:7px 10px; margin-top:9px }
 .rival-section summary { min-height:38px; padding-top:7px; color:var(--accent); cursor:pointer }
+
+body[data-view="gallery-profile"] main > :is(.intro,.stats,.branch-bar) { display:none }
+.gallery-home { margin-block:8px }
+.gallery-filters { grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:7px }
+#gallery-distribution,#gallery-reviews { margin:4px 0; padding:0; list-style:none }
+.gallery-distribution-row { display:grid; grid-template-columns:36px minmax(0,1fr) 29px; align-items:center; gap:8px }
+.gallery-distribution-row progress { width:100%; accent-color:var(--accent) }
+#gallery-reputation-history svg { width:100%; display:block; background:#222724; border-radius:6px }

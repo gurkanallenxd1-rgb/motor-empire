@@ -47,11 +47,10 @@
     <section class="overview page" id="home-page" aria-labelledby="home-title">
       <header class="section-head"><div><p class="eyebrow">GENEL BAKIŞ</p><h2 id="home-title">Ana Sayfa</h2></div></header>
       <div id="home-summary" class="metrics"></div>
-      <details class="card finance-section"><summary>Galeri profili</summary>
-        <p id="gallery-rating"></p>
-        <h3>Son müşteri yorumları</h3><ul id="gallery-reviews" class="parts"></ul>
-        <h3>İtibar geçmişi</h3><ul id="gallery-reputation-history" class="parts"></ul>
-      </details>
+      <article class="analysis-hero gallery-home">
+        <div><p class="eyebrow">GALERİ İTİBARI</p><h3 id="gallery-prestige"></h3><p id="gallery-rating" class="spec"></p></div>
+        <button type="button" data-page="gallery-profile">Galeri profili</button>
+      </article>
       <div class="quick-actions">
         <button type="button" data-page="garage">Garaja git</button>
         <button type="button" data-page="market">İlanları incele</button>
@@ -199,6 +198,22 @@
         </form>
       </details>
       <div id="business" class="business-list"></div>
+    </section>
+    <section class="page market-center" id="gallery-profile-page" aria-labelledby="gallery-profile-title" hidden>
+      <header class="market-center-heading"><button type="button" data-page="home" class="market-center-back">‹ Ana Sayfa</button>
+        <div><p class="eyebrow">GALERİ PROFİLİ</p><h2 id="gallery-profile-title">İtibar Merkezi</h2></div></header>
+      <dl id="gallery-profile-metrics" class="analysis-measures"></dl>
+      <section class="analysis-chart-panel"><h3>Yıldız dağılımı</h3><ul id="gallery-distribution"></ul></section>
+      <section class="analysis-chart-panel"><h3>İtibar değişimi</h3><div id="gallery-reputation-history"></div></section>
+      <h3>Müşteri yorumları</h3>
+      <div class="market-analysis-controls gallery-filters">
+        <label>Yıldız<select id="gallery-stars-filter"><option value="">Tümü</option><option value="5">5 ★</option>
+          <option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select></label>
+        <label>Tarih<select id="gallery-period-filter"><option value="">Tümü</option><option value="7">Son 7 gün</option>
+          <option value="30">Son 30 gün</option><option value="90">Son 90 gün</option></select></label>
+        <label>Şube<select id="gallery-branch-filter"></select></label>
+      </div>
+      <ul id="gallery-reviews"></ul><button type="button" id="gallery-more" hidden>Daha fazla yorum</button>
     </section>
     <section id="competition-page" class="page market-center" aria-labelledby="competition-title" hidden>
       <header class="market-center-heading">
