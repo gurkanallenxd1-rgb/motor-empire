@@ -5,6 +5,7 @@ const url=process.env.GRAPHICS_URL || 'http://127.0.0.1:8397';
  const game=await import(root+'/game.mjs');
  const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  const page=await b.newPage({...devices['iPhone 13']});
+ await page.emulateMedia({reducedMotion:'reduce'});
  page.on('pageerror',console.error);
  const seed=game.newGame(); seed.branches[0].tier=2;
  await page.addInitScript(s=>{localStorage.setItem('motor-empire.v9',JSON.stringify(s));},seed);
@@ -36,45 +37,62 @@ const url=process.env.GRAPHICS_URL || 'http://127.0.0.1:8397';
    const ext=gl.getExtension('WEBGL_debug_renderer_info');
    const backend=ext&&gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
    const timer=gl.getExtension('EXT_disjoint_timer_query_webgl2');
-   const queries=[];
-   let calls=0,drawAt,baseline=performance.now(),first,js=[],finish=[],query,collect=false;
-   for(const key of ['drawArrays','drawElements','drawArraysInstanced','drawElementsInstanced']){
-    const draw=gl[key].bind(gl);gl[key]=(...args)=>{calls++;draw(...args);};
+   const samples=[];
+   const start=performance.now();
+   let sample, current, first;
+   for (const key of ['drawArrays','drawElements','drawArraysInstanced','drawElementsInstanced']) {
+    const draw=gl[key].bind(gl);
+    gl[key]=(...args)=>{
+     if (current) current.calls++;
+     draw(...args);
+    };
    }
    const clear=gl.clear.bind(gl);
    gl.clear=(...args)=>{
-    if (drawAt===undefined) {
-     drawAt=performance.now();
-     if (collect && timer) {
-      query=gl.createQuery();
-      gl.beginQuery(timer.TIME_ELAPSED_EXT,query);
+    if (gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING)===null) {
+     first ??= performance.now();
+     if (sample && !current) {
+      const frame={begin:performance.now(),calls:0,query:timer ? gl.createQuery() : null};
+      current=frame;
+      if (frame.query) gl.beginQuery(timer.TIME_ELAPSED_EXT,frame.query);
+      queueMicrotask(()=>{
+       frame.submitMs=+(performance.now()-frame.begin).toFixed(2);
+       if (frame.query) gl.endQuery(timer.TIME_ELAPSED_EXT);
+       current=null;
+       const complete=sample;
+       sample=null;
+       complete(frame);
+      });
      }
     }
-    if(first===undefined)first=drawAt;
     clear(...args);
    };
    const renderer=createRenderer(canvas,{quality,aa,shadows,reflections,fps:60,resolution:'auto',meter:false},{status(){}});
-   const init=Math.round(performance.now()-baseline);
+   const init=Math.round(performance.now()-start);
    renderer.update([]);
-   while(canvas.dataset.glb!=='ready' && performance.now()-baseline<15000) await new Promise(r=>requestAnimationFrame(r));
-   if(canvas.dataset.glb!=='ready') throw Error('Platform GLB did not load');
-   const geometryMs=Math.round(performance.now()-baseline);
-   for(let i=0;i<9;i++){
-    drawAt=undefined;calls=0;collect=i>1;
-    renderer.reset();
-    await new Promise(r=>requestAnimationFrame(r));
-    const before=performance.now();
-    if(query) {gl.endQuery(timer.TIME_ELAPSED_EXT);queries.push(query);query=null;}
-    collect=false;
-    gl.finish();const after=performance.now();
-    if (i>1 && drawAt!==undefined) {js.push(+((before-drawAt).toFixed(2)));finish.push(+((after-before).toFixed(2)));}
+   while (canvas.dataset.glb!=='ready' && performance.now()-start<15000) {
+    await new Promise(resolve=>requestAnimationFrame(resolve));
    }
-   await new Promise(r=>requestAnimationFrame(r));
+   if (canvas.dataset.glb!=='ready') throw Error('Platform GLB did not load');
+   const geometryMs=Math.round(performance.now()-start);
+   for (let i=0;i<9;i++) {
+    const frame=await new Promise(resolve=>{sample=resolve;renderer.reset();});
+    if (i>1) samples.push(frame);
+    else if (frame.query) gl.deleteQuery(frame.query);
+   }
+   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
    const disjoint=timer && gl.getParameter(timer.GPU_DISJOINT_EXT);
-   const deviceMs=disjoint ? [] : queries.filter(q=>gl.getQueryParameter(q,gl.QUERY_RESULT_AVAILABLE))
-     .map(q=>+(gl.getQueryParameter(q,gl.QUERY_RESULT)/1e6).toFixed(2));
-   for (const q of queries) gl.deleteQuery(q);
-   stats.push({quality,aa,shadows,reflections,backend,timer:Boolean(timer),deviceMs,init,firstClear:Math.round(first-baseline),geometryMs,js,finish,calls,width:canvas.width,height:canvas.height});
+   const deviceMs=[];
+   for (const {query} of samples) {
+    if (!query) continue;
+    if (!disjoint && gl.getQueryParameter(query,gl.QUERY_RESULT_AVAILABLE)) {
+     deviceMs.push(+(gl.getQueryParameter(query,gl.QUERY_RESULT)/1e6).toFixed(2));
+    }
+    gl.deleteQuery(query);
+   }
+   stats.push({quality,aa,shadows,reflections,backend,timer:Boolean(timer),deviceMs,init,
+    firstFrameStartMs:Math.round(first-start),geometryMs,submitMs:samples.map(frame=>frame.submitMs),
+    calls:samples.map(frame=>frame.calls),width:canvas.width,height:canvas.height});
    renderer.dispose();canvas.remove();
   }
   return stats;

@@ -37,3 +37,16 @@ node tests/graphics-profile.cjs
 ```
 
 Gerekirse `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH` ve `GRAPHICS_URL` ayarla. Karşılaştırılacak iki commit için aynı tarayıcı ve host kullan. Platform GLB 6.940 bayt. UASTC test GLB'si 1.492 bayt. Gömülü doku 529 bayt ve 32×32 boyutta. Bu doku üretim sahnesinin parçası değildir. Three.js bellek sayaçları kaynak adedini verir. GPU VRAM baytlarını veya süreç RSS sızıntısını ispatlamaz.
+
+| Aynı Orta profil, yerel soğuk tarayıcı | PR #33 ilk commit'i | Denetim sonrası |
+| --- | ---: | ---: |
+| 3D seçeneğinden platform GLB hazır olana kadar | 5.130 ms | 3.517 ms |
+| Normal karede WebGL çizim çağrısı | 92 | 44 |
+| Çizim çağrılarının JS duvar süresi, 7 kare medyanı | 2,0 ms | 1,0 ms |
+| Yansımalar ve MSAA açık, SwiftShader aygıt sorgusu medyanı | 94,8 ms | 85,3 ms |
+| Yansıma kapalı, gölge ve MSAA açık, aynı sorgu | 27,6 ms | 37,9 ms |
+| MSAA kapalı, yansıma ve gölge açık, aynı sorgu | 51,0 ms | 53,2 ms |
+
+Birer yerel açılış ve 6–7 geçerli aygıt örneği kullanıldı. Başka iki eş koşul çalıştırmasında GLB hazır olma sonucu 3,48–3,82 saniye arasındaydı. Statik sunucu yerel ağa bağlıydı. Bu değerler CDN, mobil ağ veya gerçek oyuncu ölçümü değildir. Ağ, geç shader derlemesi, GPU kuyruğu ve tanılama ek yükü ayrıca süreyi etkileyebilir. Bu nedenle tek soğuk açılıştan kesin yüzde kazanım çıkarılmaz.
+
+Önceki 5 FPS örneği yaklaşık 200 ms kare aralığına karşılık gelir. Profillemede JavaScript gönderim süresi aygıt sorgusundan çok düşük kaldı. Yansıma kapalı kontrolü ve ayrı MSAA kontrolü yazılım rasterizasyonu, PBR ortam örneklemesi ve piksel/örnek maliyetini işaret ediyor. Bu ölçüm gölge güncellemesi olmayan durağan kareyi örnekler. Fiziksel GPU yoğunluğu, shader başına darboğaz, hareket sırasında sürekli FPS ve iPhone pil/ısıl davranışı ölçülmedi. Cephe ve platform instancing varsayılan kaliteyi veya geometrileri düşürmeden 48 çağrıyı kaldırdı. Yansımalar veya MSAA zorunlu olarak kapatılmadı. Eski göstergenin dışladığı 250 ms üzeri kareler artık ölçüme dahil.

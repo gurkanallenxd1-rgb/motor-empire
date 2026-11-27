@@ -47,3 +47,9 @@ Bu tablo ilk v0.17 isteğini, v0.16.1 tabanını ve PR #33 kaynaklarını karş�
 
 - Gerçek zamanlı 3D garaj · [Varsayılan yön](v017-garage-angle-1.webp) · [Döndürülmüş yön](v017-garage-angle-2.webp)
 - Özgün 2D ayrıntılar · [Yamaha MT-25 2024](v017-graphics-yamaha-mt25.webp) · [Kawasaki Z900 2025](v017-graphics-kawasaki-z900.webp) · [KTM 1390 Super Duke R 2024](v017-graphics-ktm-super-duke1390.webp)
+
+## Ölçüm ve görsel inceleme sonucu
+
+- Aynı Orta profilde 92 → 44 çizim çağrısı. SwiftShader aygıt sorgusu medyanı 94,8 → 85,3 ms. Son yapıda yansıma kapalı teşhis koşulunda 37,9 ms. Optimizasyonun etkisi aygıta göre değişir. [Yöntem ve ayrıntılar](../GRAPHICS_ARCHITECTURE.md#performans-doğrulaması)
+- Yerel soğuk ilk etkinleştirmede 3D seçeneğinden platform GLB hazır olana kadar 3,52 saniye ölçüldü. 2D başlatmada Three.js dosyaları istenmedi.
+- İki farklı yönden sahne görseli kontrol edildi. Gösterim ve servis bölümleri ayırt edilebiliyor. Geniş varsayılan açı, sade mobilya/ekipman, gerçek cam kırılımının olmayışı, cam/duvar arkasındaki görsel örtüşme ve billboard ölçeği daha gerçekçi sunumu sınırlıyor. Üç 2D yakın plan aynı motosiklet kayıtlarının özgün görsellerini kullanıyor.
