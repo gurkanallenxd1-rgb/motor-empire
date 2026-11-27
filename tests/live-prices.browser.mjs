@@ -9,6 +9,8 @@ import { chance } from '../characters.mjs';
 import { roadValue } from '../damage.mjs';
 import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
+import { catalog,paintOptions } from '../bikes.mjs';
+import { fitGarage,garageLayout,garageParking } from '../garage-layout.mjs';
 
 const require = createRequire(import.meta.url);
 const {webkit,devices} = require(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
@@ -453,7 +455,7 @@ test('390px WebKit renders both Primavera generations and changes only masked pi
   await ui.market();
   await ui.page.locator('.listing-row canvas').waitFor({state:'visible'});
   const colors = await ui.page.evaluate(async ()=>{
-    const {loadSprite} = await import('/sprite.mjs?v=0.15.2');
+    const {loadSprite} = await import('/sprite.mjs?v=0.15.3');
     const name = 'Vespa Primavera 125';
     const red = await loadSprite({name,year:2024,color:'#c93838'});
     const white = await loadSprite({name,year:2024,color:'#eae6da'});
@@ -566,4 +568,117 @@ test('mobile WebKit can open an automatic sale notification over an active selle
   await ui.tap('.sale-toast');
   assert.equal(await ui.page.locator('#notification-detail').isVisible(),true);
   assert.equal(await ui.page.locator('#meeting').evaluate(item=>item.open),true);
+});
+
+function garageFixture(tier,count) {
+  const state = initial();
+  state.listings = [];
+  state.branches[0].tier = tier;
+  state.branches[0].garage = catalog.slice(0,count).map((model,slot)=>{
+    const paint = paintOptions(model,model.lastYear)[0];
+    return {id:`garage-test-${slot}`,name:model.name,slot,stage:'ready',condition:100,year:model.lastYear,km:2000,
+      value:100000,price:60000,spent:60000,faults:[],color:paint.hex,paintAccent:paint.accent,colorName:paint.name};
+  });
+  return state;
+}
+
+for (const [tier,bays,area,width,height] of [[0,2,80,320,568],[1,5,180,390,844],[2,10,350,844,390],[3,20,700,390,844],[4,40,1400,390,844]]) {
+  test(`mobile WebKit renders all ${bays} garage bays in one scene with tap selection`,async t=>{
+    const seed = garageFixture(tier,bays);
+    const ui = await open(t,width,height,seed);
+    const {page} = ui;
+    await ui.tap('.bottom-nav [data-page=garage]');
+    const canvas = page.locator('#garage-art');
+    await canvas.scrollIntoViewIfNeeded();
+    await page.waitForFunction(()=>document.querySelector('#garage-art').width!==1536);
+    assert.equal(await page.locator('#garage-page canvas#garage-art').count(),1);
+    assert.equal(await page.locator('#bay-pages').count(),0);
+    assert.match(await page.locator('.garage-overview').innerText(),new RegExp(`${number.format(area)} m² · ${bays}/${bays} parkta`.replaceAll('.','\\.')));
+    const plan = garageLayout(bays);
+    const parking = garageParking(plan,seed.branches[0].garage);
+    const {bike,bay} = parking.at(-1);
+    const bounds = await canvas.boundingBox();
+    const scale = fitGarage(plan,bounds.width,bounds.height);
+    const location = {
+      x:bounds.width/2+(bay.x-plan.width/2)*scale,
+      y:bounds.height/2+(bay.y-plan.height/2-plan.bikeWidth*.28)*scale,
+    };
+    if (process.env.GARAGE_SCREENSHOTS) {
+      await page.waitForTimeout(1300);
+      await canvas.screenshot({path:`${process.env.GARAGE_SCREENSHOTS}/garage-${bays}.png`});
+    }
+    await canvas.tap({position:location});
+    await ui.text('#detail-name',bike.name);
+    await ui.tap('#bike-detail form button');
+    if (bays===40) {
+      // Track paints of this canvas only, after the art and thumbnail requests have settled.
+      await canvas.evaluate(node=>{
+        const context = node.getContext('2d');
+        const draw = context.drawImage.bind(context);
+        node.scenePaints = 0;
+        context.drawImage = (...args)=>{
+          if (args.length===9) node.scenePaints++;
+          return draw(...args);
+        };
+      });
+      await page.waitForTimeout(550);
+      const idle = await canvas.evaluate(node=>node.scenePaints);
+      await page.waitForTimeout(280);
+      assert.equal(await canvas.evaluate(node=>node.scenePaints),idle);
+      await canvas.evaluate(canvas=>{
+        const box = canvas.getBoundingClientRect();
+        const send = (type,id,x,y)=>canvas.dispatchEvent(new PointerEvent(type,{
+          pointerType:'touch',pointerId:id,clientX:box.left+x,clientY:box.top+y,bubbles:true,
+        }));
+        const {width:w,height:h} = box;
+        send('pointerdown',1,w*.47,h*.48);
+        send('pointerdown',2,w*.53,h*.52);
+        send('pointermove',1,w*.15,h*.30);
+        send('pointermove',2,w*.85,h*.70);
+        send('pointerup',1,w*.15,h*.30);
+        send('pointerup',2,w*.85,h*.70);
+      });
+      assert.ok(parseInt((await page.locator('.zoom-value').innerText()).slice(1),10)>200);
+      const frame = ()=>canvas.evaluate(el=>el.toDataURL());
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const before = await frame();
+      const rect = await canvas.boundingBox();
+      await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.5);
+      await page.mouse.down();
+      await page.mouse.move(rect.x+rect.width*.72,rect.y+rect.height*.71,{steps:9});
+      await page.mouse.up();
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.notEqual(await frame(),before);
+      assert.equal(await page.locator('#bike-detail').evaluate(node=>node.open),false);
+      await ui.tap('#zoom-reset');
+      await ui.text('.zoom-value','%100');
+      await canvas.tap({position:location});
+      await ui.text('#detail-name',bike.name);
+    }
+  });
+}
+
+test('mobile WebKit previews and confirms the existing upgrade price and immediately uses the larger garage',async t=>{
+  const state = {...garageFixture(0,1),cash:2000000};
+  const ui = await open(t,390,844,state);
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('[data-action=preview-upgrade]');
+  const {page} = ui;
+  assert.match(await page.locator('#garage-upgrade-spec').innerText(),/180 m² · 5 bölme/);
+  assert.match(await page.locator('#garage-upgrade-confirm').innerText(),/500\.000 TL/);
+  assert.equal((await ui.state()).cash,state.cash);
+  await ui.tap('#garage-upgrade-confirm');
+  await page.waitForFunction(()=>document.querySelector('.garage-overview').textContent.includes('1/5 parkta'));
+  assert.equal((await ui.state()).cash,state.cash-500000);
+  assert.equal((await ui.state()).branches[0].garage[0].id,state.branches[0].garage[0].id);
+});
+
+test('mobile WebKit leaves a shipping motorcycle in stock and off the scene',async t=>{
+  const seed = garageFixture(2,0);
+  seed.listings = [fixture];
+  const state = act(seed,'buy',fixture.id);
+  const ui = await open(t,390,844,state);
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.text('.garage-overview','Servis ve galeri · 350 m² · 0/10 parkta');
+  assert.match(await ui.page.locator('#garage').innerText(),/Yolda/);
 });

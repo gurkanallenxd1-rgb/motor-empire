@@ -1,30 +1,32 @@
-import { createNotifications } from './notification-view.mjs?v=0.15.2';
-import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.2';
+import { garageLayout, garageParking } from './garage-layout.mjs?v=0.15.3';
+import { drawGaragePreview } from './garage-scene.mjs?v=0.15.3';
+import { createNotifications } from './notification-view.mjs?v=0.15.3';
+import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.15.3';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
-  workshopRate } from './business.mjs?v=0.15.2';
-import { financeReport } from './finance.mjs?v=0.15.2';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.2';
-import { purchasePreview } from './valuation.mjs?v=0.15.2';
+  workshopRate } from './business.mjs?v=0.15.3';
+import { financeReport } from './finance.mjs?v=0.15.3';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.15.3';
+import { purchasePreview } from './valuation.mjs?v=0.15.3';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.2';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.2';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.2';
-import { createFinanceView } from './finance-view.mjs?v=0.15.2';
-import { dailyCashMovement } from './finance.mjs?v=0.15.2';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.2';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.3';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.15.3';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.15.3';
+import { createFinanceView } from './finance-view.mjs?v=0.15.3';
+import { dailyCashMovement } from './finance.mjs?v=0.15.3';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.15.3';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.15.2';
-import { createGarageRenderer } from './art.mjs?v=0.15.2';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.2';
+} from './game.mjs?v=0.15.3';
+import { createGarageRenderer } from './art.mjs?v=0.15.3';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.15.3';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.2';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.2';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.15.3';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.15.3';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.15.2';
+  repairForecast } from './damage.mjs?v=0.15.3';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -38,7 +40,7 @@ const stages = {
 
 let state;
 let branchId = 1;
-let bayPage = 0;
+let upgradePreview;
 let currentPage = 'home';
 let meetingView;
 let sellerReturn;
@@ -410,8 +412,7 @@ function saleOptions(bike) {
   return panel;
 }
 
-function garageCard(slot) {
-  const bike = activeBranch().garage.find(item => item.slot === slot);
+function garageCard(bike, slot) {
   const card = element('article', '', bike ? 'card' : 'empty');
   card.append(element('p', `BÖLME ${String(slot + 1).padStart(2, '0')}`, 'slot'));
   if (!bike) {
@@ -431,6 +432,10 @@ function garageCard(slot) {
       element('p',`Nakliye · ${money(bike.shipping.fee)} · ${numeric.format(bike.shipping.km)} km`,'spec'));
     return card;
   }
+  const closeup = element('button','Motosiklet detayı');
+  closeup.type = 'button';
+  closeup.addEventListener('click',()=>openBike(bike));
+  card.append(closeup);
   const representation = element('span','Temsili görsel','representative-label');
   representation.hidden = Boolean(spriteFor(bike));
   if (representation.hidden) loadSprite(bike).then(asset=>{ representation.hidden = !asset?.representative; });
@@ -839,21 +844,72 @@ function metric(label, value) {
 }
 
 function renderGarage(branch, action, bike) {
-  drawGarage ??= createGarageRenderer(byId('garage-scene'), openBike);
-  const offset = bayPage * 2;
+  drawGarage ??= createGarageRenderer(byId('garage-scene'),openBike);
   const capacity = branchCapacity(branch);
-  byId('bay-pages').hidden = capacity <= 2;
-  byId('bay-range').textContent = `Bölmeler  ${offset + 1}–${Math.min(offset + 2,capacity)} / ${capacity}`;
-  byId('bays-prev').disabled = bayPage === 0;
-  byId('bays-next').disabled = offset + 2 >= capacity;
-  const inFrame = bike => bike.slot >= offset && bike.slot < offset + 2;
-  const visibleBikes = branch.garage.filter(item => inFrame(item) && !['rented','shipping'].includes(item.stage));
-  byId('garage').dataset.occupied = branch.garage.some(inFrame);
-  byId('garage').replaceChildren(garageCard(offset),...(offset+1<capacity ? [garageCard(offset+1)] : []));
+  const cardList = byId('garage');
+  cardList.dataset.occupied = Boolean(branch.garage.length);
+  const layout = garageLayout(capacity);
+  const parking = garageParking(layout,branch.garage);
+  const assigned = new Map(parking.map(({bike,bay})=>[bike.id,bay.index]));
+  if (capacity===2) {
+    const byBay = new Map(branch.garage.map(item=>[assigned.get(item.id) ?? item.slot,item]));
+    cardList.replaceChildren(...layout.bays.map(({index})=>garageCard(byBay.get(index),index)));
+  } else {
+    const open = new Set([...cardList.querySelectorAll('details[data-stock-key][open]')].map(item=>item.dataset.stockKey));
+    cardList.replaceChildren(...[...branch.garage].sort((a,b)=>
+      (assigned.get(a.id) ?? a.slot)-(assigned.get(b.id) ?? b.slot)).map(item=>{
+      const bay = assigned.get(item.id) ?? item.slot;
+      if (capacity<=10) return garageCard(item,bay);
+      const group = element('details','','card stock-card');
+      group.dataset.stockKey = `${branch.id}:${item.id}`;
+      const summary = element('summary',`${item.name} · ${stages[item.stage]}`);
+      group.append(summary);
+      const populate = ()=>{
+        if (group.open && group.children.length===1) group.append(garageCard(item,bay));
+      };
+      group.open = open.has(group.dataset.stockKey);
+      populate();
+      group.addEventListener('toggle',populate);
+      return group;
+    }));
+  }
   byId('garage-returns').replaceChildren(...(state.waitingReturns ?? []).filter(item=>item.branchId===branch.id)
     .map(item=>actionButton(`İade bekliyor · ${item.bike.name}`,'take-return',item.bike.id,branch.garage.length>=capacity)));
-  drawGarage(visibleBikes, action, bike && bike.stage !== 'shipping' && inFrame(bike) ? bike : undefined, offset, branch.id);
+  drawGarage(parking,action,bike,layout,branch.id);
 }
+
+function previewUpgrade(id) {
+  const branch = state.branches.find(item=>item.id===id);
+  const plan = branch && nextBranchTier(branch);
+  if (!plan) return;
+  upgradePreview = {id,capacity:plan.capacity,increase:plan.increase};
+  const layout = garageLayout(plan.capacity);
+  const spec = `${branch.name} · ${layout.name} · ${layout.area.toLocaleString('tr-TR')} m² · ${plan.capacity} bölme`;
+  byId('garage-upgrade-spec').textContent = spec;
+  const confirm = byId('garage-upgrade-confirm');
+  confirm.textContent = `Yükselt · ${money(plan.increase)}`;
+  confirm.disabled = state.cash<plan.increase;
+  byId('garage-upgrade-error').textContent = confirm.disabled ? 'Yükseltme için yeterli nakit yok.' : '';
+  const canvas = byId('garage-upgrade-art');
+  canvas.setAttribute('aria-label',spec);
+  void drawGaragePreview(canvas,layout);
+  if (!byId('garage-upgrade').open) byId('garage-upgrade').showModal();
+}
+
+byId('garage-upgrade-confirm').addEventListener('click',async ()=>{
+  const {id,capacity,increase} = upgradePreview;
+  const button = byId('garage-upgrade-confirm');
+  button.disabled = true;
+  if (!await runAction('upgrade-office',undefined,{capacity,increase},id)) {
+    previewUpgrade(id);
+    byId('garage-upgrade-error').textContent = byId('notice').textContent || 'Yükseltme tamamlanamadı.';
+    return;
+  }
+  byId('garage-upgrade').close();
+  branchId = id;
+  showPage('garage');
+  render();
+});
 
 function field(label,input) {
   const node = element('label',label);
@@ -960,7 +1016,7 @@ function renderBusiness() {
       element('p',`Günlük sabit gider ${money(operatingCost(branch))}`,'spec'),
       element('p',`Bugün gelir ${money(today.revenue)} · gider ${money(today.operatingCost)} · net kâr ${signed(today.profit)}`,'spec'),
       element('p',`Satış ${summary.totals.salesCount} · Toplam gelir ${money(summary.totals.revenue)} · Net kâr ${signed(summary.totals.profit)}`,'spec'),
-      plan ? actionButton(`${plan.name} seviyesine yükselt · ${money(plan.increase)}`,'upgrade-office',branch.id,state.cash<plan.increase)
+      plan ? actionButton(`${plan.name} önizlemesi · ${money(plan.increase)}`,'preview-upgrade',branch.id)
         : element('p','En yüksek şube seviyesi','spec'),automationForm(branch));
     const automation = automationReport(branch);
     automation.open = open.has(String(branch.id));
@@ -1095,7 +1151,6 @@ async function runAction(action, id, amount, targetBranch = branchId) {
     if (isPurchase) {
       if (byId('listing-detail').open) byId('listing-detail').close();
       branchId = targetBranch;
-      bayPage = Math.floor(animationBike.slot/2);
       showPage('garage');
     }
     render(isPurchase && animationBike.stage !== 'shipping' ? 'buy' : action,animationBike);
@@ -1131,6 +1186,8 @@ document.addEventListener('click', async event => {
   } else if (action === 'more-inspections') {
     archiveLimit += 20;
     renderMarket();
+  } else if (action === 'preview-upgrade') {
+    previewUpgrade(Number(id));
   } else if (action === 'open-listing') {
     openListing(id);
   } else if (action === 'open-buyer') {
@@ -1336,11 +1393,8 @@ byId('meeting').addEventListener('close',()=>{
 
 byId('branch').addEventListener('change', event => {
   branchId = Number(event.target.value);
-  bayPage = 0;
   render();
 });
-byId('bays-prev').addEventListener('click', () => { bayPage -= 1; render(); });
-byId('bays-next').addEventListener('click', () => { bayPage += 1; render(); });
 byId('credit-form').addEventListener('submit', async event => {
   event.preventDefault();
   const amount = byId('credit-amount');

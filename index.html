@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.15.2">
-  <script type="module" src="./app.mjs?v=0.15.2"></script>
+  <link rel="stylesheet" href="./style.css?v=0.15.3">
+  <script type="module" src="./app.mjs?v=0.15.3"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.15.2</span>
+      <span class="version">SÜRÜM 0.15.3</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
       <button id="notification-bell" type="button" aria-label="Bildirim merkezi" aria-haspopup="dialog">
         <span aria-hidden="true">🔔</span><span id="notification-count" hidden>0</span>
@@ -61,22 +61,16 @@
       <section class="workshop page" id="garage-page" aria-labelledby="garage-title" hidden>
         <header class="section-head"><div><p class="eyebrow">ATÖLYE</p><h2 id="garage-title">Garajım</h2></div><button type="button" data-page="market">İlanlar →</button></header>
         <div class="scene" id="garage-scene">
-          <canvas id="garage-art" width="1536" height="1024" aria-hidden="true"></canvas>
-          <p class="scene-status" role="status">Atölye yükleniyor…</p>
-          <button type="button" class="bike-target" hidden></button>
-          <button type="button" class="bike-target" hidden></button>
+          <canvas id="garage-art" width="1536" height="1024" tabindex="0" aria-label="İzometrik garaj"></canvas>
         </div>
         <div class="camera-bar" role="group" aria-label="Garaj kamerası">
-          <span class="camera-hint">Motosiklete dokun</span>
+          <span class="zoom-value" aria-hidden="true">%100</span>
           <button type="button" id="zoom-out" aria-label="Uzaklaştır">−</button>
-          <button type="button" id="zoom-reset" aria-label="Kamerayı ortala"><span class="zoom-value">%100</span></button>
+          <button type="button" id="zoom-reset">Tüm garajı göster</button>
           <button type="button" id="zoom-in" aria-label="Yakınlaştır">+</button>
         </div>
-        <div id="bay-pages" class="bay-pages" hidden>
-          <button id="bays-prev" type="button" aria-label="Önceki bölmeler">‹</button>
-          <span id="bay-range" aria-live="polite"></span>
-          <button id="bays-next" type="button" aria-label="Sonraki bölmeler">›</button>
-        </div>
+        <p class="garage-overview spec"></p>
+        <p class="camera-hint">Sürükleyerek gezin · İki parmakla yakınlaştır · Motosiklete dokun</p>
         <div id="garage-returns" class="quick-actions"></div>
         <div id="garage" class="garage"></div>
       </section>
@@ -208,6 +202,16 @@
     <button type="button" data-page="business"><span aria-hidden="true">▥</span>İşletmeler</button>
     <button type="button" data-page="finance"><span aria-hidden="true">₺</span>Finans</button>
   </nav>
+  <dialog id="garage-upgrade" aria-labelledby="garage-upgrade-title">
+    <header class="notification-heading">
+      <h2 id="garage-upgrade-title">Garaj önizlemesi</h2>
+      <form method="dialog"><button type="submit" aria-label="Önizlemeyi kapat">×</button></form>
+    </header>
+    <p id="garage-upgrade-spec" class="spec"></p>
+    <canvas id="garage-upgrade-art" width="900" height="560" role="img"></canvas>
+    <p id="garage-upgrade-error" class="spec" role="status"></p>
+    <button id="garage-upgrade-confirm" class="primary" type="button">Yükselt</button>
+  </dialog>
   <dialog id="bike-detail" aria-labelledby="detail-name">
     <form method="dialog"><button type="submit" aria-label="Yakın planı kapat">×</button></form>
     <canvas id="detail-image" role="img" hidden></canvas>
