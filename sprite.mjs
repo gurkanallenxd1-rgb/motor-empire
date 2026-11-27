@@ -1,7 +1,7 @@
-import { modelOf, paintOptions } from './bikes.mjs?v=0.15';
-import { approvedSprites } from './sprite-catalog.mjs?v=0.15';
-import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.15';
-import { generationFor } from './generations.mjs?v=0.15';
+import { modelOf, paintOptions } from './bikes.mjs?v=0.15.1';
+import { approvedSprites } from './sprite-catalog.mjs?v=0.15.1';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.15.1';
+import { generationFor } from './generations.mjs?v=0.15.1';
 
 export function spriteFor(bike, entries = approvedSprites) {
   const model = modelOf(bike);
@@ -65,7 +65,7 @@ function loadWebP(path) {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = reject;
-    image.src = new URL(`./assets/${path}?v=0.15`,import.meta.url).href;
+    image.src = new URL(`./assets/${path}?v=0.15.1`,import.meta.url).href;
   });
   if (sources.size >= 12) sources.delete(sources.keys().next().value);
   sources.set(path,pending);
@@ -117,8 +117,9 @@ export function loadSprite(bike) {
     }
     const generation = generationFor(model.id,bike.year);
     if (generation) {
-      const image = await compose(generation.base,generation.mask,color,1080,generation.rect,accent);
-      return {image,representative:true};
+      const image = await compose(generation.base,generation.mask,color,generation.minWidth ?? 1080,generation.rect,accent)
+        .catch(()=>null);
+      if (image) return {image,representative:true};
     }
     const cell = atlasFor(model.id);
     if (cell) {

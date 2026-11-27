@@ -1,7 +1,7 @@
-import { catalog, paintOptions } from './bikes.mjs?v=0.15';
-import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.15';
-import { renderSprite, spriteFor } from './sprite.mjs?v=0.15';
-import { generationFor } from './generations.mjs?v=0.15';
+import { catalog, paintOptions } from './bikes.mjs?v=0.15.1';
+import { atlasFor, legacySprite } from './model-atlas.mjs?v=0.15.1';
+import { renderSprite, spriteFor } from './sprite.mjs?v=0.15.1';
+import { generationFor } from './generations.mjs?v=0.15.1';
 
 const observations = {
   'honda-cb125f': 'Köşeli ön far seçiliyor. Depo kaplaması, egzoz ve jantın kasa yılı doğrulanamıyor.',
@@ -25,6 +25,7 @@ const observations = {
   'bajaj-dominar400': 'Geniş egzoz ve ön maske görülüyor. Depo, egzoz ve şasinin model yılı doğrulanamıyor.',
   'kawasaki-ninja400': 'Çift farlı spor grenaj izlenimi var. Ön yüz, yan grenaj ve jantın kasa eşleşmesi belirsiz.',
   'kawasaki-z900': 'Çıplak dört silindirli tasarım izlenimi var. Far, depo ve şasinin üretim nesli doğrulanamıyor.',
+  'vespa-primavera125': 'Özgün model çizimi. Üretici teknik föyü referans alınmıştır. Kasa ve renk, üretici onayı yerine temsili olarak gösterilir.',
   'rks-arome125': 'Yuvarlak far ve retro gövde görülüyor. Delight’tan ayrılan kaporta, jant ve egzoz ayrıntıları belirsiz.',
 };
 
@@ -55,7 +56,7 @@ function startAudit() {
     note.className = 'muted';
     const reference = element('figure');
     const old = element('img');
-    if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.15`;
+    if (legacySprite(model.id)) old.src = `./assets/models/${model.id}.webp?v=0.15.1`;
     old.loading = 'lazy';
     old.alt = model.name + ' için v0.5 inceleme çizimi';
     reference.append(old,element('figcaption','v0.5 çizimi · Kasa doğrulaması yok'));
@@ -120,7 +121,7 @@ function startAudit() {
       const {card,model,year,reference} = item;
       reference.hidden = !baseline.checked || !legacySprite(model.id);
       if (spriteFor({name:model.name,year:Number(year.value)})) covered += 1;
-      if (legacySprite(model.id) || atlasFor(model.id)) modelArt += 1;
+      if (generationFor(model.id,Number(year.value)) || legacySprite(model.id) || atlasFor(model.id)) modelArt += 1;
       if (!observer || visible.has(card)) renderCard(item);
     }
     summary.textContent = `${cards.length} model · ${modelArt} modele özel çizim · ${covered} doğrulanmış kasa`;

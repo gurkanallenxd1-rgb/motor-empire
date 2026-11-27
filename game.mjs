@@ -1,21 +1,22 @@
+import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.15.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff, branchProvince, createOffice,
-  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.15';
-import { modelOf } from './bikes.mjs?v=0.15';
-import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15';
+  firstWorkshopJob, hasManager, jobWork, makeEmployee, upgradeOption, validAutomation, workers, workshopRate } from './business.mjs?v=0.15.1';
+import { modelOf } from './bikes.mjs?v=0.15.1';
+import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.15.1';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.15';
-import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.15';
+  setReputation } from './characters.mjs?v=0.15.1';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.15.1';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.15';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.15';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.15';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.15';
-import { answerBuyer, arrive, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.15';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.15.1';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.15.1';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.15.1';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.15.1';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.15.1';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.15.1';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.15';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.15';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.15.1';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.15.1';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -784,8 +785,13 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       message = 'Motosiklet iş sırasına alındı.';
       break;
     }
+    case 'pause-bike-automation':
+      if (!bike) throw new Error('Motosiklet bulunamadı.');
+      bike.autoPaused = !bike.autoPaused;
+      message = bike.autoPaused ? 'Motosiklet manuel yönetime alındı.' : 'Motosiklet otomasyona açıldı.';
+      break;
     case 'set-automation':
-      if (!validAutomation(amount) || (amount.buy || amount.sell) && !hasManager(branch)) {
+      if (!validAutomation(amount) || Object.keys(AUTO_STEPS).some(step=>stepEnabled(amount,step)) && !hasManager(branch)) {
         throw new Error('Ayarları kontrol edin. Otomasyon için görevde bir müdür gerekiyor.');
       }
       branch.automation = {...amount};
@@ -913,38 +919,97 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
   return { state: next, message };
 }
 
-function automate(state) {
+function automate(state,{daily=true}={}) {
   for (const branch of state.branches) {
     const config = branch.automation;
-    if (!config || !hasManager(branch) || branch.lastAutomationDay===state.day) continue;
-    branch.lastAutomationDay = state.day;
-    if (config.sell) {
-      for (const bike of [...branch.garage]) {
-        if (bike.stage==='ready' && !bike.faults.length) {
-          applyAction(state,'list-strategy',bike.id,{strategy:hasDocuments(bike) ? 'documented' : 'repaired',
-            price:Math.max(roadValue(bike),Math.ceil(bike.spent+config.minProfit))},branch.id);
-          continue;
-        }
-        if (bike.stage!=='listed' || bike.faults.length || bike.disclosureMode!=='disclose' || isRisky(bike.tradeStrategy)) continue;
-        const offer = bike.meetings.filter(meeting=>isActive(meeting) && !meeting.held && !meeting.round && meeting.price-bike.spent>=config.minProfit)
-          .sort((a,b)=>b.price-a.price)[0];
-        if (offer) applyAction(state,'sell',bike.id,offer.id,branch.id);
+    const manager = bestStaff(branch,'manager');
+    if (!config || !manager || daily && branch.lastAutomationDay===state.day) continue;
+    if (!Object.keys(AUTO_STEPS).some(step=>stepEnabled(config,step))) continue;
+    const time = gameTime(state.day,state.clock?.offset);
+    const report = branch.autoReport ??= {history:[],rejections:[],rejectionCounts:{}};
+    const statuses = new Set();
+    let performed = false;
+    const reserve = config.reserve ?? 0;
+    const run = (step,action,bike,worker,arg)=>{
+      applyAction(state,action,bike.id,arg,branch.id);
+      report.history.unshift({day:state.day,time,step,id:bike.id,name:bike.name,worker:worker.name});
+      report.history.length = Math.min(report.history.length,40);
+      performed = true;
+    };
+    const inspector = bestStaff(branch,'inspector');
+    const master = bestStaff(branch,'master');
+    const advisor = bestStaff(branch,'sales');
+    for (const bike of [...branch.garage]) {
+      if (bike.autoPaused) continue;
+      if (bike.stage==='unchecked' && stepEnabled(config,'inspect')) {
+        if (inspector) run('inspect','internal-inspect',bike,inspector);
+        else statuses.add('Ekspertiz uzmanı bekleniyor');
+      }
+      if (bike.stage==='inspected' && bike.faults.length && stepEnabled(config,'repair')) {
+        if (!master) statuses.add('Usta bekleniyor');
+        else if (state.cash-repairQuote(bike).cost<reserve) statuses.add('Tamir için nakit rezervi korunuyor');
+        else run('repair','internal-repair',bike,master);
+      }
+      if (bike.stage==='ready' && !bike.faults.length && stepEnabled(config,'list')) {
+        if (!advisor) statuses.add('Satış danışmanı bekleniyor');
+        else run('list','list-strategy',bike,advisor,{strategy:hasDocuments(bike) ? 'documented' : 'repaired',
+          price:Math.max(1,roadValue(bike),Math.ceil(bike.spent+config.minProfit))});
+      }
+      if (!daily || bike.stage!=='listed' || bike.faults.length || bike.disclosureMode!=='disclose' || isRisky(bike.tradeStrategy)) continue;
+      if (!stepEnabled(config,'negotiate') && !stepEnabled(config,'sell')) continue;
+      if (!advisor) { statuses.add('Satış danışmanı bekleniyor'); continue; }
+      const active = bike.meetings.filter(meeting=>isActive(meeting) && !meeting.held && (!meeting.round || meeting.staffHandled));
+      active.sort((a,b)=>b.price-a.price);
+      const offer = active[0];
+      if (!offer) { statuses.add('Uygun müşteri bekleniyor'); continue; }
+      const target = bike.spent+config.minProfit;
+      const question = buyerQuestion(offer);
+      if (stepEnabled(config,'negotiate') && question) {
+        offer.staffHandled = true;
+        run('negotiate','answer-buyer',bike,advisor,{meetingId:offer.id,topic:question,
+          choice:hasDocuments(bike) ? 'document' : 'disclose'});
+      }
+      if (stepEnabled(config,'negotiate') && offer.round<MAX_ROUNDS && offer.patience>0 && offer.status==='open'
+          && (offer.price<target || staffQuality(advisor)>.68 && !offer.round)) {
+        offer.staffHandled = true;
+        run('negotiate','negotiate',bike,advisor,offer.id);
+      }
+      if (stepEnabled(config,'sell') && isActive(offer)) {
+        if (bike.damageHistory?.length && question && !offer.dialogue?.disclosed) statuses.add('Hasar geçmişi açıklaması bekleniyor');
+        else if (offer.price>=target) run('sell','sell',bike,advisor,offer.id);
+        else statuses.add('Asgari satış kârına ulaşılmadı');
       }
     }
-    if (!config.buy) continue;
-    let budget = config.budget;
-    for (const item of [...state.listings]) {
-      if (branch.garage.length>=branchCapacity(branch)) break;
-      if (isYusufListing(item) || item.seller || item.inspections?.length || item.price>config.maxPrice) continue;
-      const model = modelOf(item);
-      if (!model || (config.brand && model.brand!==config.brand) || model.cc<config.minCc || model.cc>config.maxCc) continue;
-      const known = visibleListing(item);
-      if (known.faults.length || known.damageHistory?.length) continue;
-      const estimate = purchaseForecast(item,item.price,branchProvince(branch));
-      if (estimate.total>budget || estimate.total>state.cash || estimate.profit<config.minProfit) continue;
-      applyAction(state,'buy',item.id,undefined,branch.id);
-      budget -= estimate.total;
+    if (daily) branch.lastAutomationDay = state.day;
+    if (daily && stepEnabled(config,'buy')) {
+      let budget = config.budget;
+      const {candidates,rejected} = rankMarket(state.listings,config,item=>purchaseForecast(item,item.price,branchProvince(branch)),
+        inspector && stepEnabled(config,'inspect'),manager);
+      let bought = 0;
+      const addRejection = (item,reason)=>rejected.push({id:item.id,name:item.name,reason});
+      for (const {item,total} of candidates) {
+        if (branch.garage.length>=branchCapacity(branch)) addRejection(item,'Garaj kapasitesi dolu');
+        else if (total>budget) addRejection(item,'Günlük alım bütçesi');
+        else if (total>state.cash-reserve) addRejection(item,'Nakit rezervi');
+        else {
+          run('buy','buy',item,manager);
+          budget -= total;
+          bought++;
+          const bike = branch.garage.find(entry=>entry.id===item.id);
+          if (bike.stage==='unchecked' && stepEnabled(config,'inspect') && inspector) run('inspect','internal-inspect',bike,inspector);
+        }
+      }
+      const counts = {};
+      for (const {reason} of rejected) counts[reason] = (counts[reason] ?? 0)+1;
+      // Keep rejection totals for the entire market with readable examples per cause.
+      const sampled = {};
+      report.rejections = rejected.filter(({reason})=>(sampled[reason]=(sampled[reason] ?? 0)+1)<=3);
+      report.rejectionCounts = counts;
+      if (!bought) statuses.add(branch.garage.length>=branchCapacity(branch) ? 'Garaj kapasitesi dolu'
+        : counts['Nakit rezervi'] ? 'Nakit rezervi korunuyor'
+        : counts['Günlük alım bütçesi'] ? 'Günlük alım bütçesi yetersiz' : 'Kurallara uyan ilan bulunamadı');
     }
+    report.status = [...statuses].join(' · ') || (performed ? 'Otomatik işlem tamamlandı' : 'Uygun iş bekleniyor');
   }
 }
 
@@ -1062,7 +1127,8 @@ export function nextRiskEvent(state) {
     }
   }
   for (const branch of state.branches) for (const bike of branch.garage) {
-    due = Math.min(due,bike.claim?.due ?? Infinity,bike.ride?.end ?? Infinity);
+    due = Math.min(due,bike.claim?.due ?? Infinity,bike.ride?.end ?? Infinity,
+      bike.stage==='shipping' ? deliveryTime(bike) : Infinity);
   }
   for (const sale of state.sales) {
     if (sale.complaint) due = Math.min(due,complaintTime(sale.complaint));
@@ -1089,20 +1155,25 @@ export function synchronize(state, now) {
     const step = Math.min(remaining,DAY_MS-clock.offset,Math.max(0,due-current));
     remaining -= step;
     clock.offset += step;
-    summary.delivered += deliver(next,gameTime(next.day,clock.offset));
+    const newlyDelivered = deliver(next,gameTime(next.day,clock.offset));
+    summary.delivered += newlyDelivered;
+    let workChanged = newlyDelivered>0;
     for (const branch of next.branches) {
       const internal = workInternal(branch,step,next.day);
       summary.completed += internal.completed;
       summary.inspected += internal.inspected;
+      workChanged ||= Boolean(internal.completed || internal.inspected);
       const workEnd = current+step;
       for (const worker of workers(branch)) {
         if (worker.travel!==undefined && worker.travel<=workEnd) {
           delete worker.travel;
           summary.staffEvents++;
+          workChanged = true;
         }
         if (worker.training!==undefined && worker.training<=workEnd) {
           delete worker.training;
           summary.staffEvents++;
+          workChanged = true;
           worker.experience++;
           worker.skill = Math.min(100,worker.skill+6);
           worker.speed = Math.min(100,worker.speed+4);
@@ -1112,8 +1183,11 @@ export function synchronize(state, now) {
       }
       branch.workMs ??= 0;
       const capacity = Math.max(0,repairCapacity(branch)*HOUR_MS-branch.workMs);
-      summary.completed += workRepairs(branch,next.day,Math.min(step*(1+branch.staff),capacity));
+      const externalDone = workRepairs(branch,next.day,Math.min(step*(1+branch.staff),capacity));
+      summary.completed += externalDone;
+      workChanged ||= externalDone>0;
     }
+    if (workChanged && clock.offset<DAY_MS) automate(next,{daily:false});
     if (clock.offset === DAY_MS) {
       const result = applyAction(next,'advance',undefined,undefined,1,true);
       summary.days++;

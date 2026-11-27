@@ -51,3 +51,33 @@ test('factory variants and retained paint contribute to the same sprite identity
   assert.notEqual(spriteKey({...early,paintAccent:'#113377'}),spriteKey(early));
   assert.equal(spriteKey({...early,stage:'repairing',spent:41900}),spriteKey(early));
 });
+
+test('each catalog model, production year and palette maps to an existing model-specific image',async()=>{
+  const {existsSync} = await import('node:fs');
+  const {catalog,paintOptions} = await import('./bikes.mjs');
+  const {atlasFor,legacySprite} = await import('./model-atlas.mjs');
+  const occupied = new Map();
+  for (const model of catalog) for (let year=model.firstYear;year<=model.lastYear;year++) {
+    const palette = paintOptions(model,year);
+    assert.ok(palette.length && palette.every(paint=>/^#[a-f0-9]{6}$/i.test(paint?.hex)),model.id+' '+year);
+    const art = generationFor(model.id,year) ?? atlasFor(model.id) ?? (legacySprite(model.id) && {
+      base:`models/${model.id}.webp`,mask:`model-masks/${model.id}.webp`,
+    });
+    assert.ok(art,model.id+' '+year);
+    for (const path of [art.base,art.mask]) assert.ok(existsSync(new URL('./assets/'+path,import.meta.url)),path);
+    const key = JSON.stringify([art.base,art.rect]);
+    assert.ok(!occupied.has(key) || occupied.get(key)===model.id,'Duplicate source assignment: '+model.id);
+    occupied.set(key,model.id);
+  }
+  assert.notEqual(spriteKey({name:'Vespa Primavera 125',year:2023}),spriteKey({name:'Vespa Primavera 125',year:2024}));
+});
+
+test('adding the Easter egg cannot shift packed models into their neighbours’ cells',async()=>{
+  const {atlasFor} = await import('./model-atlas.mjs');
+  const firstAfterEasterEgg = atlasFor('ktm-rc125');
+  assert.equal(firstAfterEasterEgg.base,'expanded/pack-08.webp');
+  assert.deepEqual(firstAfterEasterEgg.rect,[0,0,320,248]);
+  assert.deepEqual(atlasFor('harley-sportster-s').rect,[320,248,320,248]);
+  assert.deepEqual(atlasFor('vespa-primavera125').rect,[640,248,320,248]);
+  assert.equal(atlasFor('ktm-super-duke1390'),null);
+});

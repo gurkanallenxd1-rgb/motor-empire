@@ -1,6 +1,6 @@
-import { stableNumber } from './characters.mjs?v=0.15';
-import { DAY_MS,HOUR_MS } from './clock.mjs?v=0.15';
-import { ISTANBUL, provinceOf } from './provinces.mjs?v=0.15';
+import { stableNumber } from './characters.mjs?v=0.15.1';
+import { DAY_MS,HOUR_MS } from './clock.mjs?v=0.15.1';
+import { ISTANBUL, provinceOf } from './provinces.mjs?v=0.15.1';
 
 export const BRANCH_TIERS = Object.freeze([
   {name:'Küçük',capacity:2,cost:250000},{name:'Orta',capacity:5,cost:750000},
@@ -36,6 +36,8 @@ export function upgradeOption(branch,legacyCapacity,legacyInvestment) {
 
 export function validAutomation(config) {
   return config && typeof config.buy==='boolean' && typeof config.sell==='boolean'
+    && ['inspect','repair','list','negotiate'].every(key=>config[key]===undefined || typeof config[key]==='boolean')
+    && (config.reserve===undefined || Number.isSafeInteger(config.reserve) && config.reserve>=0 && config.reserve<=100000000)
     && ['maxPrice','minProfit','budget'].every(key=>Number.isSafeInteger(config[key]) && config[key]>=0 && config[key]<=100000000)
     && typeof config.brand==='string' && config.brand.length<=35
     && Number.isInteger(config.minCc) && Number.isInteger(config.maxCc) && config.minCc>=0
@@ -47,7 +49,7 @@ export function workshopRate(branch,kind) {
   const roles = kind==='internalInspection' ? ['inspector'] : ['master','technician','apprentice'];
   if (kind==='internalRepair' && !staff.some(worker=>worker.role==='master')) return 0;
   return staff.filter(worker=>roles.includes(worker.role)).reduce((sum,worker)=>
-    sum+Math.round((worker.speed+worker.skill+worker.motivation)/3*(worker.role==='apprentice' ? .45 : 1)),0);
+    sum+Math.round((worker.speed+worker.skill+worker.motivation+Math.min(100,65+worker.experience*3))/4*(worker.role==='apprentice' ? .45 : 1)),0);
 }
 
 export function createOffice(id,province,tier) {
