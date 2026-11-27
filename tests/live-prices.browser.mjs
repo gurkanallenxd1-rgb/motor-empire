@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { DAY_MS,HOUR_MS } from '../clock.mjs';
 import { newGame,perform,purchaseAnalysis,synchronize } from '../game.mjs';
+import { buyerComplaint } from '../risk.mjs';
+import { roadValue } from '../damage.mjs';
 import { createBuyer } from '../trade.mjs';
 import { purchasePreview } from '../valuation.mjs';
 
@@ -301,3 +303,57 @@ for (const [id,urgency,discounted] of [['auto-0','urgent',true],['auto-2','patie
     assert.equal(Number(await ui.page.locator('#player-offer').inputValue()),current.seller.price);
   });
 }
+
+function strategyFixture(strategy) {
+  const seed = initial();
+  seed.listings = [];
+  seed.branches[0].garage = [{...fixture,stage:'inspected',slot:0,spent:29000,
+    garageInspection:{package:'full',title:'Garaj ekspertizi',result:[],completedDay:1}}];
+  const selling = act(seed,'list-strategy',fixture.id,{strategy,price:60000});
+  const bike = selling.branches[0].garage[0];
+  let meeting;
+  for (let index=0;index<250;index++) {
+    meeting = createBuyer(bike,1,index,50,roadValue(bike));
+    if (strategy!=='conceal' || buyerComplaint(bike,`${meeting.id}:settled`)) break;
+  }
+  meeting.request='history';
+  bike.meetings=[meeting];
+  return selling;
+}
+
+test('mobile documented trade saves a customer answer and shows reviews and reputation',async t=>{
+  const ui = await open(t,390,844,strategyFixture('documented'));
+  await ui.tap('.bottom-nav [data-page=garage]');
+  await ui.tap('[data-action=open-buyer]');
+  await ui.tap('#meeting-questions > summary');
+  await ui.tap('#meeting-answer-actions button:text-is("Belgeyi göster")');
+  await ui.page.waitForFunction(()=>document.querySelector('#meeting-answer-history').textContent.includes('Belgeyi göster'));
+  await ui.tap('#meeting-confirm');
+  await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).trade.reviews?.length===1);
+  await ui.tap('.bottom-nav [data-page=home]');
+  await ui.tap('summary:text-is("Galeri profili")');
+  assert.match(await ui.page.locator('#gallery-rating').innerText(),/1 yorum/);
+  assert.match(await ui.page.locator('#gallery-reviews').innerText(),/servis kayıtlarını/);
+  await ui.tap('.bottom-nav [data-page=finance]');
+  await ui.tap('summary:text-is("Satış stratejileri ve şikâyetler")');
+  assert.match(await ui.page.locator('#finance-after-sales').innerText(),/Dürüst satış kârı/);
+});
+
+test('offline concealed sale shows choices after reload and books partial compensation once',async t=>{
+  const seed = strategyFixture('conceal');
+  const buyer = seed.branches[0].garage[0].meetings[0];
+  const sold = act(seed,'sell',fixture.id,buyer.id);
+  const ui = await open(t,320,568,sold);
+  await ui.jump(sold.sales[0].complaint.due);
+  await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).sales[0].openComplaint);
+  await ui.page.reload(); await ui.ready();
+  await ui.tap('#complaint-shortcut');
+  await ui.tap('summary:text-is("Çözüm seç")');
+  assert.equal(await ui.page.locator('[data-action=resolve-complaint]').count(),4);
+  await ui.tap('[data-action=resolve-complaint][data-index=compensation]');
+  await ui.page.waitForFunction(()=>JSON.parse(localStorage.getItem('motor-empire.v9')).sales[0].complaintResult);
+  const state = await ui.state();
+  assert.equal(state.ledger.filter(row=>row.category==='compensation').length,1);
+  assert.equal(state.sales[0].complaintResult.outcome,'compensation');
+  assert.match(await ui.page.locator('#complaint-list').innerText(),/Tazminat/);
+});

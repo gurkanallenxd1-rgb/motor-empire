@@ -93,6 +93,21 @@ export function permanentDiscount(bike) {
   return 1 - [...groups.values()].reduce((factor,loss)=>factor * (1 - loss),1);
 }
 
+export function conditionBreakdown(bike) {
+  const groups = {visual:0,mechanical:0,structural:0};
+  const structural = new Set(['masa','jant','saseIslem','saseDegisim','agir','pert']);
+  const visual = new Set(['grenaj','manet','ayna','sinyal','ayaklik','depo']);
+  for (const code of activeIssues(bike)) {
+    const group = structural.has(code) ? 'structural' : visual.has(code) ? 'visual' : 'mechanical';
+    groups[group] += PARTS[code].gain;
+  }
+  const base = Math.min(100,(bike.condition ?? 100)+groups.visual+groups.mechanical+groups.structural);
+  const residual = historicalIssues(bike).filter(code=>structural.has(code) && !bike.faults.includes(code))
+    .reduce((max,code)=>Math.max(max,PARTS[code].loss*100),0);
+  return {visual:clamp(base-groups.visual+(bike.cosmeticPresentation ? 12 : 0),0,100),
+    mechanical:clamp(base-groups.mechanical,0,100),structural:clamp(Math.round(base-groups.structural-residual),0,100)};
+}
+
 export function roadValue(bike) {
   const faults = activeIssues(bike);
   const grade = highestGrade(faults);
@@ -101,8 +116,10 @@ export function roadValue(bike) {
   const activeDiscount = low + (high-low)*clamp(gain/50,0,1);
   const wear = 1 - (bike.condition ?? 100) / 100;
   // A damaged bike's condition and active grade can describe the same loss.
-  const discount = clamp(Math.max(wear,activeDiscount,permanentDiscount(bike)),0,.75);
-  return Math.max(1,Math.round(cleanValue(bike) * (1 - discount)));
+  const permanent = permanentDiscount(bike);
+  const discount = clamp(Math.max(wear,activeDiscount,permanent),0,.75);
+  const proof = bike.documented ? Math.min(.02,Math.max(0,discount-permanent)) : 0;
+  return Math.max(1,Math.round(cleanValue(bike) * (1-discount+proof)));
 }
 
 export function repairForecast(bike) {

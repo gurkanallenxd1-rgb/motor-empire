@@ -1,9 +1,10 @@
+import { isRisky } from './characters.mjs?v=0.13';
 export const FINANCE_CATEGORIES = Object.freeze({
   purchase:'Motosiklet alımı', sale:'Motosiklet satışı', repair:'Tamir', shipping:'Nakliye',
   inspection:'Ekspertiz', rental:'Kiralama', wages:'Personel maaşı', overhead:'Şube gideri',
   investment:'Şube ve garaj yatırımı', loan:'Kredi kullanımı', principal:'Anapara ödemesi',
   insurance_premium:'Sigorta primi', insurance_payout:'Kasko ödemesi', traffic_payout:'Trafik sigortası ödemesi',
-  accident:'Kaza masrafı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',
+  accident:'Kaza masrafı', cosmetic:'Görsel bakım', complaint_repair:'Şikâyet onarımı', service:'Servis gideri', refund:'Satış iadesi', compensation:'Müşteri tazminatı',
   interest:'Faiz gideri', income:'Diğer gelir', expense:'Diğer gider',
 });
 
@@ -39,7 +40,7 @@ const cashSign = entry => entry.kind === 'income' || entry.kind === 'loan' ? 1 :
 export function dailyCashMovement(ledger,day) {
   return ledger.reduce((total,entry)=>total+(entry.day === day ? cashSign(entry)*cents(entry.amount) : 0),0)/100;
 }
-const stockExpenses = new Set(['purchase','repair','shipping','inspection','service','refund']);
+const stockExpenses = new Set(['purchase','repair','shipping','inspection','service','refund','cosmetic']);
 const saleKey = (day,model,price) => JSON.stringify([day,model,cents(price)]);
 
 export function financeTransactions(state) {
@@ -74,7 +75,30 @@ export function filterTransactions(entries,{category='',branch='',from=null,to=n
 
 function blank(day) {
   return {day,revenue:0,operatingCost:0,salesRevenue:0,salesCost:0,salesCount:0,
-    rentalRevenue:0,rentalDays:0,interest:0,cashIn:0,cashOut:0,principalPaid:0,profit:0};
+    rentalRevenue:0,rentalDays:0,afterSaleCost:0,interest:0,cashIn:0,cashOut:0,principalPaid:0,profit:0};
+}
+
+export function saleNet(sale) {
+  return round((sale.returnedDay===undefined ? sale.price-sale.spent : 0)-(sale.afterSaleCost ?? sale.compensation ?? 0));
+}
+
+export function reputationFinance(state) {
+  const customers = Object.values(state.trade.customers ?? {});
+  const visits = customers.reduce((sum,customer)=>sum+customer.visits,0);
+  const returningVisits = customers.reduce((sum,customer)=>sum+(customer.returningVisits ?? 0),0);
+  const reviews = state.trade.reviews ?? [];
+  const complaintEntries = state.ledger.filter(row=>['compensation','complaint_repair','refund'].includes(entryDetails(row).category));
+  const expense = type=>round(complaintEntries.filter(row=>entryDetails(row).category===type)
+    .reduce((total,row)=>total+row.amount,0));
+  const profit = risk=>round(state.sales.filter(sale=>isRisky(sale.strategy ?? sale.disclosureMode)===risk)
+    .reduce((total,sale)=>total+saleNet(sale),0));
+  return {honestProfit:profit(false),riskyProfit:profit(true),
+    refund:expense('refund'),compensation:expense('compensation'),repair:expense('complaint_repair'),
+    complaintOutflow:round(complaintEntries.reduce((sum,row)=>sum+row.amount,0)),
+    complaintLoss:round(expense('compensation')+expense('complaint_repair')
+      +state.sales.filter(sale=>sale.returnedDay!==undefined).reduce((sum,sale)=>sum+sale.price-sale.spent,0)),
+    returning:visits ? returningVisits/visits : null,
+    reviews:reviews.length,stars:reviews.length ? reviews.reduce((sum,item)=>sum+item.stars,0)/reviews.length : null};
 }
 
 export function financeReport(state,worth,period) {
@@ -99,6 +123,7 @@ export function financeReport(state,worth,period) {
     if (row.category==='inspection' && row.allocation==='operating') {
       onDay(row.recognizedDay ?? row.day).operatingCost += cents(row.amount);
     }
+    if (['compensation','complaint_repair'].includes(row.category)) day.afterSaleCost += cents(row.amount);
     if (row.category === 'interest') day.interest += cents(row.amount);
     if (row.category === 'principal') day.principalPaid += cents(row.amount);
   }
@@ -139,6 +164,8 @@ export function financeReport(state,worth,period) {
   const canReconcileCash = openingCash === 7_500_000 && !entries.some(entry=>entry.archived);
   const points = new Map();
   for (const day of rows.keys()) if (day >= start) points.set(day,rows.get(day));
+  const reputationHistory = state.trade.reputationHistory ?? [];
+  for (const entry of reputationHistory) if (entry.day>=start) points.set(entry.day,rows.get(entry.day) ?? blank(entry.day));
   for (const day of snapshots.keys()) if (day >= start) points.set(day,rows.get(day) ?? blank(day));
   if (period) for (let day=start;day<=state.day;day++) points.set(day,rows.get(day) ?? blank(day));
   points.set(state.day,rows.get(state.day) ?? blank(state.day));
@@ -148,17 +175,20 @@ export function financeReport(state,worth,period) {
     if (day >= start) break;
     cash += row.cashIn-row.cashOut;
   }
+  let reputationIndex = 0;
+  let reputation = null;
   const series = [...points.values()].sort((a,b)=>a.day-b.day).map(row=>{
     cash += row.cashIn-row.cashOut;
+    while (reputationHistory[reputationIndex]?.day<=row.day) reputation = reputationHistory[reputationIndex++].score;
     const snapshot = snapshots.get(row.day);
     const values = normalize(row);
     if (!canReconcileCash && !snapshot && row.day !== state.day && !rows.has(row.day)) {
       values.profit = values.revenue = values.operatingCost = values.salesCount = values.rentalDays = null;
     }
-    return {...values,cash:row.day===state.day ? state.cash : snapshot?.cash ?? (canReconcileCash ? cash/100 : null),
+    return {...values,reputation:row.day===state.day ? state.trade.reputation : reputation,cash:row.day===state.day ? state.cash : snapshot?.cash ?? (canReconcileCash ? cash/100 : null),
       netWorth:row.day===state.day ? worth.net : snapshot?.netWorth ?? null};
   });
-  return {entries,series,totals:normalize(totals),periodTotals:normalize(periodTotals),
+  return {entries,series,afterSales:reputationFinance(state),totals:normalize(totals),periodTotals:normalize(periodTotals),
     today:normalize(rows.get(state.day) ?? blank(state.day))};
 }
 

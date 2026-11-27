@@ -1,7 +1,8 @@
-import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts } from './finance.mjs?v=0.12.7';
+import { FINANCE_CATEGORIES, debtSummary, filterTransactions, financeReport, pendingCosts, saleNet } from './finance.mjs?v=0.13';
 
 const colors = {green:'#9dd7ae',red:'#ff9a85',orange:'#ffad74',blue:'#a7c3f1'};
 const chartTypes = [
+  {title:'Galeri itibarı',keys:[['reputation','İtibar / 100',colors.orange]],counts:true},
   {title:'Günlük net kâr',keys:[['profit','Gerçekleşen net kâr',colors.green]]},
   {title:'Gelir ve gider',keys:[['revenue','İşletme geliri',colors.green],['operatingCost','İşletme gideri',colors.red]],bars:true},
   {title:'Nakit değişimi',keys:[['cash','Kasa bakiyesi',colors.orange]]},
@@ -211,7 +212,7 @@ export function createFinanceView({byId,element,metric,money,signed,repairForeca
     const trades = state.trade.history.slice(0,archiveLimit).map(item=>row(item.name,
       `Gün ${item.day} · ${item.person} · ${outcomes[item.outcome]} · ${item.rounds} tur`,money(item.price)));
     const sales = state.sales.slice(0,archiveLimit).map(sale=>{
-      const profit = sale.returnedDay ? 0 : (Math.round(sale.price*100)-Math.round(sale.spent*100))/100;
+      const profit = saleNet(sale);
       const summary = row(sale.name,`Gün ${sale.day} · Satış ${money(sale.price)} · Maliyet ${money(sale.spent)}${sale.returnedDay
         ? ` · İade: Gün ${sale.returnedDay}` : sale.compensation ? ` · Tazminat: ${money(sale.compensation)}` : ''}`,
         signed(profit),profit < 0 ? 'negative' : 'positive');
@@ -232,7 +233,7 @@ export function createFinanceView({byId,element,metric,money,signed,repairForeca
 
   function display() {
     report = financeReport(state,worth,Number(periodSelect.value));
-    const {today,totals,series,periodTotals} = report;
+    const {today,totals,series,periodTotals,afterSales} = report;
     const pending = pendingCosts(state,repairForecast,inspectionFee);
     const card = (label,value,{note,tone} = {})=>{
       const node = metric(label,value);
@@ -259,10 +260,17 @@ export function createFinanceView({byId,element,metric,money,signed,repairForeca
       card('Net nakit akışı',signed(periodTotals.cashIn-periodTotals.cashOut)),
       card('Tahmini stok satış kârı',signed(pending.estimatedStockProfit),{note:'Mevcut stok · Piyasa değerine göre'}));
     const values = [card('Net satılan motosiklet',number.format(periodTotals.salesCount)),card('Satış hasılatı',money(periodTotals.salesRevenue)),
-      card('Satıştan net kâr',signed(periodTotals.salesRevenue-periodTotals.salesCost)),
+      card('Satıştan net kâr',signed(periodTotals.salesRevenue-periodTotals.salesCost-periodTotals.afterSaleCost)),
       card('Ücretli kiralama günü',number.format(periodTotals.rentalDays)),card('Kiralama geliri',money(periodTotals.rentalRevenue)),
       card('Faiz gideri',money(periodTotals.interest))];
     byId('finance-activity').replaceChildren(...values);
+    const afterCare = tradeSummary(state.trade);
+    byId('finance-after-sales').replaceChildren(
+      card('Dürüst satış kârı',signed(afterSales.honestProfit)),card('Riskli satış kârı',signed(afterSales.riskyProfit)),
+      card('Şikâyetlerin kâra etkisi',signed(-afterSales.complaintLoss)),card('İade giderleri',money(afterSales.refund)),
+      card('Tazminat giderleri',money(afterSales.compensation)),card('Şikâyet onarımı',money(afterSales.repair)),
+      card('Müşteri memnuniyeti',afterCare.average===null ? '—' : `%${afterCare.average}`),
+      card('Tekrar gelen müşteri oranı',afterSales.returning===null ? '—' : `%${number.format(Math.round(afterSales.returning*100))}`));
     redraw = [];
     charts.replaceChildren(...chartTypes.map(type=>chartCard(type,series)),allocationCard());
     redraw.forEach(draw=>draw());

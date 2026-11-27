@@ -472,3 +472,6 @@ main { padding-bottom: calc(91px + env(safe-area-inset-bottom, 0px)); }
 
 .meeting-actions.without-negotiation { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .meeting-actions.without-negotiation .primary { grid-column:auto; }
+
+#meeting-avatar img { width:38px; height:38px; object-fit:contain; display:block; }
+.sale-strategies button,.complaint-entry .risk-panel button { margin-inline-end:5px; }

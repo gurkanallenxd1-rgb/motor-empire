@@ -1,6 +1,6 @@
-import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.12.7';
-import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.12.7';
-import { stableNumber } from './trade.mjs?v=0.12.7';
+import { DAY_MS, HOUR_MS } from './clock.mjs?v=0.13';
+import { PARTS, roadValue, repairQuote, repairPartCost } from './damage.mjs?v=0.13';
+import { stableNumber } from './trade.mjs?v=0.13';
 
 export const SYSTEMS = Object.freeze({
   engine:'Motor', gearbox:'Şanzıman', frame:'Şasi', fork:'Ön maşa',
@@ -34,6 +34,7 @@ const severe = ['saseIslem','saseDegisim','agir','pert','motor'];
 
 export function seedRisk(bike) {
   // The seller's price and urgency are already set. Reliability has its own seed.
+  bike.characterSeed ??= bike.id;
   const trust = roll(bike.id,'seller-reliability');
   const hidden = trust < .23 ? bike.faults.filter((code,index)=>
     roll(bike.id,`withhold:${index}`) < (severe.includes(code) ? .82 : .55)) : [];
@@ -136,10 +137,10 @@ export function accidentAt(bike,day,time,activity) {
 }
 
 export function buyerComplaint(bike,saleId) {
-  if (bike.disclosureMode!=='conceal' || !history(bike).length) return null;
+  if (bike.disclosureMode!=='conceal' || (!history(bike).length && !(bike.tradeStrategy && bike.faults.length))) return null;
   const serious = history(bike).some(code=>severe.includes(code));
   const draw = roll(saleId,'customer-complaint');
-  return draw < (serious ? .75 : .30) ? {returnBike:draw < (serious ? .42 : .08),delay:1+Math.floor(draw*3)} : null;
+  return draw < (serious ? .75 : bike.tradeStrategy==='cosmetic' ? .49 : .30) ? {returnBike:draw < (serious ? .42 : .08),delay:1+Math.floor(draw*3)} : null;
 }
 
 export const policyEnd = (start,days)=>start+days*DAY_MS;
