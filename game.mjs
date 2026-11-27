@@ -1,15 +1,15 @@
-import { purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.2';
+import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.12.3';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
-  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.2';
-import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.2';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.2';
-import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.2';
-import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.2';
-import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.2';
+  policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.3';
+import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.12.3';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.12.3';
+import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.12.3';
+import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.12.3';
+import { arrive, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.12.3';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
-  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.2';
-export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.2';
+  knownPart, repairQuote, roadValue } from './damage.mjs?v=0.12.3';
+export { PARTS, repairPartCost, repairQuote, roadValue } from './damage.mjs?v=0.12.3';
 
 export const INSPECTION_FEE = 450;
 export const LEGACY_STORAGE_KEY = 'motor-empire.v1';
@@ -343,6 +343,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (reports.some(report=>!report.result || PACKAGES[report.package].cost>=plan.cost)) {
         throw new Error('Mevcut ekspertiz bekleniyor veya bu kapsam zaten incelendi.');
       }
+      listing.inspectionBaseline ??= inspectionBaseline(listing);
       const report = {id:`${listing.id}:${amount}`,package:amount,cost:plan.cost,due:now+plan.hours*HOUR_MS};
       vehiclePay(listing,'inspection',plan.cost,`${plan.label} ekspertiz`,branch,false,
         {inspectionId:report.id,allocation:'pending'});
@@ -408,6 +409,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       for (const item of next.listings) {
         for (const report of item.inspections ?? []) {
           if (report.result || report.due>now) continue;
+          item.inspectionBaseline ??= inspectionBaseline(item);
           report.result = examine(item,report.package);
           report.completedDay = next.day;
           considerEvidence(item);
@@ -441,6 +443,7 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       if (!listing && !restoreInspection()) throw new Error('Bu ilan artık açık değil.');
       if (listing.inspections?.some(report=>!report.result)) throw new Error('Ekspertiz raporu henüz hazır değil.');
       if (listing.seller && !isActive(listing.seller)) throw new Error('Satıcı bu görüşmeyi kapattı.');
+      if (listing.inspections?.length) listing.inspectionBaseline ??= inspectionBaseline(listing);
       if (!listing.seller) {
         listing.seller = createSeller(listing,next.day);
         considerEvidence(listing);
@@ -453,10 +456,19 @@ function applyAction(next, action, id, amount, branchId, deferMarket = false) {
       meeting.held = true;
       break;
     }
+    case 'offer-purchase':
     case 'negotiate': {
-      const meeting = activeMeeting(amount);
+      const submitted = action==='offer-purchase';
+      const meeting = activeMeeting(submitted ? amount?.meetingId : amount);
+      const offer = submitted ? amount.price : undefined;
+      if (submitted && (meeting.kind!=='purchase' || !validAmount(offer) || offer>meeting.price)) {
+        throw new Error('Teklif pozitif olmalı ve satıcının güncel fiyatını aşmamalı.');
+      }
+      if (meeting.kind==='purchase' && listing.inspections?.some(report=>!report.result)) {
+        throw new Error('Ekspertiz raporu henüz hazır değil.');
+      }
       if (meeting.kind==='purchase' && listing.urgency) meeting.urgency ??= listing.urgency;
-      negotiate(meeting);
+      negotiate(meeting,offer);
       if (meeting.status === 'left') finishTrade(next,meeting,bike ?? listing,'left');
       message = meeting.speech;
       break;
@@ -808,6 +820,7 @@ function validBike(bike) {
     && (bike.cleanBase === undefined || validAmount(bike.cleanBase))
     && (bike.urgency === undefined || Object.prototype.hasOwnProperty.call(SELLER_URGENCY,bike.urgency))
     && (bike.province === undefined || Boolean(provinceOf(bike.province)))
+    && (bike.inspectionBaseline === undefined || validAmount(bike.inspectionBaseline))
     && (bike.inspections === undefined || (Array.isArray(bike.inspections) && bike.inspections.length<=3
       && bike.inspections.every(report=>report && typeof report.id==='string'
         && Object.prototype.hasOwnProperty.call(PACKAGES,report.package) && report.cost===PACKAGES[report.package].cost
@@ -909,6 +922,7 @@ function validMeeting(meeting,kind) {
     && Number.isSafeInteger(meeting.day) && meeting.day >= 1
     && Number.isInteger(meeting.round) && meeting.round >= 0 && meeting.round <= 3
     && Number.isInteger(meeting.patience) && meeting.patience >= 0
+    && (meeting.playerOffer === undefined || (kind==='purchase' && validAmount(meeting.playerOffer)))
     && validAmount(meeting.price) && validAmount(meeting.limit) && validAmount(meeting.anchor)
     && typeof meeting.speech === 'string' && typeof meeting.profile?.name === 'string'
     && Number.isInteger(meeting.profile.skill) && meeting.profile.skill >= 1 && meeting.profile.skill <= 5;

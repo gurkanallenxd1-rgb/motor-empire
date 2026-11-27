@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.12.2
+# MOTOR EMPIRE v0.12.3
 
 iPhone Safari ve masaüstü tarayıcılar için Türkçe motosiklet işletme oyunu. HTML, CSS, JavaScript ve Canvas kullanır. Harici API, paket kurulumu veya derleme adımı gerektirmez.
 
@@ -137,3 +137,17 @@ Yeni görseller 360 × 280 şeffaf WebP hücreleridir. Dört gövde atlası ve d
 - İlan ve pazarlık aynı değerlemeyi kullanır. Rapor öncesi fiyat, ilan beyanından hesaplanır. Sonraki değerlemeye yalnızca beyan edilen ve seçilen paketlerin doğruladığı bilgiler girer.
 - Bulgu başına TL ve yüzde kaybı, hasarsız piyasa değerine göre verilir. Aynı değeri etkileyen bulguların marjinal katkıları paylaştırılır. Tamir gideri yalnızca toplam maliyete girer.
 - Teklif avantajı güncel piyasa tahminine, satış kâr yüzdesi ise ekspertiz, nakliye ve tamir dahil toplam maliyete göre hesaplanır. Rapor, satıcının mevcut fiyatını değiştirmez.
+
+## v0.12.3 Canlı fiyat analizi
+
+- İlk ekspertiz öncesindeki piyasa tahmini ilanla birlikte kaydedilir. Eski raporlar için ilan beyanından yeniden oluşturulur. Fark, TL ve ekspertiz öncesi değere oran olarak görüşmede gösterilir.
+- Satıcının verdiği indirim ile taslak teklif kabul edilirse oluşacak indirim ayrı hesaplanır. Değer kaybı bu indirimlere eklenmez.
+- Fiyat alanı ve kaydırıcı, teklif göndermeden tahmini maliyeti, piyasa avantajını ve satış kârını günceller. Geçerli teklif gönderilirse mevcut pazarlık kuralları bir tur uygular. Kabul edilen teklif ayrı bir satın alma onayı gerektirir.
+
+Mobil DOM regresyonlarını Playwright WebKit ile çalıştır:
+
+```sh
+npm install --no-save --package-lock=false playwright
+npx playwright install webkit
+node --test tests/live-prices.browser.mjs
+```

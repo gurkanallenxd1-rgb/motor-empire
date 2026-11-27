@@ -1,23 +1,24 @@
+import { purchasePreview } from './valuation.mjs?v=0.12.3';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
-  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.2';
-import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.2';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.2';
-import { createFinanceView } from './finance-view.mjs?v=0.12.2';
-import { dailyCashMovement } from './finance.mjs?v=0.12.2';
-import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.2';
+  policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.12.3';
+import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.12.3';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.12.3';
+import { createFinanceView } from './finance-view.mjs?v=0.12.3';
+import { dailyCashMovement } from './finance.mjs?v=0.12.3';
+import { PROVINCES, provinceName } from './provinces.mjs?v=0.12.3';
 import {
   BRANCH_COST, DAILY_WAGE, GARAGE_LEVELS, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.12.2';
-import { createGarageRenderer } from './art.mjs?v=0.12.2';
-import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.2';
+} from './game.mjs?v=0.12.3';
+import { createGarageRenderer } from './art.mjs?v=0.12.3';
+import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.12.3';
 
-import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.2';
-import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.2';
+import { MAX_ROUNDS, isActive, tradeSummary } from './trade.mjs?v=0.12.3';
+import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.12.3';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, historicalIssues,
-  repairForecast } from './damage.mjs?v=0.12.2';
+  repairForecast } from './damage.mjs?v=0.12.3';
 
 const byId = id => document.getElementById(id);
 let drawGarage;
@@ -527,6 +528,73 @@ function marketCard(listing) {
 
 const percentage = new Intl.NumberFormat('tr-TR',{style:'percent',maximumFractionDigits:2});
 
+function signedRatio(amount,ratio) {
+  return `${signed(amount)} · ${percentage.format(ratio || 0)}`;
+}
+
+function refreshOfferPreview(view) {
+  const preview = purchasePreview(view.analysis,view.draft);
+  const input = byId('player-offer');
+  const range = byId('player-offer-range');
+  const offerAccepted = Boolean(preview && input.validity.valid && view.draft<=view.analysis.offer);
+  byId('meeting-negotiate').disabled = !view.canNegotiate || !offerAccepted;
+  byId('offer-warning').textContent = preview && view.draft>view.analysis.offer
+    ? 'Gönderilecek teklif satıcının fiyatını aşamaz.' : '';
+  range.setAttribute('aria-valuetext',money(range.valueAsNumber));
+  for (const [id,amount,ratio,colored] of [
+    ['live-advantage',preview?.advantage,preview?.advantageShare,true],
+    ['live-potential-discount',preview?.discount,preview?.discountShare,true],
+    ['live-total-cost',preview?.total,null,false],
+    ['live-sale-profit',preview?.profit,preview?.profitShare,true],
+  ]) {
+    const output = byId(id);
+    output.textContent = amount === undefined ? '—' : ratio === null ? money(amount) : signedRatio(amount,ratio);
+    output.classList.toggle('negative',colored && amount<0);
+    output.classList.toggle('positive',colored && amount>0);
+  }
+}
+
+function showOfferEditor(view,analysis,meeting,canNegotiate) {
+  const input = byId('player-offer');
+  const range = byId('player-offer-range');
+  const maximum = Math.min(Number.MAX_SAFE_INTEGER/100,Math.max(analysis.initialPrice,analysis.offer)*2);
+  input.max = range.max = String(maximum);
+  if (view.draft === undefined) {
+    view.draft = meeting.playerOffer ?? analysis.offer;
+    input.value = String(view.draft);
+    range.value = String(view.draft);
+  }
+  view.analysis = analysis;
+  view.canNegotiate = canNegotiate;
+  input.disabled = range.disabled = meeting.status!=='open';
+  if (meeting.status==='agreed' && view.draft!==analysis.offer) {
+    view.draft = analysis.offer;
+    input.value = range.value = String(analysis.offer);
+  }
+  const values = {
+    'live-start-price':money(analysis.initialPrice),
+    'live-seller-price':money(analysis.offer),
+    'live-before-value':money(analysis.beforeInspection),
+    'live-after-value':analysis.completed ? money(analysis.beforeValue) : '—',
+    'live-inspection-difference':analysis.completed ? signedRatio(-analysis.difference,-analysis.differenceShare) : '—',
+    'live-seller-discount':signedRatio(analysis.discount,analysis.discountShare),
+    'live-damage-loss':signedRatio(-analysis.damageLoss,-analysis.damageLossShare),
+  };
+  for (const [id,value] of Object.entries(values)) byId(id).textContent = value;
+  refreshOfferPreview(view);
+}
+
+for (const id of ['player-offer','player-offer-range']) {
+  byId(id).addEventListener('input',event=>{
+    if (!meetingView?.analysis) return;
+    const amount = event.target.valueAsNumber;
+    if (id==='player-offer-range') byId('player-offer').value = event.target.value;
+    else if (Number.isFinite(amount)) byId('player-offer-range').value = event.target.value;
+    meetingView.draft = amount;
+    refreshOfferPreview(meetingView);
+  });
+}
+
 function renderPurchaseAnalysis(container, analysis) {
   const pair = (label,value,tone = '')=>{
     const row = element('div','','valuation-row');
@@ -543,9 +611,9 @@ function renderPurchaseAnalysis(container, analysis) {
     pair('Satıcının başlangıç fiyatı',money(analysis.initialPrice)),
     pair('Ekspertiz öncesi tahmini piyasa değeri',money(analysis.beforeInspection)),
     pair('Ekspertiz sonrası güncellenmiş piyasa değeri',analysis.completed ? money(analysis.beforeValue) : analysis.pending ? 'Rapor bekleniyor' : 'Ekspertiz yapılmadı'),
-    pair('Ekspertiz öncesi ve sonrası fark',analysis.completed ? delta(-analysis.difference) : '—'),
+    pair('Ekspertiz öncesi ve sonrası fark',analysis.completed ? signedRatio(-analysis.difference,-analysis.differenceShare) : '—'),
     pair('Satıcının güncel teklifi',money(analysis.offer)),
-    pair('Pazarlık indirimi',loss(analysis.discount,analysis.discountShare)),
+    pair('Satıcının pazarlık indirimi',loss(analysis.discount,analysis.discountShare)),
     pair(advantage,loss(Math.abs(analysis.advantage),Math.abs(analysis.advantageShare)),
       analysis.advantage < 0 ? 'negative' : analysis.advantage > 0 ? 'positive' : ''));
 
@@ -928,7 +996,12 @@ function updateMeeting() {
   bars.replaceChildren(axis,legend);
   byId('meeting-error').hidden = true;
   const active = isActive(meeting);
-  byId('meeting-negotiate').disabled = meeting.status !== 'open' || rights <= 0;
+  const canNegotiate = meeting.status==='open' && rights>0 && (isSale || !bike.inspections?.some(report=>!report.result));
+  byId('live-purchase-prices').hidden = isSale;
+  const negotiateButton = byId('meeting-negotiate');
+  negotiateButton.textContent = isSale ? 'Pazarlık yap' : 'Teklifi gönder';
+  negotiateButton.disabled = !canNegotiate;
+  if (!isSale) showOfferEditor(view,forecast,meeting,canNegotiate);
   byId('meeting-reject').hidden = !active;
   byId('meeting-confirm').hidden = !active;
   byId('meeting-confirm').textContent = `${isSale ? 'Sat' : 'Satın al'} · ${money(meeting.price+(forecast?.delivery.fee ?? 0))}`;
@@ -941,7 +1014,12 @@ async function meetingAction(action,amount) {
   else updateMeeting();
 }
 
-byId('meeting-negotiate').addEventListener('click',()=>meetingAction('negotiate',meetingView.meetingId));
+byId('meeting-negotiate').addEventListener('click',()=>{
+  const view = meetingView;
+  if (!view) return;
+  if (view.kind==='sale') meetingAction('negotiate',view.meetingId);
+  else meetingAction('offer-purchase',{meetingId:view.meetingId,price:view.draft});
+});
 byId('meeting-reject').addEventListener('click',()=>meetingAction('reject',meetingView.meetingId));
 byId('meeting-confirm').addEventListener('click',()=>meetingAction(meetingView.kind === 'sale' ? 'sell' : 'buy-negotiated',meetingView.meetingId));
 
