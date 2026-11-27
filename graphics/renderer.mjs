@@ -1,3 +1,4 @@
+import { GARAGE_CAMERA,tapGesture } from './camera.mjs?v=0.17.0.1';
 import * as T from './vendor/three.module.min.js';
 import { OrbitControls,RoomEnvironment } from './vendor/addons.mjs';
 import { createAssets,DISPLAY_PLINTH,spriteTexture } from './assets.mjs?v=0.17-r2';
@@ -33,10 +34,12 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   const camera = new T.PerspectiveCamera(39,1,.07,110);
   const controls = new OrbitControls(camera,canvas);
   controls.enableDamping=!matchMedia('(prefers-reduced-motion: reduce)').matches;
-  controls.minPolarAngle=.21;
-  controls.maxPolarAngle=inspection?1.65:1.37;
-  controls.minDistance=inspection?1.35:7;
-  controls.maxDistance=inspection?8:42;
+  controls.minPolarAngle=inspection?.21:GARAGE_CAMERA.minPolar;
+  controls.maxPolarAngle=inspection?1.5:GARAGE_CAMERA.maxPolar;
+  controls.minDistance=inspection?1.35:GARAGE_CAMERA.near;
+  controls.maxDistance=inspection?8:GARAGE_CAMERA.far;
+  controls.dampingFactor=.14;
+  controls.zoomToCursor=false;
   controls.rotateSpeed=.65;
   controls.panSpeed=.6;
   controls.zoomSpeed=.9;
@@ -48,8 +51,8 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   scene.add(stock);
   let envTarget;
   const garageBatches=[];
-  const targetMin=new T.Vector3(inspection?-.4:-6,0,inspection?-.4:-5);
-  const targetMax=new T.Vector3(inspection?.4:6,2,inspection?.4:5);
+  const targetMin=new T.Vector3(inspection?-.4:-GARAGE_CAMERA.targetX,inspection?0:.2,inspection?-.4:-GARAGE_CAMERA.targetZ);
+  const targetMax=new T.Vector3(inspection?.4:GARAGE_CAMERA.targetX,inspection?1.4:1.2,inspection?.4:GARAGE_CAMERA.targetZ);
   const clamped=new T.Vector3();
   const correction=new T.Vector3();
   let frame=0,lastFrame=-Infinity,alive=true,lost=false,active=true,intersecting=true;
@@ -58,9 +61,8 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   let missed=0;
   let measuring=false;
   let targetAnimation;
-  let gesture;
   let lastMeasure=0;
-  const pointerIds=new Set();
+  const gesture=tapGesture();
   const shadowGeometry=new T.CircleGeometry(.65,20);
   const shadowMaterial=new T.MeshBasicMaterial({color:0x292321,transparent:true,opacity:.27,depthWrite:false});
 
@@ -134,7 +136,7 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
   }
 
   function focus(point) {
-    moveTo(point.clone().add(new T.Vector3(0,.54,0)),new T.Vector3(5,5,7),true);
+    moveTo(point.clone().add(new T.Vector3(0,.54,0)),new T.Vector3(5.7,6,8.2),true);
   }
 
   function draw(now) {
@@ -148,10 +150,12 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
       camera.position.lerpVectors(a.oldPosition,a.position,smooth);
       if (p===1) targetAnimation=undefined;else invalidate();
     }
+    controls.update();
     clamped.copy(controls.target).clamp(targetMin,targetMax);
     camera.position.add(correction.subVectors(clamped,controls.target));
     controls.target.copy(clamped);
-    controls.update();
+    if (!inspection) camera.position.y=Math.max(GARAGE_CAMERA.eyeY,camera.position.y);
+    if (workshop?.cutaway(camera.position,controls.target)) renderer.shadowMap.needsUpdate=true;
     renderer.render(scene,camera);
     const elapsed=now-lastFrame;
     if (elapsed>0 && Number.isFinite(elapsed) && (measuring || targetAnimation)) {
@@ -286,17 +290,8 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
 
   const raycaster=new T.Raycaster();
   const pointer=new T.Vector2();
-  function down(event) {
-    pointerIds.add(event.pointerId);
-    if (pointerIds.size===1) gesture={x:event.clientX,y:event.clientY,dragged:false};
-    else if (gesture) gesture.dragged=true;
-  }
-  function move(event) {
-    if (gesture && Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>9) gesture.dragged=true;
-  }
   function up(event) {
-    pointerIds.delete(event.pointerId);
-    if (!gesture || gesture.dragged || inspection || event.type!=='pointerup' || event.button>0) return;
+    if (!gesture.up(event) || inspection) return;
     const rect=canvas.getBoundingClientRect();
     pointer.set((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);
     raycaster.setFromCamera(pointer,camera);
@@ -313,7 +308,10 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     dispose();
     canvas.addEventListener('webglcontextrestored',()=>callbacks.status('restart'),{once:true});
   }
-  const events={webglcontextlost:onLost,pointerdown:down,pointermove:move,pointerup:up,pointercancel:up};
+  const suppress=event=>event.preventDefault();
+  const events={webglcontextlost:onLost,pointerdown:event=>gesture.down(event),
+    pointermove:event=>gesture.move(event),pointerup:up,pointercancel:up,
+    lostpointercapture:up,contextmenu:suppress,selectstart:suppress,dragstart:suppress};
   for (const [event,listener] of Object.entries(events)) canvas.addEventListener(event,listener);
   controls.addEventListener('change',invalidate);
   controls.addEventListener('start',()=>{measuring=true;targetAnimation=undefined;invalidate();});
@@ -340,7 +338,10 @@ export function createRenderer(canvas,settings,callbacks,{inspection=false}={}) 
     if (!context.isContextLost()) renderer.forceContextLoss();
   }
   return {
-    update,updateOptions,reset:()=>reset(true),
+    update,updateOptions,
+    cameraState:()=>({eye:camera.position.toArray(),target:controls.target.toArray(),distance:camera.position.distanceTo(controls.target),
+      hidden:workshop?.hiddenWalls()??[]}),
+    reset:()=>reset(true),
     metrics:()=>({width:canvas.width,height:canvas.height,surface:workshop?.textureSize(),
       shadow:renderer.shadowMap.enabled?sun.shadow.mapSize.x:0,reflection:scene.environmentIntensity,
       environment:Boolean(scene.environment),aa:context.getContextAttributes()?.antialias,

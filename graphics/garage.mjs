@@ -1,3 +1,4 @@
+import { cutaway } from './camera.mjs?v=0.17.0.1';
 import * as T from './vendor/three.module.min.js';
 import { worldBays } from './config.mjs?v=0.17';
 
@@ -22,6 +23,15 @@ export function buildWorkshop(scene) {
   const lamp = new T.MeshStandardMaterial({color:0xfaf0d2,emissive:0xffda99,emissiveIntensity:2.5});
   const blue = new T.MeshStandardMaterial({color:0x8ae2ed,emissive:0x46a4bc,emissiveIntensity:1.25});
   const signs = [];
+  const walls = [];
+  function section(name,build,glass=false) {
+    const start=root.children.length;
+    build();
+    const group=new T.Group();
+    group.add(...root.children.slice(start));
+    root.add(group);
+    walls.push({name,group,glass});
+  }
   let surface;
   const box = (x,y,z,w,h,d,m=graphite)=>mesh(boxGeometry,x,y,z,w,h,d,m);
   function mesh(geometry,x,y,z,w,h,d,m) {
@@ -110,12 +120,20 @@ export function buildWorkshop(scene) {
   box(3,-.013,0,9.5,.034,12.95,tile);
   box(-2.25,.015,0,.065,.026,12.7,yellow);
   // Cutaway service walls, gate and showroom glass.
-  box(-7.95,1.55,0,.16,3.1,13.1,concrete);
-  box(-5.85,1.55,-6.62,4.1,3.1,.16,concrete);
-  box(2.15,1.55,-6.62,11.8,3.1,.16,concrete);
-  shutter(-5.7,-6.46);
-  facade(7.72,.3,12.35,Math.PI/2);
-  facade(3.35,5.94,8.25);
+  section('west',()=>{
+    box(-7.95,1.55,0,.16,3.1,13.1,concrete);
+    sign('TESLİMAT',-7.83,1.87,3.95,1.47,Math.PI/2);
+  });
+  section('north',()=>{
+    box(-5.85,1.55,-6.62,4.1,3.1,.16,concrete);
+    box(2.15,1.55,-6.62,11.8,3.1,.16,concrete);
+    shutter(-5.7,-6.46);
+    sign('SERVİS',-5.55,2.49,-6.27,1.86);
+    sign('DEPO',-.07,2.13,-6.49,1.51);
+    sign('MOTOR EMPIRE',5.56,2.15,-6.49,3.35);
+  });
+  section('east',()=>facade(7.72,.3,12.35,Math.PI/2),true);
+  section('south',()=>facade(3.35,5.94,8.25),true);
   facade(-1.76,-4.9,2.98,Math.PI/2);
   facade(1.5,-5.40,2.55);
   box(1.5,.014,-5.99,2.54,.028,1.1,oak);
@@ -154,11 +172,7 @@ export function buildWorkshop(scene) {
     box(x,2.95,-6.49,2.8,.055,.13,lamp);
     box(x,2.86,5.91,2.65,.065,.12,lamp);
   }
-  sign('SERVİS',-5.55,2.49,-6.27,1.86);
-  sign('DEPO',-.07,2.13,-6.49,1.51);
   sign('MÜDÜR',1.47,2.55,-5.34,1.41);
-  sign('MOTOR EMPIRE',5.56,2.15,-6.49,3.35);
-  sign('TESLİMAT',-7.83,1.87,3.95,1.47,Math.PI/2);
   sign('RESEPSİYON',5.66,1.05,5.20,1.15);
   const batches=new Map();
   for (const item of root.children) {
@@ -204,7 +218,17 @@ export function buildWorkshop(scene) {
     surface.repeat.set(3,4);
     tile.map=surface;concrete.map=surface;tile.needsUpdate=concrete.needsUpdate=true;
   }
-  return {root,texture,textureSize:()=>surface?.image.width,dispose(){
+  return {root,texture,
+    cutaway(eye,target){
+      let changed=false;
+      for (const wall of walls) {
+        const visible=!cutaway(wall.name,eye,target,wall.glass);
+        if (wall.group.visible!==visible) {wall.group.visible=visible;changed=true;}
+      }
+      return changed;
+    },
+    hiddenWalls:()=>walls.filter(wall=>!wall.group.visible).map(wall=>wall.name),
+    textureSize:()=>surface?.image.width,dispose(){
     surface?.dispose();
     const mats=new Set(),geos=new Set();
     root.traverse(node=>{if(node.isInstancedMesh)node.dispose();if(node.material)mats.add(node.material);if(node.geometry)geos.add(node.geometry);});
