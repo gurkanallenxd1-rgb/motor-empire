@@ -1069,3 +1069,66 @@ test('graphics four profiles apply distinct real render settings and explicit re
   assert.equal(result.off.environment,false);
   assert.equal(result.off.shadow,0);
 });
+
+test('graphics canvas bounds orbit and dolly, reveals the interior and isolates touch callouts',async t=>{
+  const {page}=await open(t,844,390,initial());
+  await page.emulateMedia({reducedMotion:'reduce'});
+  const state=await page.evaluate(async ()=>{
+    const {createRenderer}=await import('/graphics/renderer.mjs');
+    const {DEFAULT_GRAPHICS}=await import('/graphics/config.mjs');
+    const canvas=document.createElement('canvas');
+    canvas.className='orbit-test';
+    const host=document.createElement('div');
+    host.className='graphics-canvas';
+    host.style.cssText='position:fixed;inset:4px auto auto 15px;width:425px;z-index:30';
+    host.append(canvas);
+    document.body.append(host);
+    if(!canvas.getContext('webgl2',{antialias:false})) return null;
+    const renderer=createRenderer(canvas,{...DEFAULT_GRAPHICS,quality:'low',shadows:'off',reflections:'off',aa:false},
+      {status(){},select(){window.orbitSelected=true;}});
+    window.orbitTest={renderer,canvas,host};
+    return renderer.cameraState();
+  });
+  if(!state) {t.skip('WebGL2 unavailable');return;}
+  const styles=await page.locator('.orbit-test').evaluate(canvas=>{
+    const css=getComputedStyle(canvas);
+    const prevented=canvas.dispatchEvent(new Event('contextmenu',{cancelable:true}));
+    return [css.touchAction,css.userSelect,css.getPropertyValue('-webkit-touch-callout'),prevented,
+      getComputedStyle(document.body).userSelect];
+  });
+  assert.deepEqual(styles.slice(0,2),['none','none']);
+  if(styles[2]) assert.equal(styles[2],'none');
+  assert.equal(styles[3],false);
+  assert.notEqual(styles[4],'none');
+  const result=await page.evaluate(async ()=>{
+    const {renderer,canvas}=window.orbitTest;
+    const wheel=deltaY=>canvas.dispatchEvent(new WheelEvent('wheel',{deltaY,cancelable:true}));
+    for(let i=0;i<55;i++) wheel(-140);
+    await new Promise(requestAnimationFrame);
+    const closest=renderer.cameraState();
+    for(let i=0;i<90;i++) wheel(140);
+    await new Promise(requestAnimationFrame);
+    const farthest=renderer.cameraState();
+    renderer.reset();
+    await new Promise(requestAnimationFrame);
+    return {closest,farthest,reset:renderer.cameraState()};
+  });
+  assert.ok(Math.abs(result.closest.distance-10.5)<.15,JSON.stringify(result.closest));
+  assert.ok(result.closest.eye[1]>=4.5);
+  assert.ok(Math.abs(result.farthest.distance-40)<.15,JSON.stringify(result.farthest));
+  assert.deepEqual(result.reset.target,state.target);
+  const canvas=page.locator('.orbit-test');
+  const rect=await canvas.boundingBox();
+  for(let i=0;i<3;i++) {
+    await page.mouse.move(rect.x+100,rect.y+100);
+    await page.mouse.down();
+    await page.mouse.move(rect.x+255,rect.y+130,{steps:6});
+    await page.mouse.up();
+  }
+  const orbit=await page.evaluate(()=>({pose:window.orbitTest.renderer.cameraState(),selected:window.orbitSelected}));
+  assert.notDeepEqual(orbit.pose.eye,state.eye);
+  assert.ok(orbit.pose.hidden.length>0,JSON.stringify(orbit.pose));
+  assert.ok(orbit.pose.eye[1]>=4.5);
+  assert.equal(orbit.selected,undefined);
+  await page.evaluate(()=>{window.orbitTest.renderer.dispose();window.orbitTest.host.remove();});
+});

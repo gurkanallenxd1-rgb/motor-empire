@@ -72,3 +72,34 @@ test('authored plinth is a self-contained metallic glTF 2.0 binary',async()=>{
   assert.ok(manifest.materials.some(x=>x.pbrMetallicRoughness.metallicFactor>.5));
   assert.equal(manifest.buffers[0].uri,undefined);
 });
+
+test('garage cutaway hides camera-side walls across four sides but keeps far walls and high-view glazing',async()=>{
+  const {cutaway,GARAGE_WALLS}=await import('./graphics/camera.mjs');
+  const target={x:0,y:.2,z:0};
+  for (const [name,wall] of Object.entries(GARAGE_WALLS)) {
+    const eye={...target,[wall.axis]:wall.edge+wall.inside*2,y:5};
+    assert.equal(cutaway(name,eye,target),true,name);
+    assert.equal(cutaway(name,eye,target,true),true,name);
+    assert.equal(cutaway(name,{...eye,y:12},target,true),false,name);
+    assert.equal(cutaway(name,{...eye,[wall.axis]:-eye[wall.axis]},target),false,name);
+  }
+});
+
+test('short one-finger taps select but drag, multi-touch, cancellation and long press do not',async()=>{
+  const {tapGesture}=await import('./graphics/camera.mjs');
+  const gesture=tapGesture();
+  const p=(pointerId,type,timeStamp=0,clientX=40)=>({pointerId,type,timeStamp,clientX,clientY:25,button:0});
+  gesture.down(p(1,'pointerdown'));
+  assert.ok(gesture.up(p(1,'pointerup',160)));
+  gesture.down(p(1,'pointerdown'));
+  gesture.move(p(1,'pointermove',30,75));
+  assert.equal(gesture.up(p(1,'pointerup',60)),false);
+  gesture.down(p(1,'pointerdown'));
+  gesture.down(p(2,'pointerdown',20,80));
+  assert.equal(gesture.up(p(1,'pointerup',90)),false);
+  assert.equal(gesture.up(p(2,'pointerup',100,80)),false);
+  gesture.down(p(1,'pointerdown'));
+  assert.equal(gesture.up(p(1,'pointerup',600)),false);
+  gesture.down(p(1,'pointerdown'));
+  assert.equal(gesture.up(p(1,'pointercancel',50)),false);
+});
