@@ -1,3 +1,4 @@
+import {encodeSave} from '../save-codec.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
@@ -36,7 +37,7 @@ let browser;
 before(async()=>{browser=process.env.GRAPHICS_CHROMIUM ? await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']}) : await webkit.launch();});
 after(async()=>{await browser?.close();});
 
-async function open(t,width,height,seed) {
+async function open(t,width,height,seed,encoded) {
   const page = await browser.newPage({...devices['iPhone 13'],viewport:{width,height}});
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -47,11 +48,11 @@ async function open(t,width,height,seed) {
       assert.deepEqual(errors,[]);
     } finally { await page.close(); }
   });
-  await page.addInitScript(({seed,T})=>{
+  await page.addInitScript(({seed,T,encoded})=>{
     window.testWall=Number(sessionStorage.getItem('testWall')) || T;
     Date.now=()=>window.testWall;
-    if (!localStorage.getItem('motor-empire.v9')) localStorage.setItem('motor-empire.v9',JSON.stringify(seed));
-  },{seed,T:seed.clock.wall});
+    if (!localStorage.getItem('motor-empire.v9')) localStorage.setItem('motor-empire.v9',encoded??JSON.stringify(seed));
+  },{seed:encoded?null:seed,T:seed.clock.wall,encoded});
   await page.route('https://motor.test/**',async route=>{
     const url = new URL(route.request().url());
     const file = url.pathname.slice(1)||'index.html';
@@ -971,9 +972,11 @@ test('graphics inventory refreshes after manager sale and excludes transport',as
   await ui.page.waitForFunction(()=>['ready','unavailable'].includes(document.querySelector('#garage-3d').dataset.renderer));
   const canvas=ui.page.locator('#garage-webgl');
   if(await canvas.count()) assert.equal(await canvas.getAttribute('data-visible-bikes'),'1');
+  assert.match(await ui.page.locator('#garage-stock-summary').innerText(),/Parkta 1 · Nakliyede 1 · Rezerve 1 · Boş 8/);
   await ui.jump(DAY_MS);
   await ui.page.locator('.sale-toast').waitFor({state:'visible'});
   assert.equal((await ui.state()).sales.length,1);
+  assert.match(await ui.page.locator('#garage-stock-summary').innerText(),/Parkta 0 · Nakliyede 1 · Rezerve 1 · Boş 9/);
   if(await canvas.count()) {
     await ui.page.waitForFunction(()=>document.querySelector('#garage-webgl')?.dataset.visibleBikes==='0');
   }
@@ -1209,6 +1212,11 @@ test('320px acquisition requires review and confirmation and commits one deal',a
   assert.equal(result.competition.acquired,1);
   assert.equal(result.branches.length,2);
   assert.equal(result.competition.companies.length,49);
+  const dealFilter='#competition-acquisitions select';
+  await ui.page.selectOption(dealFilter,'rival');
+  assert.match(await ui.page.locator('#competition-acquisitions').innerText(),/Bu filtrede tamamlanmış devralma yok/);
+  await ui.page.selectOption(dealFilter,'player');
+  assert.match(await ui.page.locator('#competition-acquisitions').innerText(),/MOTOR EMPIRE/);
   await ui.tap('#competition-tab-rivals');
   assert.match(await ui.page.locator('#rival-roster').innerText(),/49 aktif · 50 kurulmuş · 1 devralınmış/);
 
@@ -1321,4 +1329,32 @@ test('320px rival identity migration survives reload without replacing historic 
   assert.equal(await first.innerText(),label);
   await ui.tap('#competition-tab-news');
   assert.match(await ui.page.locator('#competition-news').innerText(),/Kıvıltaş Eski Moto kuruldu/);
+});
+
+test('mobile WebKit loads a compacted save and restores the live garage after reload',async t=>{
+  const seed=garageFixture(2,8);
+  seed.archivedAudit=Array.from({length:60_000},(_,index)=>[index,'Çanakkale servis kaydı',1500]);
+  const packed=encodeSave(seed);
+  assert.ok(packed.startsWith('motor:gzip:1:'));
+  const ui=await open(t,390,844,seed,packed);
+  await ui.tap('.bottom-nav [data-page=garage]');
+  assert.match(await ui.page.locator('#garage-stock-summary').innerText(),/Kapasite 10 · Parkta 8/);
+  await ui.jump(DAY_MS);
+  await ui.page.waitForFunction(()=>document.querySelector('#day').textContent.trim()==='02');
+  const result=await ui.page.evaluate(async()=>{
+    const {decodeSave}=await import('/save-codec.mjs?v=0.18.3');
+    const raw=localStorage.getItem('motor-empire.v9');
+    const start=performance.now();
+    const save=decodeSave(raw);
+    return {packed:raw.startsWith('motor:gzip:1:'),bytes:raw.length,day:save.day,
+      history:save.archivedAudit.length,decodeMs:Math.round(performance.now()-start)};
+  });
+  assert.equal(result.packed,true);
+  assert.equal(result.day,2);
+  assert.equal(result.history,60_000);
+  t.diagnostic(JSON.stringify(result));
+  await ui.page.reload();
+  await ui.ready();
+  await ui.tap('.bottom-nav [data-page=garage]');
+  assert.match(await ui.page.locator('#garage-stock-summary').innerText(),/Kapasite 10 · Parkta 8/);
 });

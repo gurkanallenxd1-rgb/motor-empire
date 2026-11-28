@@ -1,5 +1,12 @@
 # MOTOR EMPIRE sürüm geçmişi
 
+## v0.18.3
+
+- Rakiplerin bölgesel talep, tedarik, hazırlık, nakit rezervi ve yatırım koşulları güncellendi. Devralma geçmişi rakip ve oyuncu işlemlerine göre filtrelenebiliyor.
+- Manuel satış sonrası ilgili şubenin müdürü kalan alım bütçesiyle yeniden ilan tarıyor. 2D ve 3D sahne aynı fiziksel stok özetini kullanıyor.
+- 154 Node.js ve 43 mobil WebKit senaryosu geçti. Yedi Chromium grafik senaryosu, bir yalıtılmış tekrar dahil, doğrulandı.
+- Büyük kayıtlar kayıpsız gzip biçiminde saklanıyor. Kota hatasında son kayıt korunuyor ve mevcut dosya indirilebiliyor. [Karşılaştırmalı doğrulama](docs/v0183-report.md)
+
 ## v0.18.2
 
 - Rakiplerde günlük çoklu alım ve satış, kadro ve nakit temelli iş planı, şube yatırımı, stok transferi ve rakipler arası devralma.

@@ -125,7 +125,7 @@ test('new merchants are protected and established buyers have explainable rival 
 });
 
 test('1000-day rival balance keeps prices, records, cash and market concentration within bounds',()=>{
-  const result=rivalSimulation(1000);
+  const result=rivalSimulation(1000,{insolvent:true});
   assert.ok(result.bankrupt>0 && result.entrants>0 && result.sales>1000);
   assert.ok(result.active>=40);
   assert.ok(result.maxAskRatio<1.14);

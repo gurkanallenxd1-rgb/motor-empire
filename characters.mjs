@@ -1,4 +1,4 @@
-import { complaintReview,saleReview,starsFor } from './reviews.mjs?v=0.18.2';
+import { complaintReview,saleReview,starsFor } from './reviews.mjs?v=0.18.3';
 import { catalog, modelOf } from './bikes.mjs?v=0.16.1';
 
 export const clamp = (value,min,max)=>Math.max(min,Math.min(max,value));

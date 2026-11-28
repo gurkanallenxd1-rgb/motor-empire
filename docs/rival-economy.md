@@ -21,3 +21,10 @@ Rakipler yalnızca devralmaya açık rakip şirketlere teklif verebilir. Teklif,
 `competition.identityVersion` işareti olmayan kayıtta yalnızca aktif şirketlere yeni isim ve CSS logo atanır. Şirket ID’si, önceki adı, oyuncu verileri, finans arşivi, haber metinleri ve tarihsel devralma kayıtları korunur. Kimlik renkleri ve şekli kayda yazılır.
 
 Günlük performans satırı en fazla 365 gün saklanır. Yerel geçmiş 30 gün, görünür işlem özeti 12 kayıt, haberler 45 olayla sınırlıdır. Grafik, söz konusu göstergeyi o tarihte gerçekten kaydeden satırları kullanır. Eski rakiplerde geçmiş kasa ve şube sayısı boş kalır. Önceki alım adedi bilinmiyorsa ekranda yalnızca yeni ölçüm gösterilir. Finans serilerinde oyuncu nakdi, ciro ve kâr mevcut defter ve kapanıştan gelir.
+
+
+## v0.18.3 talep ve işletme düzeltmesi
+
+İl stok baskısı ulusal erişimi de hesaba katar. Yerel nakliye ek gün oluşturmaz. Hazır teslim edilen temiz stok aynı kapanışta satışa hazırlanabilir. Ücretli onarım ve kargo süreye tabidir. Şirketin yönetim puanı kaynak alış fiyatını etkiler. Anapara ödemesi faaliyet rezervinin üstündeki kasayı kullanır. Yatırım değerlendirmesi 14, devralma değerlendirmesi 7 günde bir yapılabilir. Bir devralma sonrasında alıcı 30 oyun günü bekler. Teklif net varlık, kârlılık ve uyuma dayanır. Finansal uygunluk yoksa işlem ve satın alma haberi oluşmaz.
+
+Oyuncu tarafında günlük tarama ve manuel satışın açtığı tarama aynı şubeye ait günlük taahhüt tutarını kullanır. Önceki kayıtta aynı güne ait taramanın harcama sayacı yoksa ek alım sonraki güne bırakılır. [Ölçümler](v0183-report.md)

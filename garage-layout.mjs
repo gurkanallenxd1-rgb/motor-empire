@@ -65,6 +65,17 @@ const service = new Set(['unchecked','inspected','repairing','claiming','interna
 const absent = new Set(['shipping','rented','riding']);
 const bias = bike=>service.has(bike.stage) ? 'service' : bike.stage==='listed' ? 'gallery' : null;
 
+export function garageStock(inventory,capacity) {
+  const reserved=inventory.filter(bike=>absent.has(bike.stage));
+  return {
+    capacity,physical:inventory.length-reserved.length,
+    shipping:reserved.filter(bike=>bike.stage==='shipping').length,
+    reserved:reserved.length,free:Math.max(0,capacity-inventory.length),
+    service:inventory.filter(bike=>service.has(bike.stage)).length,
+    ready:inventory.filter(bike=>['ready','listed'].includes(bike.stage) && !bike.faults?.length).length,
+  };
+}
+
 export function garageParking(plan,inventory) {
   const garage = inventory.filter(bike=>!absent.has(bike.stage)).sort((a,b)=>a.slot-b.slot);
   const free = new Set(plan.bays);
