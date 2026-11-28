@@ -51,3 +51,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **v0.18.3 doğrulaması** 154 Node.js, 43 WebKit ve 7 Chromium grafik senaryosu. Üç sürüm için toplam 90 ölçüm noktasında kasa mutabakatı sağlandı. 384 günlük altı şube kayıtları yaklaşık %83 küçüldü. 1.000 günlük iki uç kayıt sıkıştırılmış halde 6,55–6,71 MB, fiziksel cihaz kotası açık.
 
 - **v0.18.4** Yeni rakip alımları oyuncuyla aynı ilan, değerleme ve sıralamayı; satışlar aynı alıcı, pazarlık ve memnuniyet kurallarını kullanır. Kullanıcı v0.18.3 fiziksel iPhone’da sayaç ve alım düzeltmelerini doğruladı. [Test verileri ve açık farklar](docs/v0184-report.md)
+
+- **v0.18.4 doğrulaması** 156 Node.js, 43 WebKit ve 7 Chromium grafik testi. İki eşit ilan koşusunda 1.000 günde rakipler oyuncu satış adedinin %98,4–98,8'ine, net kârının %86,4–87,0'ına ulaştı. İflas stresli tam pazar koşusunda lider satış payı %9,78. [PR #39](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/39)

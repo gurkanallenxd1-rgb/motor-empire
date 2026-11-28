@@ -64,3 +64,11 @@ Oyuncu yönetimindeki marka, fiyat, bütçe, nakit, minimum kâr, kişisel gör�
 
 
 1.000 günde rakipler oyuncunun satış adedinin %98,4–98,8’ine, net kârının %86,4–87,0’ına ulaştı. Kalan net kâr farkı 3,02–3,26 milyon TL. Satış farkı 12–17 adet. Ortalama satış bedeli her iki dizide de rakipte daha düşük. Aynı aday havuzu ve asgari kâr eşiği kullanıldı. Farklı motosiklet ve alıcı kimlikleri, günlük rakip iş kuyruğu ve saatlik oyuncu iş kuyruğu, sınırlı rakip teklif geçmişi ve teklif anındaki itibar farklı satış zamanları ve fiyatları üretebilir. Deney bunların ayrı ayrı nedensel payını ölçmüyor. [Ham ölçümler](v0184-data.json)
+
+## Tam pazar ve regresyon
+
+İlk uzun koşuda son 30 günlük lider payı %25,0–25,3 ile mevcut %20 test eşiğini aştı. Günlük ilan taramasına önce hangi şirketin eriştiği artık dönüşümlü. Devralma değerlendirmesi tarafların ölçülen birleşik payı %15'e ulaştığında yeni işlemi eliyor. Eşik günlük alım veya organik satış hacmini sınırlamıyor.
+
+İflas stresli 1.000 günlük tam pazar tekrarında lider payı %9,78, ortanca pay %0,12. 63 aktif şirket, 146.504 satış, 11 rakip devralması ve 2 iflas ölçüldü. Kasa, bilanço, fiyat, stok kimlikleri, kapasite ve sıkıştırılmış kayıt boyutu kontrolleri geçti. Ham rekabet kaydı yaklaşık 3,81 MB. Node.js simülasyonu oyun günü başına ortalama 95,78 ms sürdü. Bu ölçüm fiziksel Safari performansını temsil etmez.
+
+156 Node.js testi geçti. Önceki oturumun 43 WebKit ve 7 Chromium grafik testi ile 390 piksel operasyon özeti kontrolü de geçti. Görsel varlıklara dokunulmadı. [PR #39](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/39)
