@@ -11,7 +11,7 @@ Bu dalın sürümü **v0.18.3 Rekabet Dengesi, Otomasyon ve Kayıt Düzeltmesi**
 | İşletme | Ortak kasa, şube bazında gider, personel, görev kuyruğu, eğitim ve transfer |
 | Finans ve bildirim | İşlem defteri, satış kâr ve zararı, nakit ve borç, finans grafikleri, filtrelenebilir son 200 bildirim |
 | Rekabet | Türkiye’de 50 kurgusal rakip, günlük işlem simülasyonu, müşteri seçimi, bölgesel sıralama, şirket devralma ve tasfiye |
-| Kayıt | `motor-empire.v9` ve önceki anahtarların taşıma yolları, tarayıcı kökenine özel depolama, eşzamanlı sekme kilidi |
+| Kayıt | `motor-empire.v9` ve önceki anahtarların taşıma yolları, tarayıcı kökenine özel depolama, büyük kayıtlarda kayıpsız gzip, eşzamanlı sekme kilidi |
 
 ## Ekonomi ve otomasyon
 
@@ -39,7 +39,7 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Ticaret ve zaman** yeni galeri bir şube ve altıdan az satış kaydı varken müşteri kaybına karşı korunur. Açık pazarlıklar etkilenmez. Rakip çalışması mevcut kayıt kilidini ve 60 günlük çevrimdışı sınırı kullanır.
 - **Kayıt ve ekonomi** `motor-empire.v9` anahtarında ek `competition` alanı. Eski kayıt ilk eşitlemede rakipleri oluşturur. İlk oluşum oyuncu kasasını, stoklarını, şubelerini, otomasyon veya borç bilgilerini değiştirmez. Rakip tarihçesi 365 gün, yerel performans 30 gün, şirket başına işlem 12, haber 45 ve arşiv 80 ile sınırlı.
 - **Değişiklik sınırları** 98 katalog ve 2D dosyası, garaj motorları, Yusuf'un kuralları ve v0.16 fiyat formülleri.
-- **Açık işler ve sıradaki görev** v0.18.2 fiziksel iPhone doğrulaması ve uzun gelişmiş kayıt boyutu izlemesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
+- **Açık işler ve sıradaki görev** v0.18.3 fiziksel iPhone doğrulaması, uzun kayıt kotası ve rakip kârlılık farkının izlemesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
 - **Kanıtlar** [v0.18.1 testleri ve karşılaştırmaları](docs/v0181-hotfix.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)
 
 - **Teknik not** [Rakip ekonomisi ve kimlik migrasyonu](docs/rival-economy.md) · [v0.18.2 ölçümleri, testler ve açık noktalar](docs/v0182-report.md).
@@ -47,3 +47,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **v0.18.2 doğrulaması** 148 Node.js, 42 mobil WebKit ve 7 Chromium grafik testi geçti. 30/90/365/1.000 günlük dört profil, v0.18.1 ile birlikte karşılaştırıldı. 1.000 gün dört şube koşusunda tam kayıt 9,69 MB olduğundan fiziksel Safari kayıt kotası ayrıca doğrulanmalı.
 
 - **Fiziksel cihaz bildirimi** Kullanıcı v0.18.2’de şirket kimliğini, grafikleri, İstanbul ve Çanakkale otomasyonunu, kayıt kalıcılığını ve performansı doğruladı. 384. gün civarında rakip büyümesi, otomatik alım sıklığı ve park sayacıyla ilgili sorun bildirdi. v0.18.3 için kayıt ve cihaz ölçümleri [denge raporunda](docs/v0183-report.md).
+
+- **v0.18.3 doğrulaması** 154 Node.js, 43 WebKit ve 7 Chromium grafik senaryosu. Üç sürüm için toplam 90 ölçüm noktasında kasa mutabakatı sağlandı. 384 günlük altı şube kayıtları yaklaşık %83 küçüldü. 1.000 günlük iki uç kayıt sıkıştırılmış halde 6,55–6,71 MB, fiziksel cihaz kotası açık.
