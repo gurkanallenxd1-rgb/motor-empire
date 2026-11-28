@@ -17,7 +17,9 @@ export function encodeSave(state) {
 export function decodeSave(raw) {
   try {
     if(!raw.startsWith(PREFIX))return JSON.parse(raw);
-    const bytes=Uint8Array.from(atob(raw.slice(PREFIX.length)),character=>character.charCodeAt(0));
+    const binary=atob(raw.slice(PREFIX.length));
+    const bytes=new Uint8Array(binary.length);
+    for(let index=0;index<binary.length;index++)bytes[index]=binary.charCodeAt(index);
     return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(ungzip(bytes)));
   } catch (cause) {
     throw new Error('Kayıt okunamadı. Mevcut kayıt korunuyor.',{cause});

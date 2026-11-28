@@ -42,3 +42,20 @@ MOTOR_SIM_SEED=193 MOTOR_SIM_PROFILE='384. gün çok şubeli' node tests/competi
 node tests/competition-parity-v0183.mjs
 node tests/rival-simulation.mjs
 ```
+
+## 384 günlük kontrol noktası
+
+Günlük alım, satış ve ciro son 30 günün ortalamasıdır. Altı şubeli kurgu, 2 milyon TL/gün gözleminin üzerinde işlem yapabilen bir stres senaryosudur. İlk dizide oyun günü 385, ikinci dizide 577’dir.
+
+| Tohum | Sürüm | Oyuncu alım/satış / gün | Oyuncu cirosu / gün | Oyuncu net kârı / 30 gün | Rakip toplam satışı | Devralma / iflas | En değerli rakip |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | v0.18.1 | 17,80 / 17,80 | 4.122.314 TL | 37.406.153 TL | 6.383 | 0 / 2 | 19.097.960 TL |
+| 1 | v0.18.2 | 17,83 / 17,83 | 4.097.316 TL | 36.590.330 TL | 5.538 | 0 / 22 | 17.155.340 TL |
+| 1 | v0.18.3 | 17,57 / 17,57 | 4.086.721 TL | 36.315.109 TL | 11.913 | 25 / 0 | 50.625.521 TL |
+| 193 | v0.18.1 | 18,83 / 18,83 | 4.339.403 TL | 31.216.647 TL | 5.764 | 0 / 3 | 20.861.840 TL |
+| 193 | v0.18.2 | 18,83 / 18,83 | 4.367.000 TL | 31.876.813 TL | 4.832 | 0 / 26 | 14.962.936 TL |
+| 193 | v0.18.3 | 18,87 / 18,87 | 4.382.811 TL | 31.813.760 TL | 9.627 | 25 / 2 | 36.200.619 TL |
+
+Bu koşullarda v0.18.2’de 6’dan 3’e alım düşüşü yeniden üretilemedi. Yeni sürümde rakiplerin satış adedi iki dizide de yaklaşık iki katına çıktı. Yüksek sermayeyle başlayan oyuncu 384 gün sonunda 477–483 milyon TL net varlığa, en güçlü rakipler 36–51 milyon TL’ye ulaştı. Aradaki fark sürüyor. Bu koşuda rakipler daha küçük işletme sermayesiyle başladı. İlk dizide görülen sıfır iflas ekonomik güvence oluşturmaz. Diğer dizide ve kontrollü borç/tasfiye testinde iflas gerçekleşti.
+
+İlk dizinin v0.18.3 tam JSON’u 16.552.228 bayt, saklanan gzip+Base64 2.836.761 bayt. İkinci dizide 16.570.009 → 2.788.973 bayt. İki örnekte yaklaşık %83 azalma sağlandı. WebKit’te 60.000 Türkçe geçmiş satırı içeren örnek gerçek localStorage’a yazıldı, gün ilerledi ve 8 motosiklet yeniden yüklemeden sonra göründü. Bu ölçüm fiziksel iPhone depolama kotasını temsil etmez.

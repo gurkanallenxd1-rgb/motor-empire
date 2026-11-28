@@ -1212,6 +1212,11 @@ test('320px acquisition requires review and confirmation and commits one deal',a
   assert.equal(result.competition.acquired,1);
   assert.equal(result.branches.length,2);
   assert.equal(result.competition.companies.length,49);
+  const dealFilter='#competition-acquisitions select';
+  await ui.page.selectOption(dealFilter,'rival');
+  assert.match(await ui.page.locator('#competition-acquisitions').innerText(),/Bu filtrede tamamlanmış devralma yok/);
+  await ui.page.selectOption(dealFilter,'player');
+  assert.match(await ui.page.locator('#competition-acquisitions').innerText(),/MOTOR EMPIRE/);
   await ui.tap('#competition-tab-rivals');
   assert.match(await ui.page.locator('#rival-roster').innerText(),/49 aktif · 50 kurulmuş · 1 devralınmış/);
 
