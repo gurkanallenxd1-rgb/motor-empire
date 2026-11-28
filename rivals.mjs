@@ -210,6 +210,11 @@ function tradeStock(world,company,market,peers,localSupply) {
       const minimum=company.stress>=5?-Math.round(bike.cost*.13):4000;
       const listing={...vehicle,id:bike.id,spent:bike.cost,stockDay:bike.bought,listedDay:bike.bought,
         disclosureMode:'disclose',tradeStrategy:'repaired',meetings:[]};
+      const city=provinceEconomy(branch.province);
+      const depth=(7+Math.sqrt(city.people)*.46)*city.purchasingPower;
+      const surplus=Math.max(0,(localSupply.get(branch.province)??0)-depth);
+      if(surplus && listing.marketTerms)listing.marketTerms={...listing.marketTerms,
+        demand:listing.marketTerms.demand*clamp(depth/(depth+surplus),.40,1)};
       listing.ask=managedAsking(listing,minimum,day,day-bike.bought>=5);
       bike.ask=listing.ask;
       listing.nextVisit=bike.nextVisit??nextManagedVisit(listing,day);
@@ -221,7 +226,10 @@ function tradeStock(world,company,market,peers,localSupply) {
         rentStock(company,bike,branch);
         return true;
       }
-      if(queue.sales<=0)return true;
+      if(queue.sales<=0){
+        company.daily.salesQueueFull=true;
+        return true;
+      }
       delete bike.offer;
       arrive(listing,day,trade.reputation,bike.value,trade);
       bike.nextVisit=listing.nextVisit;
@@ -269,6 +277,13 @@ function tradeStock(world,company,market,peers,localSupply) {
     if(queue.sales<=0)return true;
     queue.sales--;
     post(company,'sale',salePrice,bike);
+    if(bike.vehicle) {
+      const category=models.get(bike.model).category;
+      const performance=(company.categoryPerformance??={});
+      const turnover=Math.max(1,day-bike.bought);
+      const contribution=clamp((salePrice-bike.cost)/Math.max(1,bike.cost)*100*7/turnover,-12,12);
+      performance[category]=Math.round(((performance[category]??0)*.88+contribution*.12)*100)/100;
+    }
     const local=localTotals(company,branch.province);
     local[2]+=salePrice;local[3]+=salePrice-bike.cost;local[4]++;
     world.sold++;world.turnover+=salePrice;
@@ -470,10 +485,11 @@ function replenish(company,day,market,sourcing,limit=Infinity) {
         if(!quotes.has(item.id))quotes.set(item.id,purchaseForecast(item,item.price,branch.province,market));
         return quotes.get(item.id);
       },profile.some(worker=>worker.role==='inspector'),manager,
-      model=>matches(company.segment,model)?3:0);
+      model=>(matches(company.segment,model)?3:0)+(company.categoryPerformance?.[model.category]??0));
     let left=need;
     for(const candidate of candidates) {
       if(!left)break;
+      if(sourcing.taken.has(candidate.item.id))continue;
       if(candidate.total>available()){company.daily.buyStatus='Nakit rezervi korunuyor';continue;}
       buy(company,branch,day,{...candidate,delivery:quotes.get(candidate.item.id).delivery},market);
       const bike=company.stock.at(-1);
@@ -554,7 +570,7 @@ export function advanceCompetition(world,day,market,playerSales=[],playerBranche
     const committed=company.stock.reduce((sum,bike)=>sum+(bike.state==='transit'?bike.inspection:0)+(bike.state!=='ready'?bike.repair:0),0);
     company.operations={day,capacity,occupied:company.stock.length,investable:Math.max(0,company.cash-reserve(company)-committed),
       buy:company.daily.buyStatus??'Alım kaydı yok',
-      sell:company.daily.sold?'Satış yapıldı':company.daily.rejectedOffers?'Teklifler asgari kârı karşılamadı'
+      sell:company.daily.sold?'Satış yapıldı':company.daily.salesQueueFull?'Satış ekibi iş yükü dolu':company.daily.rejectedOffers?'Teklifler asgari kârı karşılamadı'
         :company.stock.some(bike=>bike.state==='ready')?'Uygun müşteri bekleniyor':'Hazır stok yok'};
     company.bookValue=rivalValue(company);
     company.profit+=company.daily.profit;

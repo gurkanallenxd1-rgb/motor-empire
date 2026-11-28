@@ -1,5 +1,11 @@
 # MOTOR EMPIRE sürüm geçmişi
 
+## v0.18.4
+
+- Oyuncu müdürü ve yeni rakip stoğu ortak ilan, değerleme, kâr, talep ve pazarlık çekirdeğini kullanıyor.
+- Rakip uzmanlığı yumuşak tercih, şube ve garaj yatırımı beklenen getiriye bağlı. Şirket detayına operasyon özeti eklendi.
+- [Kâr farkı ve eşit koşul raporu](docs/v0184-report.md)
+
 ## v0.18.3
 
 - Rakiplerin bölgesel talep, tedarik, hazırlık, nakit rezervi ve yatırım koşulları güncellendi. Devralma geçmişi rakip ve oyuncu işlemlerine göre filtrelenebiliyor.

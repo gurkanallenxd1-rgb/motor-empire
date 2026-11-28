@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.18.3 Rekabet Dengesi, Otomasyon ve Kayıt Düzeltmesi**. Temel sürüm [v0.18.2, PR #37](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/37), main `287c698`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
+Bu dalın sürümü **v0.18.4 Eşit Ekonomik Rekabet**. Temel sürüm [v0.18.3, PR #38](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/38), main `2516f94`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -49,3 +49,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Fiziksel cihaz bildirimi** Kullanıcı v0.18.2’de şirket kimliğini, grafikleri, İstanbul ve Çanakkale otomasyonunu, kayıt kalıcılığını ve performansı doğruladı. 384. gün civarında rakip büyümesi, otomatik alım sıklığı ve park sayacıyla ilgili sorun bildirdi. v0.18.3 için kayıt ve cihaz ölçümleri [denge raporunda](docs/v0183-report.md).
 
 - **v0.18.3 doğrulaması** 154 Node.js, 43 WebKit ve 7 Chromium grafik senaryosu. Üç sürüm için toplam 90 ölçüm noktasında kasa mutabakatı sağlandı. 384 günlük altı şube kayıtları yaklaşık %83 küçüldü. 1.000 günlük iki uç kayıt sıkıştırılmış halde 6,55–6,71 MB, fiziksel cihaz kotası açık.
+
+- **v0.18.4** Yeni rakip alımları oyuncuyla aynı ilan, değerleme ve sıralamayı; satışlar aynı alıcı, pazarlık ve memnuniyet kurallarını kullanır. Kullanıcı v0.18.3 fiziksel iPhone’da sayaç ve alım düzeltmelerini doğruladı. [Test verileri ve açık farklar](docs/v0184-report.md)

@@ -62,6 +62,8 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 
 - `save-codec.mjs` aynı kayıt anahtarında eski JSON ve yeni gzip biçimini okur. Kayıt kilidi içindeki tek `setItem` işleminden önce sıkıştır. Kota ve veri okuma hatalarında eski anahtarı silme. [Kayıt ve ekonomi doğrulaması](docs/v0183-report.md)
 
+- Oyuncu ve yeni rakip alımı için aynı `market-generation.mjs`, `commerce.mjs` ve `automation.mjs/rankMarket` kurallarını kullan. Eski rakip stok maliyetini yeniden hesaplama. [Ortak çekirdek ve eşit koşul testi](docs/v0184-report.md)
+
 ## Git ve teslim
 
 Güncel `main` üzerinden ayrı bir `feature/` veya `fix/` dalı aç. Odaklı commit oluştur, testi ve sınırlarını PR'da raporla ve ilgili proje belgelerini aynı PR'a ekle. `main` dalına doğrudan yazmak yerine PR kullan. Şifre, erişim belirteci, API anahtarı, kişisel hesap bilgisi veya tarayıcı kaydı commit etme. Proje içi kaynak ve geçmiş için GitHub deposunu kullan.

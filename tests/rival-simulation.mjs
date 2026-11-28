@@ -53,7 +53,7 @@ export function rivalSimulation(days,{insolvent=false}={}) {
   const list=world.companies;
   const average=key=>list.reduce((sum,c)=>sum+c[key],0)/Math.max(1,list.length);
   const shares=list.map(c=>c.marketShare).sort((a,b)=>b-a);
-  assert.ok(shares[0]<.20);
+  assert.ok(shares[0]<.20,`En yüksek 30 günlük pay: ${shares[0]}`);
   assert.ok(Buffer.byteLength(encodeSave(world))<2400000);
   assert.ok(list.every(c=>Number.isSafeInteger(c.cash) && Number.isSafeInteger(c.bookValue)));
   return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,

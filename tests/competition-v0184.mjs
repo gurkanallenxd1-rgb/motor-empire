@@ -4,6 +4,7 @@ import {createEconomy,marketRandom,nextEconomy,observeMarket} from '../economy.m
 import {DAY_MS} from '../clock.mjs';
 import {modelOf} from '../bikes.mjs';
 import {advanceCompetition,createCompetition,rivalValue} from '../rivals.mjs';
+import {rivalIdentity} from '../rival-identity.mjs';
 import {STAFF_ROLES} from '../business.mjs';
 import {financeReport} from '../finance.mjs';
 
@@ -41,7 +42,7 @@ const companyStats=company=>{
     debt:company.debt,turnover:company.turnover,profit:company.profit,stock:company.stock.length};
 };
 
-for(const seed of [1,193]){
+for(const seed of process.env.MOTOR_MATCH_ONLY_REAL?[]:[1,193]){
   let player=start(seed);
   const opening=1_500_000;
   player.cash=opening;
@@ -79,11 +80,16 @@ player.cash=opening;
 player.branches[0].tier=2;
 for(const city of [17,6])player=action(player,'open-office',null,{province:city,tier:2});
 player.cash=opening-assets({...player,cash:0}).net;
-const funding=player.cash;
+const funding=player.cash+player.ledger.reduce((total,row)=>total+row.amount,0);
 for(const branch of player.branches)player=configure(player,branch.id,{...config,brand:'',budget:650_000,maxPrice:320_000});
 const openingRivals=new Map([
   ['Yelpaze Motor Atölyesi',14_018_374],['Novarun İki Teker',12_861_016],['Asterro Motor Atölyesi',6_066_105],
 ]);
+const template=player.competition.companies.find(row=>row.strategy==='repair');
+const asterro={...structuredClone(template),id:55,...rivalIdentity(55,template.strategy),founded:120};
+player.competition.companies.push(asterro);
+player.competition.nextCompany=56;
+player.competition.founded++;
 for(const company of player.competition.companies){
   if(!openingRivals.has(company.name))continue;
   company.cash+=openingRivals.get(company.name)-rivalValue(company);
@@ -92,7 +98,7 @@ for(const company of player.competition.companies){
 }
 for(const [name,value] of openingRivals) {
   const company=player.competition.companies.find(row=>row.name===name);
-  if(company)assert.equal(company.bookValue,value);
+  assert.equal(company?.bookValue,value);
 }
 const team=player.competition.companies.filter(row=>openingRivals.has(row.name)).map(row=>row.id);
 player=synchronize(player,wall+14*DAY_MS).state;

@@ -28,3 +28,7 @@ Günlük performans satırı en fazla 365 gün saklanır. Yerel geçmiş 30 gün
 İl stok baskısı ulusal erişimi de hesaba katar. Yerel nakliye ek gün oluşturmaz. Hazır teslim edilen temiz stok aynı kapanışta satışa hazırlanabilir. Ücretli onarım ve kargo süreye tabidir. Şirketin yönetim puanı kaynak alış fiyatını etkiler. Anapara ödemesi faaliyet rezervinin üstündeki kasayı kullanır. Yatırım değerlendirmesi 14, devralma değerlendirmesi 7 günde bir yapılabilir. Bir devralma sonrasında alıcı 30 oyun günü bekler. Teklif net varlık, kârlılık ve uyuma dayanır. Finansal uygunluk yoksa işlem ve satın alma haberi oluşmaz.
 
 Oyuncu tarafında günlük tarama ve manuel satışın açtığı tarama aynı şubeye ait günlük taahhüt tutarını kullanır. Önceki kayıtta aynı güne ait taramanın harcama sayacı yoksa ek alım sonraki güne bırakılır. [Ölçümler](v0183-report.md)
+
+## v0.18.4 ortak ekonomi
+
+Yeni rakip tedariki aynı piyasa üreticisini, kâr tahminini, personel hızını ve müşteri/pazarlık işlevlerini kullanır. Kimlik, özel pazar sahipliği, kadro seçimi ve yatırım iştahı şirket bazında kalır. Eski stok edinim maliyeti korunur. [Rapor ve operasyon alanları](v0184-report.md)
