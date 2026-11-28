@@ -10,6 +10,17 @@ Temel sürümler v0.18.1 main `0b3fe50` ve v0.18.2 main `287c698`. Kullanıcı v
 - `game.mjs / automate`: v0.18.1 ve v0.18.2 için ilan sıralama, tarama sıklığı, şube başına bütçe, nakit rezervi ve kâr süzgecinde kod farkı bulunmadı. İki sürümde de günlük tarama, otomatik satıştan sonra yapılıyordu. Gün içindeki manuel satış ise taramayı tetiklemiyordu. Şimdi ilgili şube, kalan günlük bütçe ve mevcut kurallarla yeniden tarıyor. Belirli bir günlük adet garanti edilmiyor.
 - `app.mjs / renderGarage` ve `art.mjs / update`: park metni 2D çizicinin yan etkisiydi. 3D açıkken çizici çağrılmadığından metin önceki değerde kalabiliyordu. Ortak özet kapasiteyi, fiziksel stoku, nakliyeyi, rezervi, boş yeri ve fiziksel stokun servis/satışa hazır alt kümelerini aynı şube stoğundan okuyor. Motorlar aynı park listesini tüketiyor.
 
+### İncelenen işletme sınırları
+
+| Alan | v0.18.3 davranışı |
+| --- | --- |
+| Alım ve satış | Şube başına fiziksel kapasite, kadronun hazırlık ve satış iş yükü, gerçek stok ve nakit. Firma değerini sınırlayan yapay tavan yok. |
+| Stok devri | Talep, stok yaşı, fiyat ve önceki günün satışa hazır stoku. Küçük illerde ulusal müşteri erişimi dikkate alınır. |
+| Tedarik | Stratejiye göre bağımsız rakip havuzu, değerlendirme kalitesi, parça ve nakliye maliyeti. Oyuncu alım ilanları rakiplerce tüketilmez. |
+| Hazırlık | Ekspertiz, onarım ve nakliye ayrı kayıtlı maliyetler. Hazırlık kuyruğu şube kadrosuna bağlı. |
+| Kadro ve yatırım | İş yüküne göre personel, nakit rezervi ve stok doluluğu. Yükseltme farkı ortak şube fiyat tablosundan gelir. Zarar ve borç stresi kapanmayı tetikleyebilir. |
+| Oyuncu müdürü | Mevcut kâr eşiği, azami fiyat, nakit rezervi, açık oyuncu görüşmeleri, nakliye rezervi ve personel kuyruğu korunur. Şubeler aynı kasayı paylaşır, günlük bütçeleri ayrıdır. |
+
 ## Kayıt ve geri dönüş
 
 `save-codec.mjs` 1,5 milyon karakter üstünde gzip + Base64 biçimini kullanır. Sıkıştırma kâr, borç veya satış kaydı üzerinde dönüşüm yapmaz. Gzip’in daha küçük olmadığı durumda JSON yazılır. Eski düz JSON ve önceki sürüm anahtarları okunur. Büyük kayıt aynı anahtara, mevcut sekme kilidi altında tek atomik yazımla kaydedilir. Yazım başarısız olursa sağlam anahtar yerinde kalır. Kesik gzip ya da bozuk JSON, yeni kayıtla üzerine yazılmadan görünür hata üretir. Kayıt hatasında kullanıcı mevcut ham dosyayı indirebilir.
