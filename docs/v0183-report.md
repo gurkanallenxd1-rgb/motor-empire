@@ -23,7 +23,7 @@ Temel sürümler v0.18.1 main `0b3fe50` ve v0.18.2 main `287c698`. Kullanıcı v
 
 ## Kayıt ve geri dönüş
 
-`save-codec.mjs` 1,5 milyon karakter üstünde gzip + Base64 biçimini kullanır. Sıkıştırma kâr, borç veya satış kaydı üzerinde dönüşüm yapmaz. Gzip’in daha küçük olmadığı durumda JSON yazılır. Eski düz JSON ve önceki sürüm anahtarları okunur. Büyük kayıt aynı anahtara, mevcut sekme kilidi altında tek atomik yazımla kaydedilir. Yazım başarısız olursa sağlam anahtar yerinde kalır. Kesik gzip ya da bozuk JSON, yeni kayıtla üzerine yazılmadan görünür hata üretir. Kayıt hatasında kullanıcı mevcut ham dosyayı indirebilir.
+`save-codec.mjs` 1,5 milyon karakter üstünde gzip + Base64 biçimini kullanır. Küçük JSON yazımı kota nedeniyle reddedilirse daha küçük gzip kopyasıyla bir kez yeniden denenir. Sıkıştırma kâr, borç veya satış kaydı üzerinde dönüşüm yapmaz. Gzip’in daha küçük olmadığı durumda JSON yazılır. Eski düz JSON ve önceki sürüm anahtarları okunur. Büyük kayıt aynı anahtara, mevcut sekme kilidi altında tek atomik yazımla kaydedilir. Yazım başarısız olursa sağlam anahtar yerinde kalır. Kesik gzip ya da bozuk JSON, yeni kayıtla üzerine yazılmadan görünür hata üretir. Kayıt hatasında kullanıcı mevcut ham dosyayı indirebilir.
 
 IndexedDB’de ayrı tarihçe ve işlemler depolamak ilave kota ve bağımsız yazma olanağı sağlayabilir. Bu sürüm tek atomik anahtarı ve eski veriye erişimi korumak için mevcut depolamayı sürdürür. İçe aktarma arayüzü ve fiziksel iPhone kota/perf testi açık. Codec, büyük kayıtlarda eski sürümlerin açamayacağı bir zarf yazar. Sürüm düşürmeden önce ham kayıt doğrulaması gerekir.
 

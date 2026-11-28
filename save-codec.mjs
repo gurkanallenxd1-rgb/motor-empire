@@ -2,9 +2,9 @@ import {gzip,ungzip} from './vendor/pako/pako.mjs?v=1.0.11';
 
 const PREFIX='motor:gzip:1:';
 const CHUNK=16384;
-export function encodeSave(state) {
+export function encodeSave(state,{force=false}={}) {
   const json=JSON.stringify(state);
-  if (json.length<1_500_000) return json;
+  if (!force && json.length<1_500_000) return json;
   const packed=gzip(new TextEncoder().encode(json),{level:1});
   let bytes='';
   for(let index=0;index<packed.length;index+=CHUNK) {

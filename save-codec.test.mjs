@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decodeSave,encodeSave} from './save-codec.mjs';
-import {loadGame,newGame,STORAGE_KEY,synchronize} from './game.mjs';
+import {loadGame,newGame,saveGame,STORAGE_KEY,synchronize} from './game.mjs';
 import {createTimeStore} from './time-store.mjs';
 import {garageLayout,garageParking,garageStock} from './garage-layout.mjs';
 
@@ -45,4 +45,20 @@ test('2D and 3D receive all eight physically parked bikes with separate reservat
   inventory[8].stage='unchecked';
   assert.equal(garageStock(inventory,10).physical,9);
   assert.equal(garageParking(garageLayout(10),inventory).length,9);
+});
+
+
+test('a soft quota retries a small JSON save in compressed form without deleting the old key',()=>{
+  const state=synchronize(newGame(),wall).state;
+  let raw='previous';
+  let writes=0;
+  const storage={getItem:()=>raw,setItem(_key,value){
+    writes++;
+    if(value.length>200_000)throw new DOMException('Quota','QuotaExceededError');
+    raw=value;
+  }};
+  saveGame(storage,state);
+  assert.equal(writes,2);
+  assert.ok(raw.startsWith('motor:gzip:1:'));
+  assert.deepEqual(loadGame(storage),state);
 });

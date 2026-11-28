@@ -1596,6 +1596,14 @@ export function loadGame(storage) {
 }
 
 export function saveGame(storage, state) {
-  try { storage.setItem(STORAGE_KEY,encodeSave(state)); }
-  catch (error) { throw new SaveWriteError(error); }
+  try {
+    const raw=encodeSave(state);
+    try { storage.setItem(STORAGE_KEY,raw); }
+    catch (error) {
+      if(error.name!=='QuotaExceededError' || !raw.startsWith('{'))throw error;
+      const packed=encodeSave(state,{force:true});
+      if(packed.length>=raw.length)throw error;
+      storage.setItem(STORAGE_KEY,packed);
+    }
+  } catch (error) { throw new SaveWriteError(error); }
 }
