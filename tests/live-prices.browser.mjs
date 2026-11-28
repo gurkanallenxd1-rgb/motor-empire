@@ -1161,7 +1161,7 @@ test('390px competition center filters companies, opens growth details and shows
   await ui.tap('#competition-tab-rivals');
   assert.equal(await ui.page.locator('#rival-city option').count(),82);
   if(captures)await ui.page.screenshot({path:captures+'/rivals.png'});
-  await ui.page.fill('#rival-search','Kıvıltaş Viraj');
+  await ui.page.fill('#rival-search',seed.competition.companies[0].name);
   assert.equal(await ui.page.locator('#rival-list .competition-row').count(),1);
   await ui.tap('#rival-list button');
   const detail=ui.page.locator('#rival-detail');
@@ -1169,6 +1169,11 @@ test('390px competition center filters companies, opens growth details and shows
   assert.match(await detail.innerText(),/Kasa · tahmin/);
   await ui.page.selectOption('#rival-period','7');
   assert.ok(await ui.page.locator('#rival-history svg').isVisible());
+  await ui.page.selectOption('#rival-period','365');
+  await ui.page.selectOption('#rival-chart-metric','cash');
+  assert.match(await ui.page.locator('#rival-history svg').getAttribute('aria-label'),/Nakit/);
+  assert.ok(await ui.page.locator('#rival-profile-mark .rival-mark').isVisible());
+  if(captures)await ui.page.screenshot({path:captures+'/profile.png'});
   await ui.tap('#rival-detail [aria-label="Şirket ayrıntısını kapat"]');
   await ui.tap('#competition-tab-ranks');
   assert.ok(await ui.page.locator('#rival-rank-list [data-player]').isVisible());
@@ -1196,6 +1201,7 @@ test('320px acquisition requires review and confirmation and commits one deal',a
   await ui.tap('#competition-acquisitions [data-rival-detail]');
   await ui.tap('#rival-review-offer');
   assert.ok(await ui.page.locator('#rival-confirm-area').isVisible());
+  if(process.env.COMPETITION_SCREENSHOTS)await ui.page.screenshot({path:process.env.COMPETITION_SCREENSHOTS+'/acquisition.png'});
   assert.equal((await ui.state()).branches.length,1);
   await ui.tap('#rival-confirm');
   await ui.page.locator('#rival-detail').waitFor({state:'hidden'});

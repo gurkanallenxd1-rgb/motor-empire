@@ -1,9 +1,9 @@
-import { regionalPlayerValue } from './game.mjs?v=0.18.1';
+import { regionalPlayerValue } from './game.mjs?v=0.18.2';
 import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.18.1';
+import { financeReport } from './finance.mjs?v=0.18.2';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
-import { regionalRivalValue,rivalOffer,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.1';
+import { regionalRivalValue,rivalOffer,rivalManagement,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.2';
 
 const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
@@ -12,9 +12,13 @@ const size=company=>SIZES[level(company)];
 const modelNames=new Map(ECONOMY_MODELS.map(model=>[model.id,model.name]));
 const labels={worth:'Şirket değeri',revenue:'30 günlük ciro',profit:'30 günlük net kâr',
   sold:'30 günlük satış',branches:'Şube sayısı',reputation:'İtibar',share:'30 günlük pazar payı'};
+const chartMetrics={
+  worth:['Şirket değeri',4,'netWorth'],revenue:['Günlük ciro',1,'revenue'],profit:['Günlük net kâr',2,'profit'],
+  cash:['Nakit',5,'cash'],share:['Pazar payı (30 gün)',6,1],branches:['Şube sayısı',7,2],sold:['Günlük satış adedi',3,'salesCount'],
+};
 const segment={commuter:'Düşük hacim',premium:'Premium',scooter:'Scooter',sport:'Spor',naked:'Naked',adventure:'Adventure',touring:'Touring'};
 const actions={sale:'Satış',purchase:'Alış',shipping:'Nakliye',inspection:'Ekspertiz',repair:'Tamir',rent:'Kiralama',
-  loan:'Kredi',interest:'Faiz',principal:'Anapara',branch:'Şube açılışı',upgrade:'Garaj yatırımı',liquidation:'Tasfiye'};
+  loan:'Kredi',interest:'Faiz',principal:'Anapara',branch:'Şube açılışı',upgrade:'Garaj yatırımı',liquidation:'Tasfiye',transfer:'Stok transferi',acquisition:'Şirket yatırımı',inheritedCash:'Devralınan kasa'};
 
 export function createCompetitionView({byId,element,money,signed,assets,getState,dispatch}) {
   const tabs=[...document.querySelectorAll('[data-competition-tab]')];
@@ -35,6 +39,22 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   selectOptions('rival-size',[['','Tüm büyüklükler'],...SIZES.map((value,index)=>[index,value])]);
   selectOptions('rival-strategy',[['','Tüm stratejiler'],...Object.entries(STRATEGIES)]);
   selectOptions('rival-rank-metric',Object.entries(labels));
+  selectOptions('rival-chart-metric',Object.entries(chartMetrics).map(([key,[label]])=>[key,label]));
+  function mark(identity) {
+    const badge=element('span',identity?.initials??'ME','rival-mark');
+    if(identity) {
+      badge.dataset.shape=identity.shape;
+      badge.style.setProperty('--rival-primary',identity.primary);
+      badge.style.setProperty('--rival-secondary',identity.secondary);
+    }
+    badge.setAttribute('aria-hidden','true');
+    return badge;
+  }
+  function branded(identity,...children) {
+    const wrapper=element('div','','rival-brand');
+    wrapper.append(mark(identity),...children);
+    return wrapper;
+  }
   function list(id,children,fallback) {
     byId(id).replaceChildren(...(children.length?children:[element('p',fallback,'spec')]));
   }
@@ -44,7 +64,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   }
   function metrics(row,key) {
     if(key==='share')return percent.format(row[key]);
-    if(key==='worth'||key==='revenue')return money(row[key]);
+    if(['worth','revenue','cash'].includes(key))return money(row[key]);
     if(key==='profit')return signed(row[key]);
     return number.format(row[key]);
   }
@@ -62,10 +82,10 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const rows=state.competition.companies.filter(c=>!province||c.branches.some(b=>b.province===province)).map(c=>{
       const window=c.history.slice(-30);
       const scope=province?c.branches.filter(b=>b.province===province):c.branches;
-      if(!province)return {id:c.id,name:c.name,worth:c.bookValue,revenue:sum(window,1),profit:sum(window,2),
+      if(!province)return {id:c.id,name:c.name,identity:c.identity,worth:c.bookValue,revenue:sum(window,1),profit:sum(window,2),
         sold:sum(window,3),branches:scope.length,reputation:c.reputation};
       const local=(c.regional??[]).filter(row=>row[1]===province);
-      return {id:c.id,name:c.name,worth:Math.round(regionalRivalValue(c,province)),
+      return {id:c.id,name:c.name,identity:c.identity,worth:Math.round(regionalRivalValue(c,province)),
         revenue:sum(local,2),profit:sum(local,3),sold:sum(local,4),branches:scope.length,reputation:c.reputation};
     });
     if(scope.length)rows.push(player);
@@ -74,7 +94,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     return rows;
   }
   function textNews(world,count) {
-    return [...world.news].reverse().slice(0,count).map(item=>element('p',`Gün ${item.day} · ${item.text}`,'competition-story'));
+    return [...world.news].reverse().slice(0,count).map(item=>branded(item.identity??world.companies.find(c=>c.id===item.id)?.identity,element('p',`Gün ${item.day} · ${item.text}`,'competition-story')));
   }
   function detailButton(id,label) {
     const button=element('button',label,'competition-link');
@@ -87,7 +107,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       const card=element('article','','competition-row');
       const data=element('div');
       data.append(detailButton(company.id,company.name),element('p',`${cityName(company.province)} · ${size(company)} · ${STRATEGIES[company.strategy]}`,'spec'));
-      card.append(data,element('strong',money(company.bookValue),'competition-value'));
+      card.append(branded(company.identity,data),element('strong',money(company.bookValue),'competition-value'));
       return card;
     });
   }
@@ -110,7 +130,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     const stats=measures([['Pazar payım',metrics(player,'share')],['Aylık satış',`${player.sold} motosiklet`],
       ['Aylık satış cirosu',money(player.revenue)],['En yakın rakip',closest?.name??'—'],
       [`${cityName(city)} rekabeti`,`${regional>=6?'Yüksek':regional>=3?'Orta':'Düşük'} · ${regional} rakip`],
-      ['Aktif / toplam kurulmuş',`${world.companies.length} / ${world.founded}`],['Devralınan',world.acquired],
+      ['Aktif / toplam kurulmuş',`${world.companies.length} / ${world.founded}`],['Devraldığım şirket',world.acquired],['Rakipler arası devralma',world.rivalTakeovers?.length??0],
       ['Yeni galeri koruması',state.sales.length<6&&state.branches.length===1?'Etkin':'Tam rekabet']]);
     const notes=[...world.customerNotes].reverse().slice(0,3).map(note=>
       element('p',`Gün ${note.day} · ${note.model} · ${note.lost?note.company+' seçildi':'Müşteri sizi seçti'} · ${note.reason}`,'competition-story'));
@@ -143,7 +163,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       if(row.player)card.dataset.player='true';
       const content=element('div');
       content.append(element('span',`#${index+1} `,'eyebrow'),row.player?element('strong',row.name):detailButton(row.id,row.name));
-      card.append(content,element('strong',metrics(row,metric),'competition-value'));
+      card.append(branded(row.identity,content),element('strong',metrics(row,metric),'competition-value'));
       return card;
     });
     if(city)cards.unshift(element('p','İlin cirosu, faaliyet kârı ve satışları yereldir. Şirket değerinde kasa ve borç şube sayısına göre paylaştırılır. İtibar şirket genelidir.','spec'));
@@ -151,10 +171,11 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   }
   function renderAcquisitions(state) {
     const available=state.competition.companies.filter(company=>rivalOffer(company).eligible);
-    const archive=(state.competition.takeovers??[]).map(row=>element('p',
-      `Gün ${row.day} · ${row.name} · ${money(row.total)} · ${row.stock} motosiklet / ${row.staff} çalışan`,'competition-story'));
-    const older=state.competition.retired.filter(row=>row.status==='acquired'&&!(state.competition.takeovers??[]).some(deal=>deal.id===row.id))
-      .map(row=>element('p',`Gün ${row.day} · ${row.name}`,'competition-story'));
+    const deals=[...(state.competition.takeovers??[]),...(state.competition.rivalTakeovers??[])];
+    const archive=deals.sort((a,b)=>b.day-a.day).map(row=>branded(row.identity,element('p',
+      `Gün ${row.day} · ${row.name} → ${row.buyerName??'MOTOR EMPIRE'} · ${money(row.total)} · ${row.stock} motosiklet / ${row.staff} çalışan`,'competition-story')));
+    const older=state.competition.retired.filter(row=>row.status==='acquired'&&!deals.some(deal=>deal.id===row.id))
+      .map(row=>branded(row.identity,element('p',`Gün ${row.day} · ${row.name}`,'competition-story')));
     list('competition-acquisitions',[
       element('p','Yönetim teklifi değerlendirir. Onaydan önce kasa, borç ve personel aktarımını inceleyin.','spec'),
       ...(available.length?cards(available):[element('p','Şu anda devralmaya açık rakip şirket yok.','spec')]),
@@ -186,32 +207,39 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     render();
   }
   function chart(state,company) {
-    const first=state.day-Number(byId('rival-period').value)+1;
-    const rivals=company.history.filter(row=>row[0]>=first);
-    const player=state.financeSnapshots.filter(row=>row.day>=first);
+    const period=Number(byId('rival-period').value);
+    const first=Math.max(1,state.day-period+1);
+    const key=byId('rival-chart-metric').value;
+    const [label,column,playerColumn]=chartMetrics[key];
+    const rivals=company.history.filter(row=>row[0]>=first && Number.isFinite(row[column]));
+    const player=typeof playerColumn==='number'
+      ? (state.competition.playerHistory??[]).filter(row=>row[0]>=first).map(row=>[row[0],row[playerColumn]])
+      : financeReport(state,assets(state),period).series.map(row=>[row.day,row[playerColumn]]).filter(row=>Number.isFinite(row[1]));
     byId('rival-history').replaceChildren();
     if(rivals.length<2) {
-      byId('rival-history').append(element('p','Bu dönem için yeterli geçmiş yok.','spec'));
+      byId('rival-history').append(element('p','Bu gösterge için yeterli kayıtlı geçmiş yok.','spec'));
       return;
     }
-    const lines=[rivals.map(row=>[row[0],row[4]]),player.map(row=>[row.day,row.netWorth])];
+    const lines=[rivals.map(row=>[row[0],row[column]]),player];
     const values=lines.flatMap(rows=>rows.map(row=>row[1]));
     const lo=Math.min(...values),span=Math.max(1,Math.max(...values)-lo);
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 360 121');
     svg.setAttribute('role','img');
-    svg.setAttribute('aria-label',`Gün ${first<1?1:first}–${state.day} şirket değeri, turuncu rakip ve yeşil oyuncu`);
+    svg.setAttribute('aria-label',`Gün ${first<1?1:first}–${state.day} ${label}, rakip ve oyuncu`);
     for(const [index,rows] of lines.entries()) {
       if(rows.length<2)continue;
       const line=document.createElementNS(svg.namespaceURI,'polyline');
       line.setAttribute('points',rows.map(([day,value])=>`${12+(day-first)*336/Math.max(1,state.day-first)},${110-(value-lo)*98/span}`).join(' '));
-      line.setAttribute('stroke',index?'#89d3ab':'#ff9d65');
+      line.setAttribute('stroke',index?'#89d3ab':company.identity?.primary??'#ff9d65');
       line.setAttribute('stroke-width','2');
       line.setAttribute('fill','none');
       svg.append(line);
     }
-    byId('rival-history').append(svg,element('p',`Gün ${rivals[0][0]}–${state.day} · ${money(lo)} – ${money(lo+span)}`,'spec'),
-      element('p',`Turuncu rakip · Yeşil siz · Son rakip değeri ${money(rivals.at(-1)[4])}`,'spec'));
+    const format=value=>metrics({[key]:value},key);
+    byId('rival-history').append(svg,element('p',`Gün ${rivals[0][0]}–${rivals.at(-1)[0]} · ${format(lo)} – ${format(Math.max(...values))}`,'spec'),
+      branded(company.identity,element('p',`${company.name} · Son değer ${format(rivals.at(-1)[column])}`,'spec')),
+      element('p',player.length>=2?'Yeşil çizgi · Sizin işletmeniz':'Sizin işletmeniz için yeterli karşılaştırma kaydı yok.','spec'));
   }
   function showDetail(id) {
     const state=getState();
@@ -219,17 +247,32 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
     if(!company)return;
     selected=company.id;
     byId('rival-detail-name').textContent=company.name;
+    byId('rival-profile-mark').replaceChildren(mark(company.identity));
     const quote=rivalOffer(company);
+    const trackedStock=company.history.slice(-30).filter(row=>Number.isFinite(row[9]));
+    const averageStock=trackedStock.length?sum(trackedStock,9)/trackedStock.length:0;
+    const recentInvestments=company.events.filter(row=>['branch','upgrade','acquisition'].includes(row[1])).slice(-4).reverse()
+      .map(([day,action,,amount])=>element('p',`Gün ${day} · ${actions[action]} · ${money(amount)}`,'competition-story'));
     const details=measures([['Kuruluş',`Oyun günü ${company.founded}`],['Merkez',cityName(company.province)],
       ['Sınıf',size(company)],['Strateji',STRATEGIES[company.strategy]],['Segment',segment[company.segment]],
       ['Risk / büyüme puanı',`${company.risk} / ${company.growth}`],['Şube / personel',`${company.branches.length} / ${company.branches.reduce((total,branch)=>total+branch.staff,0)}`],
       ['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],['Pazar payı (30 gün)',percent.format(company.marketShare)],
       ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],['Borç · tahmin',money(company.debt)],
-      ['Günlük ciro',money(company.daily?.revenue??0)],['30 günlük ciro',money(sum(company.history.slice(-30),1))],
-      ['365 günlük ciro',money(sum(company.history,1))],['Günlük net kâr',signed(company.daily?.profit??0)],
-      ['30 günlük net kâr',signed(quote.profit)],['365 günlük net kâr',signed(sum(company.history,2))]]);
+      ['Yönetim kalitesi',`${rivalManagement(company)}/100`],
+      ['Finansal risk',company.stress>=5?'Yüksek':company.debt>company.cash?'Orta':'Düşük'],
+      ['Ölçülen alım / toplam satış',`${company.totalBought??'Veri yok'} / ${company.totalSold}`],
+      ['Ortalama satış kârı',company.measuredSales?signed(company.saleProfit/company.measuredSales):'Veri yok'],
+      ['30 günlük stok devri',averageStock?number.format(sum(trackedStock,3)/averageStock)+'× · '+trackedStock.length+' kayıtlı gün':'Veri yok'],
+      ['Önceki şirket adı',company.formerName??'—']]);
+    const periods=measures([1,7,30,90,365].map(days=>{
+      const history=company.history.filter(row=>row[0]>state.day-days);
+      const change=history.length>=2 && history[0][4]>0 ? percent.format(company.bookValue/history[0][4]-1):'—';
+      return [`${days} gün`,history.length?`${money(sum(history,1))} ciro · ${signed(sum(history,2))} net · ${sum(history,3)} satış · ${change} değer değişimi (${history.length} gün)`:'Veri yok'];
+    }));
+    const completed=(state.competition.rivalTakeovers??[]).filter(row=>row.buyerId===company.id)
+      .map(row=>branded(row.identity,element('p',`Gün ${row.day} · ${row.name} · ${money(row.total)}`,'competition-story')));
     const branchRows=company.branches.map(b=>element('p',`${cityName(b.province)} · ${company.stock.filter(item=>item.branch===b.id).length}/${BRANCH_TIERS[b.tier].capacity} stok · ${b.staff} çalışan`,'competition-story'));
-    const statusNames={ready:'satışa hazır',transit:'nakliyede',inspected:'hazırlıkta'};
+    const statusNames={ready:'satışa hazır',transit:'nakliyede',transfer:'transferde',inspected:'hazırlıkta'};
     const counts=Object.keys(statusNames).map(key=>`${company.stock.filter(b=>b.state===key).length} ${statusNames[key]}`);
     const events=[...company.events].reverse().slice(0,5).map(([day,action,model,amount])=>element('p',`Gün ${day} · ${actions[action]} · ${model?modelNames.get(model)+' · ':''}${money(amount)}`,'competition-story'));
     const national=ranking(state,0).sort((a,b)=>b.worth-a.worth).findIndex(row=>row.id===company.id)+1;
@@ -243,7 +286,9 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],
       ['Borç · tahmin',money(company.debt)],['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],
       ['Pazar payı',percent.format(company.marketShare)],['Devralma',quote.eligible?'Teklife açık':'Şu anda uygun değil']]);
-    byId('rival-detail-data').replaceChildren(overview,section('Şirket ve finansal performans',[details]),
+    byId('rival-detail-data').replaceChildren(overview,section('Şirket ve finansal performans',[details,periods]),
+      section('Son yatırımlar',recentInvestments.length?recentInvestments:[element('p','Yatırım kaydı yok.','spec')]),
+      section('Tamamlanan devralmalar',completed.length?completed:[element('p','Devralma kaydı yok.','spec')]),
       section('Şubeler, çalışanlar ve stok',[...branchRows,element('p',counts.join(' · '),'spec')]),
       section('Son işlemler',events.length?events:[element('p','İşlem kaydı yok.','spec')]));
     byId('rival-offer-area').hidden=!quote.eligible;
@@ -294,7 +339,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   for(const id of ['rival-search','rival-city','rival-size','rival-strategy','rival-rank-city','rival-rank-metric']) {
     byId(id).addEventListener(id==='rival-search'?'input':'change',()=>{limit=20;render();});
   }
-  byId('rival-period').addEventListener('change',()=>{
+  for(const control of ['rival-period','rival-chart-metric'])byId(control).addEventListener('change',()=>{
     const state=getState(),company=state.competition.companies.find(row=>row.id===selected);
     if(company)chart(state,company);
   });

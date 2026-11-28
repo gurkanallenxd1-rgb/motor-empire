@@ -1,4 +1,5 @@
-import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,RIVAL_ROLES } from './rivals.mjs?v=0.18.1';
+import { migrateRivalIdentities } from './rival-identity.mjs?v=0.18.2';
+import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,rivalRoles } from './rivals.mjs?v=0.18.2';
 import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16.1';
 import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.18';
 import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16.1';
@@ -7,15 +8,15 @@ import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff
 import { modelOf } from './bikes.mjs?v=0.16.1';
 import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.18.1';
+  setReputation } from './characters.mjs?v=0.18.2';
 import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
   policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.16.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18.1';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18.2';
 import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.16.1';
 import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.16.1';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18.1';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18.2';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
   knownPart, repairForecast, repairQuote, roadValue } from './damage.mjs?v=0.16.1';
@@ -914,7 +915,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
       const basis=Math.max(0,quote.total-company.cash+company.debt);
       const offices=company.branches.map((source,index)=>{
         const office=createOffice(next.branches.length+index+1,source.province,source.tier);
-        office.workers=RIVAL_ROLES.slice(0,source.staff).map((role,index)=>
+        office.workers=rivalRoles(source).map((role,index)=>
           makeEmployee(`r${company.id}-${source.id}-${index}`,role));
         office.garage=company.stock.filter(item=>item.branch===source.id).map((item,slot)=>
           inheritedStock(item,next.day,source.province,
@@ -1014,7 +1015,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
       const rivalMarket=next.competition;
       const oldRank=rivalMarket.rank;
       const oldCityRank=rivalMarket.cityRank;
-      advanceCompetition(rivalMarket,tomorrow,next.economy,next.sales);
+      advanceCompetition(rivalMarket,tomorrow,next.economy,next.sales,next.branches.length);
       const worth=assets(next).net;
       rivalMarket.rank=1+rivalMarket.companies.filter(company=>company.bookValue>worth).length;
       const headquarters=branchProvince(next.branches[0]);
@@ -1307,6 +1308,7 @@ export function synchronize(state, now) {
         markToMarket({...item},economy,branchProvince(branch)))}))};
   }
   if (!state.competition) state={...state,competition:createCompetition(state.day,state.economy)};
+  else if(state.competition.identityVersion!==1)state={...state,competition:migrateRivalIdentities(state.competition)};
   if (!state.clock) {
     return {state:{...state,clock:startClock(now)},summary:null};
   }
