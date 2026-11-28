@@ -34,12 +34,33 @@ Sekiz ek satış tek başına farkı açıklamıyor. Oyuncu ortalama 2,81 kat da
 | Şirket | Başlangıç | 399. gün | Artış |
 | --- | ---: | ---: | ---: |
 | MOTOR EMPIRE | 69.411.569 TL | 74.217.060 TL | 4.805.491 TL |
-| Yelpaze Motor Atölyesi | 14.018.374 TL | 14.970.900 TL | 952.526 TL |
-| Novarun İki Teker | 12.861.016 TL | 13.027.535 TL | 166.519 TL |
-| Asterro Motor Atölyesi | 6.066.105 TL | 6.385.444 TL | 319.339 TL |
+| Yelpaze Motor Atölyesi | 14.018.374 TL | 14.968.910 TL | 950.536 TL |
+| Novarun İki Teker | 12.861.016 TL | 13.512.737 TL | 651.721 TL |
+| Asterro Motor Atölyesi | 6.066.105 TL | 6.356.733 TL | 290.628 TL |
 
-Bu kurguda oyuncunun mutlak değer artışı en güçlü rakibin 5,04 katı. Kullanıcının gözlemlediği 14,67 katlık oran farklı bir oturuma ait. Bir oturumun sonucu diğerine doğrudan taşınamaz.
+Bu kurguda oyuncunun mutlak değer artışı en güçlü rakibin 5,06 katı. Kullanıcının gözlemlediği 14,67 katlık oran farklı bir oturuma ait. Bir oturumun sonucu diğerine doğrudan taşınamaz.
 
 ## Koruma ve sınırlar
 
 Oyuncu yönetimindeki marka, fiyat, bütçe, nakit, minimum kâr, kişisel görüşme ve fiziksel garaj kuralları aynı girişlerden çalışır. Var olan rakip stok eski fatura ve fiyat yoluyla kapanır. Yeni rakip alımları ortak çekirdekten geçer. Varlıklar, şirket kimliği, kayıt anahtarı ve gzip sıkıştırma biçimi aynı kalır. Mevcut oyuncu tarafında saatlik işler, rakiplerde günlük kapanışta personel puanına göre toplanır. Rakip geçmişi son teklif ve en çok 32 eski müşteriyle sınırlıdır. Fiziksel iPhone üzerinde v0.18.4 testi yapılmadı.
+
+
+## Eşit ilanda sonuçlar
+
+| Tohum | Gün | Oyuncu / rakip satış | Oyuncu / rakip net kâr |
+| ---: | ---: | ---: | ---: |
+| 1 | 7 | 0 / 0 | -26.600 / -26.600 TL |
+| 1 | 14 | 12 / 11 | 237.351 / 203.561 TL |
+| 1 | 30 | 30 / 27 | 718.197 / 567.461 TL |
+| 1 | 90 | 110 / 105 | 2.679.597 / 2.313.354 TL |
+| 1 | 365 | 370 / 363 | 8.318.972 / 7.214.734 TL |
+| 1 | 1000 | 1071 / 1054 | 23.922.573 / 20.659.536 TL |
+| 193 | 7 | 0 / 0 | -26.600 / -26.600 TL |
+| 193 | 14 | 9 / 8 | 79.080 / 103.895 TL |
+| 193 | 30 | 18 / 18 | 201.750 / 266.885 TL |
+| 193 | 90 | 60 / 59 | 1.158.144 / 1.096.598 TL |
+| 193 | 365 | 358 / 352 | 8.017.036 / 7.134.693 TL |
+| 193 | 1000 | 1029 / 1017 | 23.187.614 / 20.170.326 TL |
+
+
+1.000 günde rakipler oyuncunun satış adedinin %98,4–98,8’ine, net kârının %86,4–87,0’ına ulaştı. Kalan net kâr farkı 3,02–3,26 milyon TL. Satış farkı 12–17 adet. Ortalama satış bedeli her iki dizide de rakipte daha düşük. Aynı aday havuzu ve asgari kâr eşiği kullanıldı. Farklı motosiklet ve alıcı kimlikleri, günlük rakip iş kuyruğu ve saatlik oyuncu iş kuyruğu, sınırlı rakip teklif geçmişi ve teklif anındaki itibar farklı satış zamanları ve fiyatları üretebilir. Deney bunların ayrı ayrı nedensel payını ölçmüyor. [Ham ölçümler](v0184-data.json)

@@ -34,4 +34,4 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 8. Android ve iOS uygulamaları.
 9. Tam kapsamlı 3D grafik geliştirmeleri.
 
-Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri ve görsel hasar sonraki grafik kapsamındadır. [v0.18.3 rekabet ve kayıt raporu](docs/v0183-report.md)
+Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri ve görsel hasar sonraki grafik kapsamındadır. [v0.18.4 eşit ekonomik rekabet raporu](docs/v0184-report.md)

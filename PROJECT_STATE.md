@@ -35,11 +35,11 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 
 ## Son görev ve devam noktası
 
-- **Son görev** v0.18.3’te rakip tedarik ve talep dengesi, devralma hızı, satış sonrası alım taraması, 2D/3D ortak park sayacı ve büyük kayıtların kayıpsız sıkıştırılması.
+- **Son görev** v0.18.4’te ortak ticaret çekirdeği, rakip operasyon özeti ve iki tohumla 1.000 günlük eşit ilan karşılaştırması.
 - **Ticaret ve zaman** yeni galeri bir şube ve altıdan az satış kaydı varken müşteri kaybına karşı korunur. Açık pazarlıklar etkilenmez. Rakip çalışması mevcut kayıt kilidini ve 60 günlük çevrimdışı sınırı kullanır.
 - **Kayıt ve ekonomi** `motor-empire.v9` anahtarında ek `competition` alanı. Eski kayıt ilk eşitlemede rakipleri oluşturur. İlk oluşum oyuncu kasasını, stoklarını, şubelerini, otomasyon veya borç bilgilerini değiştirmez. Rakip tarihçesi 365 gün, yerel performans 30 gün, şirket başına işlem 12, haber 45 ve arşiv 80 ile sınırlı.
 - **Değişiklik sınırları** 98 katalog ve 2D dosyası, garaj motorları, Yusuf'un kuralları ve v0.16 fiyat formülleri.
-- **Açık işler ve sıradaki görev** v0.18.3 fiziksel iPhone doğrulaması, uzun kayıt kotası ve rakip kârlılık farkının izlemesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
+- **Açık işler ve sıradaki görev** v0.18.4 fiziksel iPhone doğrulaması, uzun kayıt kotası ve rakip kârlılık farkının izlenmesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
 - **Kanıtlar** [v0.18.1 testleri ve karşılaştırmaları](docs/v0181-hotfix.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)
 
 - **Teknik not** [Rakip ekonomisi ve kimlik migrasyonu](docs/rival-economy.md) · [v0.18.2 ölçümleri, testler ve açık noktalar](docs/v0182-report.md).

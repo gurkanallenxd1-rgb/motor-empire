@@ -168,8 +168,9 @@ function tradeStock(world,company,market,peers,localSupply) {
     }];
   }));
   const trade={reputation:company.reputation,customers:company.customers??{}};
+  const branches=new Map(company.branches.map(branch=>[branch.id,branch]));
   company.stock=company.stock.filter(bike=>{
-    const branch=company.branches.find(item=>item.id===bike.branch);
+    const branch=branches.get(bike.branch);
     const queue=queues.get(branch.id);
     const wasReady=bike.state==='ready';
     if(bike.state==='transfer' && day>=bike.due){bike.state='ready';bike.due=day;}
@@ -458,16 +459,25 @@ function transferStock(company,target,market,day) {
 function replenish(company,day,market,sourcing,limit=Infinity) {
   company.daily.buyStatus='Rezerve uygun kârlı ilan bulunamadı';
   if(company.stress>=8){company.daily.buyStatus='Nakit sıkışıklığı';return;}
+  const cashFloor=reserve(company);
+  let commitments=0;
+  const byBranch=new Map();
+  for(const bike of company.stock){
+    const stock=byBranch.get(bike.branch)??[];
+    stock.push(bike);
+    byBranch.set(bike.branch,stock);
+    if(bike.state==='transit')commitments+=bike.inspection;
+    if(bike.state!=='ready')commitments+=bike.repair;
+  }
   for(const branch of company.branches) {
     if((company.daily.bought??0)>=limit)break;
     const capacity=BRANCH_TIERS[branch.tier].capacity;
-    const stock=branchStock(company,branch);
+    const stock=byBranch.get(branch.id)??[];
     const pending=stock.filter(bike=>bike.state!=='ready').length;
     const pipeline=6+labor(branch,'inspector')*10+labor(branch,'manager')*7;
     const need=Math.min(capacity-stock.length,pipeline-pending,limit-(company.daily.bought??0));
     if(need<=0){company.daily.buyStatus=stock.length>=capacity?'Garaj dolu':'Hazırlık kuyruğu dolu';continue;}
-    let commitments=company.stock.reduce((sum,bike)=>sum+(bike.state==='transit'?bike.inspection:0)+(bike.state!=='ready'?bike.repair:0),0);
-    const available=()=>company.cash-reserve(company)-commitments;
+    const available=()=>company.cash-cashFloor-commitments;
     if(available()<4500){company.daily.buyStatus='Nakit rezervi korunuyor';continue;}
     const quotes=sourcing.forecasts.get(branch.province)??new Map();
     sourcing.forecasts.set(branch.province,quotes);
@@ -506,7 +516,7 @@ function combineRivals(world) {
     if(buyer.status!=='active' || buyer.stress || world.day%7!==buyer.id%7
       || buyer.lastAcquisition!==undefined && world.day-buyer.lastAcquisition<30)continue;
     const targets=sellers.flatMap(seller=>{
-      if(seller.status!=='listed' || seller.id===buyer.id)return [];
+      if(seller.status!=='listed' || seller.id===buyer.id || (buyer.marketShare??0)+(seller.marketShare??0)>=.15)return [];
       const baseline=rivalOffer(seller);
       const synergy=seller.segment===buyer.segment ? baseline.stock*.08 : 0;
       const valuation=Math.max(0,baseline.net)+Math.max(0,baseline.profit)*3+synergy;
@@ -561,9 +571,12 @@ export function advanceCompetition(world,day,market,playerSales=[],playerBranche
     settle(world,company);
     if(company.status!=='bankrupt') {
       manage(world,company,market);
-      replenish(company,day,market,sourcing);
     }
   }
+  // Rotate access to the finite pool, especially when older companies have many branches.
+  const offset=day%Math.max(1,world.companies.length);
+  const buyers=[...world.companies.slice(offset),...world.companies.slice(0,offset)];
+  for(const company of buyers)if(company.status!=='bankrupt')replenish(company,day,market,sourcing);
   combineRivals(world);
   for(const company of world.companies) {
     const capacity=company.branches.reduce((sum,branch)=>sum+BRANCH_TIERS[branch.tier].capacity,0);
