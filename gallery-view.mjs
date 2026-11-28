@@ -1,4 +1,4 @@
-import { reputationTier } from './characters.mjs?v=0.18.3';
+import { reputationTier } from './characters.mjs?v=0.18.4';
 
 const formatter=new Intl.NumberFormat('tr-TR',{maximumFractionDigits:1});
 

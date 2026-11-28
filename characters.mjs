@@ -1,4 +1,4 @@
-import { complaintReview,saleReview,starsFor } from './reviews.mjs?v=0.18.3';
+import { complaintReview,saleReview,starsFor } from './reviews.mjs?v=0.18.4';
 import { catalog, modelOf } from './bikes.mjs?v=0.16.1';
 
 export const clamp = (value,min,max)=>Math.max(min,Math.min(max,value));
@@ -60,18 +60,22 @@ export function setReputation(state,delta,reason) {
   if (history.at(-1).score!==trade.reputation) history.push({day:state.day,score:trade.reputation,reason});
 }
 
+export function recordCustomerPurchase(trade,sale,meeting,satisfaction) {
+  const profile=meeting.profile;
+  if(!profile.id)return;
+  const customers=trade.customers??={};
+  const member=customers[profile.id]??={id:profile.id,purchases:0,visits:0};
+  member.purchases++;
+  member.lastModel=sale.name;
+  member.lastAnswers=meeting.dialogue?.answers??[];
+  member.lastDay=sale.day;
+  member.satisfaction=satisfaction;
+}
+
 export function rememberSale(state,sale,meeting,bike,worker) {
-  const profile = meeting.profile;
+  const profile=meeting.profile;
   const satisfaction=state.trade.history[0].satisfaction;
-  if(profile.id){
-    const customers=state.trade.customers??={};
-    const member=customers[profile.id]??={id:profile.id,purchases:0,visits:0};
-    member.purchases++;
-    member.lastModel=sale.name;
-    member.lastAnswers=meeting.dialogue?.answers??[];
-    member.lastDay=sale.day;
-    member.satisfaction=satisfaction;
-  }
+  recordCustomerPurchase(state.trade,sale,meeting,satisfaction);
   const text=saleReview(bike,meeting,sale,satisfaction,worker,stableNumber(sale.id));
   (state.trade.reviews??=[]).unshift({saleId:sale.id,...(profile.id?{customerId:profile.id}:{}),person:profile.name,
     day:sale.day,branchId:sale.branchId,stars:starsFor(satisfaction),text});

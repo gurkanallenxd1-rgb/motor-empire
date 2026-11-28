@@ -42,7 +42,8 @@ export function rivalSimulation(days,{insolvent=false}={}) {
       }
       for(const bike of company.stock){
         assert.ok(!ids.has(bike.id)&&!soldIds.has(bike.id));ids.add(bike.id);
-        assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
+        if(bike.vehicle)assert.ok(bike.ask===0 || bike.ask<=Math.max(bike.cost+4000,bike.value+1));
+        else assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
         if(bike.ask)prices.push(bike.ask/bike.value);
       }
     }

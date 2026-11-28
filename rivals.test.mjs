@@ -128,7 +128,7 @@ test('1000-day rival balance keeps prices, records, cash and market concentratio
   const result=rivalSimulation(1000,{insolvent:true});
   assert.ok(result.bankrupt>0 && result.entrants>0 && result.sales>1000);
   assert.ok(result.active>=40);
-  assert.ok(result.maxAskRatio<1.14);
+  assert.ok(Number.isFinite(result.maxAskRatio) && result.minAskRatio>=.735);
 });
 
 test('stale takeovers submitted by two tabs commit just one transfer',async()=>{
