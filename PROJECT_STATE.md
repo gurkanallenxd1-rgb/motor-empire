@@ -43,3 +43,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Kanıtlar** [v0.18.1 testleri ve karşılaştırmaları](docs/v0181-hotfix.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)
 
 - **Teknik not** [Rakip ekonomisi ve kimlik migrasyonu](docs/rival-economy.md) · [v0.18.2 ölçümleri, testler ve açık noktalar](docs/v0182-report.md).
+
+- **v0.18.2 doğrulaması** 148 Node.js, 42 mobil WebKit ve 7 Chromium grafik testi geçti. 30/90/365/1.000 günlük dört profil, v0.18.1 ile birlikte karşılaştırıldı. 1.000 gün dört şube koşusunda tam kayıt 9,69 MB olduğundan fiziksel Safari kayıt kotası ayrıca doğrulanmalı.

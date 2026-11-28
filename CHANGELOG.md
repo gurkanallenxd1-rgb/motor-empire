@@ -4,6 +4,7 @@
 
 - Rakiplerde günlük çoklu alım ve satış, kadro ve nakit temelli iş planı, şube yatırımı, stok transferi ve rakipler arası devralma.
 - Kalıcı şirket kimliği, tek seferlik aktif şirket adı migrasyonu, CSS logoları ve dört dönemli, yedi göstergeli performans karşılaştırması.
+- 148 Node.js, 42 mobil WebKit ve 7 Chromium grafik testi geçti. Fiziksel iPhone testi bu sürümde yapılmadı.
 - [Ekonomi sonuçları ve mobil ekran görüntüleri](docs/v0182-report.md)
 
 ## v0.18.1
