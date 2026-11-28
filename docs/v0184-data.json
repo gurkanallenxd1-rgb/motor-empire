@@ -1,0 +1,416 @@
+{
+  "eşitPazar": [
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 7,
+      "offered": 30,
+      "player": {
+        "worth": 3361059,
+        "bought": 9,
+        "sold": 0,
+        "cash": 454880,
+        "debt": 0,
+        "turnover": 0,
+        "profit": -26600,
+        "stock": 9
+      },
+      "rival": {
+        "worth": 3403907,
+        "bought": 9,
+        "sold": 0,
+        "cash": 454886,
+        "debt": 0,
+        "turnover": 0,
+        "profit": -26600,
+        "stock": 9
+      },
+      "rivalRecent": [
+        9,
+        0
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 14,
+      "offered": 65,
+      "player": {
+        "worth": 3536768,
+        "bought": 15,
+        "sold": 12,
+        "cash": 1380152,
+        "debt": 0,
+        "turnover": 1669631,
+        "profit": 237351,
+        "stock": 3
+      },
+      "rival": {
+        "worth": 3566587,
+        "bought": 15,
+        "sold": 11,
+        "cash": 1245066,
+        "debt": 0,
+        "turnover": 1534517,
+        "profit": 203561,
+        "stock": 4
+      },
+      "rivalRecent": [
+        15,
+        11
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 30,
+      "offered": 111,
+      "player": {
+        "worth": 4067601,
+        "bought": 34,
+        "sold": 30,
+        "cash": 1744417,
+        "debt": 0,
+        "turnover": 4357777,
+        "profit": 718197,
+        "stock": 4
+      },
+      "rival": {
+        "worth": 3953197,
+        "bought": 32,
+        "sold": 27,
+        "cash": 1474119,
+        "debt": 0,
+        "turnover": 3864230,
+        "profit": 567461,
+        "stock": 5
+      },
+      "rivalRecent": [
+        32,
+        27
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 90,
+      "offered": 345,
+      "player": {
+        "worth": 6040585,
+        "bought": 116,
+        "sold": 110,
+        "cash": 3428367,
+        "debt": 0,
+        "turnover": 16362398,
+        "profit": 2679597,
+        "stock": 6
+      },
+      "rival": {
+        "worth": 5687203,
+        "bought": 112,
+        "sold": 105,
+        "cash": 2922125,
+        "debt": 0,
+        "turnover": 15448159,
+        "profit": 2313354,
+        "stock": 7
+      },
+      "rivalRecent": [
+        47,
+        50
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 365,
+      "offered": 1173,
+      "player": {
+        "worth": 11638088,
+        "bought": 372,
+        "sold": 370,
+        "cash": 9601506,
+        "debt": 0,
+        "turnover": 55915691,
+        "profit": 8318972,
+        "stock": 2
+      },
+      "rival": {
+        "worth": 10527479,
+        "bought": 365,
+        "sold": 363,
+        "cash": 8497266,
+        "debt": 0,
+        "turnover": 54200619,
+        "profit": 7214734,
+        "stock": 2
+      },
+      "rivalRecent": [
+        18,
+        22
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 1,
+      "days": 1000,
+      "offered": 3205,
+      "player": {
+        "worth": 27225509,
+        "bought": 1073,
+        "sold": 1071,
+        "cash": 25162993,
+        "debt": 0,
+        "turnover": 161784953,
+        "profit": 23922573,
+        "stock": 2
+      },
+      "rival": {
+        "worth": 23960428,
+        "bought": 1056,
+        "sold": 1054,
+        "cash": 21897897,
+        "debt": 0,
+        "turnover": 157204098,
+        "profit": 20659536,
+        "stock": 2
+      },
+      "rivalRecent": [
+        23,
+        25
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 7,
+      "offered": 22,
+      "player": {
+        "worth": 3465021,
+        "bought": 8,
+        "sold": 0,
+        "cash": 455844,
+        "debt": 0,
+        "turnover": 0,
+        "profit": -26600,
+        "stock": 8
+      },
+      "rival": {
+        "worth": 3455709,
+        "bought": 8,
+        "sold": 0,
+        "cash": 455867,
+        "debt": 0,
+        "turnover": 0,
+        "profit": -26600,
+        "stock": 8
+      },
+      "rivalRecent": [
+        8,
+        0
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 14,
+      "offered": 44,
+      "player": {
+        "worth": 3458155,
+        "bought": 13,
+        "sold": 9,
+        "cash": 1067903,
+        "debt": 0,
+        "turnover": 1304750,
+        "profit": 79080,
+        "stock": 4
+      },
+      "rival": {
+        "worth": 3495004,
+        "bought": 13,
+        "sold": 8,
+        "cash": 957618,
+        "debt": 0,
+        "turnover": 1194400,
+        "profit": 103895,
+        "stock": 5
+      },
+      "rivalRecent": [
+        13,
+        8
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 30,
+      "offered": 82,
+      "player": {
+        "worth": 3476445,
+        "bought": 20,
+        "sold": 18,
+        "cash": 1481300,
+        "debt": 0,
+        "turnover": 2618100,
+        "profit": 201750,
+        "stock": 2
+      },
+      "rival": {
+        "worth": 3521048,
+        "bought": 20,
+        "sold": 18,
+        "cash": 1526175,
+        "debt": 0,
+        "turnover": 2683147,
+        "profit": 266885,
+        "stock": 2
+      },
+      "rivalRecent": [
+        20,
+        18
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 90,
+      "offered": 252,
+      "player": {
+        "worth": 4528297,
+        "bought": 67,
+        "sold": 60,
+        "cash": 1797747,
+        "debt": 0,
+        "turnover": 9077326,
+        "profit": 1158144,
+        "stock": 7
+      },
+      "rival": {
+        "worth": 4487313,
+        "bought": 67,
+        "sold": 59,
+        "cash": 1597043,
+        "debt": 0,
+        "turnover": 8877932,
+        "profit": 1096598,
+        "stock": 8
+      },
+      "rivalRecent": [
+        27,
+        25
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 365,
+      "offered": 1106,
+      "player": {
+        "worth": 11409435,
+        "bought": 364,
+        "sold": 358,
+        "cash": 8795924,
+        "debt": 0,
+        "turnover": 54272733,
+        "profit": 8017036,
+        "stock": 6
+      },
+      "rival": {
+        "worth": 10551583,
+        "bought": 359,
+        "sold": 352,
+        "cash": 7785328,
+        "debt": 0,
+        "turnover": 52717673,
+        "profit": 7134693,
+        "stock": 7
+      },
+      "rivalRecent": [
+        28,
+        26
+      ]
+    },
+    {
+      "profile": "Eşit ilan",
+      "seed": 193,
+      "days": 1000,
+      "offered": 3097,
+      "player": {
+        "worth": 26550713,
+        "bought": 1034,
+        "sold": 1029,
+        "cash": 24044135,
+        "debt": 0,
+        "turnover": 155294566,
+        "profit": 23187614,
+        "stock": 5
+      },
+      "rival": {
+        "worth": 23527123,
+        "bought": 1023,
+        "sold": 1017,
+        "cash": 20872938,
+        "debt": 0,
+        "turnover": 151458387,
+        "profit": 20170326,
+        "stock": 6
+      },
+      "rivalRecent": [
+        44,
+        48
+      ]
+    }
+  ],
+  "kullanıcıDeğerleriyleKurgu": {
+    "profile": "385–399 kullanıcı değerleriyle kurgu",
+    "playerStart": 69411569,
+    "player": {
+      "worth": 74217060,
+      "bought": 76,
+      "sold": 46,
+      "cash": 60848329,
+      "debt": 0,
+      "turnover": 10220810,
+      "profit": 2577531,
+      "stock": 30
+    },
+    "rivals": [
+      {
+        "name": "Yelpaze Motor Atölyesi",
+        "start": 14018374,
+        "worth": 14968910,
+        "bought": 26,
+        "sold": 11,
+        "cash": 1758894,
+        "debt": 0,
+        "turnover": 4504984,
+        "profit": 559367,
+        "stock": 15
+      },
+      {
+        "name": "Novarun İki Teker",
+        "start": 12861016,
+        "worth": 13512737,
+        "bought": 22,
+        "sold": 11,
+        "cash": 410307,
+        "debt": 0,
+        "turnover": 2704553,
+        "profit": 291504,
+        "stock": 11
+      },
+      {
+        "name": "Asterro Motor Atölyesi",
+        "start": 6066105,
+        "worth": 6356733,
+        "bought": 4,
+        "sold": 2,
+        "cash": 4831110,
+        "debt": 0,
+        "turnover": 1233150,
+        "profit": 31982,
+        "stock": 2
+      }
+    ]
+  }
+}

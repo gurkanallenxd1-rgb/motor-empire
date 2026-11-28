@@ -1,9 +1,9 @@
-import { regionalPlayerValue } from './game.mjs?v=0.18.3';
+import { regionalPlayerValue } from './game.mjs?v=0.18.4';
 import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.18.3';
+import { financeReport } from './finance.mjs?v=0.18.4';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
-import { regionalRivalValue,rivalOffer,rivalManagement,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.3';
+import { regionalRivalValue,rivalOffer,rivalManagement,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.4';
 
 const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
@@ -277,6 +277,28 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       const change=history.length>=2 && history[0][4]>0 ? percent.format(company.bookValue/history[0][4]-1):'—';
       return [`${days} gün`,history.length?`${money(sum(history,1))} ciro · ${signed(sum(history,2))} net · ${sum(history,3)} satış · ${change} değer değişimi (${history.length} gün)`:'Veri yok'];
     }));
+    const operations=company.operations;
+    const trailing=company.history.slice(-30);
+    const bought=trailing.filter(row=>Number.isFinite(row[10]));
+    const sold=trailing.filter(row=>Number.isFinite(row[11]));
+    const staff=company.branches.reduce((total,branch)=>total+branch.staff,0);
+    const per=(rows,column,count,format)=>sum(rows,count)?format(sum(rows,column)/sum(rows,count)):'Veri yok';
+    const unitCounts=days=>{
+      const records=company.history.filter(row=>row[0]>state.day-days);
+      const measured=records.filter(row=>Number.isFinite(row[8]));
+      return records.length?`${measured.length?sum(measured,8):'—'} alım / ${sum(records,3)} satış`:'Veri yok';
+    };
+    const work=operations?measures([
+      ['Bugün',unitCounts(1)],['Son 7 gün',unitCounts(7)],['Son 30 gün',unitCounts(30)],
+      ['Ortalama alış fiyatı',per(bought,10,8,money)],['Ortalama satış fiyatı',per(sold,11,3,money)],
+      ['Motosiklet başına satış kârı',per(sold,12,3,signed)],
+      ['Dolu / boş bölme',`${operations.occupied} / ${operations.capacity-operations.occupied}`],
+      ['Yatırıma açık nakit',money(operations.investable)],
+      ['30 günde çalışan başına satış',staff?number.format(sum(trailing,3)/staff):'Veri yok'],
+      ['Son yatırım',company.investment?`Gün ${company.investment.day} · ${company.investment.type} · ${money(company.investment.amount)}`:'Veri yok'],
+      ['Alım durumu',operations.buy],['Satış durumu',operations.sell],
+      ['Şube kararı',company.expansionStatus??'Veri yok'],
+    ]):element('p','Operasyon özeti ilk yeni gün kapanışında oluşur.','spec');
     const completed=(state.competition.rivalTakeovers??[]).filter(row=>row.buyerId===company.id)
       .map(row=>branded(row.identity,element('p',`Gün ${row.day} · ${row.name} · ${money(row.total)}`,'competition-story')));
     const branchRows=company.branches.map(b=>element('p',`${cityName(b.province)} · ${company.stock.filter(item=>item.branch===b.id).length}/${BRANCH_TIERS[b.tier].capacity} stok · ${b.staff} çalışan`,'competition-story'));
@@ -294,7 +316,8 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
       ['Şirket değeri · tahmin',money(quote.net)],['Kasa · tahmin',money(company.cash)],
       ['Borç · tahmin',money(company.debt)],['İtibar / memnuniyet',`${company.reputation} / ${company.satisfaction}`],
       ['Pazar payı',percent.format(company.marketShare)],['Devralma',quote.eligible?'Teklife açık':'Şu anda uygun değil']]);
-    byId('rival-detail-data').replaceChildren(overview,section('Şirket ve finansal performans',[details,periods]),
+    byId('rival-detail-data').replaceChildren(overview,section('Operasyon özeti',[work]),
+      section('Şirket ve finansal performans',[details,periods]),
       section('Son yatırımlar',recentInvestments.length?recentInvestments:[element('p','Yatırım kaydı yok.','spec')]),
       section('Tamamlanan devralmalar',completed.length?completed:[element('p','Devralma kaydı yok.','spec')]),
       section('Şubeler, çalışanlar ve stok',[...branchRows,element('p',counts.join(' · '),'spec')]),

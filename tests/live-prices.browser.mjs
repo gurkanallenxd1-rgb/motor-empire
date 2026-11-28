@@ -1170,6 +1170,9 @@ test('390px competition center filters companies, opens growth details and shows
   const detail=ui.page.locator('#rival-detail');
   assert.ok(await detail.isVisible());
   assert.match(await detail.innerText(),/Kasa · tahmin/);
+  await ui.tap('#rival-detail summary:text-is("Operasyon özeti")');
+  assert.match(await detail.innerText(),/Yatırıma açık nakit/);
+  await ui.tap('#rival-detail summary:text-is("Operasyon özeti")');
   await ui.page.selectOption('#rival-period','7');
   assert.ok(await ui.page.locator('#rival-history svg').isVisible());
   await ui.page.selectOption('#rival-period','365');
@@ -1342,7 +1345,7 @@ test('mobile WebKit loads a compacted save and restores the live garage after re
   await ui.jump(DAY_MS);
   await ui.page.waitForFunction(()=>document.querySelector('#day').textContent.trim()==='02');
   const result=await ui.page.evaluate(async()=>{
-    const {decodeSave}=await import('/save-codec.mjs?v=0.18.3');
+    const {decodeSave}=await import('/save-codec.mjs?v=0.18.4');
     const raw=localStorage.getItem('motor-empire.v9');
     const start=performance.now();
     const save=decodeSave(raw);

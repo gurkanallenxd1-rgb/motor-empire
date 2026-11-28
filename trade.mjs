@@ -1,8 +1,8 @@
-import { evaluateSale } from './reviews.mjs?v=0.18.3';
+import { evaluateSale } from './reviews.mjs?v=0.18.4';
 import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.18.3';
-export { stableNumber } from './characters.mjs?v=0.18.3';
+  setReputation, stableNumber } from './characters.mjs?v=0.18.4';
+export { stableNumber } from './characters.mjs?v=0.18.4';
 import { modelOf } from './bikes.mjs?v=0.16.1';
 
 export const MAX_ROUNDS = 3;
@@ -278,13 +278,19 @@ export function negotiate(meeting,offer) {
     : ['Sizin için fiyatı biraz düşürdüm.','Bu indirimle anlaşabiliriz.','Bundan biraz daha aşağı inebilirim.'][roll % 3];
 }
 
+export function tradeSaleOutcome(bike,meeting,worker) {
+  const satisfaction=evaluateSale(bike,meeting,{worker,
+    honest:bike.disclosureMode!=='conceal'||meeting.dialogue?.disclosed===true,
+    roll:stableNumber(meeting.id)%9-4});
+  return {satisfaction,reputation:(satisfaction>=80?3:1)+(bike.tradeStrategy && !isRisky(bike.tradeStrategy)?1:0)};
+}
+
 export function finishTrade(state,meeting,bike,outcome,worker) {
   meeting.status = outcome;
   const sold = outcome === 'sold';
-  const satisfaction = sold ? evaluateSale(bike,meeting,{worker,
-    honest:bike.disclosureMode!=='conceal'||meeting.dialogue?.disclosed===true,
-    roll:stableNumber(meeting.id)%9-4}) : null;
-  if (sold) setReputation(state,(satisfaction>=80 ? 3 : 1)+(bike.tradeStrategy && !isRisky(bike.tradeStrategy) ? 1 : 0),'Motosiklet satışı');
+  const sale=sold?tradeSaleOutcome(bike,meeting,worker):null;
+  const satisfaction=sale?.satisfaction??null;
+  if(sale)setReputation(state,sale.reputation,'Motosiklet satışı');
   if (outcome==='left' && meeting.kind==='sale') setReputation(state,-1,'Müşteri görüşmeden ayrıldı');
   state.trade.history.unshift({
     day:state.day, kind:meeting.kind, name:bike.name, person:meeting.profile.name, outcome,

@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.18.3 Rekabet Dengesi, Otomasyon ve Kayıt Düzeltmesi**. Temel sürüm [v0.18.2, PR #37](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/37), main `287c698`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
+Bu dalın sürümü **v0.18.4 Eşit Ekonomik Rekabet**. Temel sürüm [v0.18.3, PR #38](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/38), main `2516f94`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -35,11 +35,11 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 
 ## Son görev ve devam noktası
 
-- **Son görev** v0.18.3’te rakip tedarik ve talep dengesi, devralma hızı, satış sonrası alım taraması, 2D/3D ortak park sayacı ve büyük kayıtların kayıpsız sıkıştırılması.
+- **Son görev** v0.18.4’te ortak ticaret çekirdeği, rakip operasyon özeti ve iki tohumla 1.000 günlük eşit ilan karşılaştırması.
 - **Ticaret ve zaman** yeni galeri bir şube ve altıdan az satış kaydı varken müşteri kaybına karşı korunur. Açık pazarlıklar etkilenmez. Rakip çalışması mevcut kayıt kilidini ve 60 günlük çevrimdışı sınırı kullanır.
 - **Kayıt ve ekonomi** `motor-empire.v9` anahtarında ek `competition` alanı. Eski kayıt ilk eşitlemede rakipleri oluşturur. İlk oluşum oyuncu kasasını, stoklarını, şubelerini, otomasyon veya borç bilgilerini değiştirmez. Rakip tarihçesi 365 gün, yerel performans 30 gün, şirket başına işlem 12, haber 45 ve arşiv 80 ile sınırlı.
 - **Değişiklik sınırları** 98 katalog ve 2D dosyası, garaj motorları, Yusuf'un kuralları ve v0.16 fiyat formülleri.
-- **Açık işler ve sıradaki görev** v0.18.3 fiziksel iPhone doğrulaması, uzun kayıt kotası ve rakip kârlılık farkının izlemesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
+- **Açık işler ve sıradaki görev** v0.18.4 fiziksel iPhone doğrulaması, uzun kayıt kotası ve rakip kârlılık farkının izlenmesi, ardından personel ve müşteri geliştirmeleri. Rakip emanetleri, şirketler arası satış pazarı ve tasfiye ihaleleri ayrı mekanikler olarak ele alınabilir. Lisanslı 3D motosiklet, bütün 3D garaj seviyeleri ve görsel hasar ertelendi.
 - **Kanıtlar** [v0.18.1 testleri ve karşılaştırmaları](docs/v0181-hotfix.md) · [Önceki garaj karşılaştırması](docs/v01701-comparison.md)
 
 - **Teknik not** [Rakip ekonomisi ve kimlik migrasyonu](docs/rival-economy.md) · [v0.18.2 ölçümleri, testler ve açık noktalar](docs/v0182-report.md).
@@ -49,3 +49,7 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Fiziksel cihaz bildirimi** Kullanıcı v0.18.2’de şirket kimliğini, grafikleri, İstanbul ve Çanakkale otomasyonunu, kayıt kalıcılığını ve performansı doğruladı. 384. gün civarında rakip büyümesi, otomatik alım sıklığı ve park sayacıyla ilgili sorun bildirdi. v0.18.3 için kayıt ve cihaz ölçümleri [denge raporunda](docs/v0183-report.md).
 
 - **v0.18.3 doğrulaması** 154 Node.js, 43 WebKit ve 7 Chromium grafik senaryosu. Üç sürüm için toplam 90 ölçüm noktasında kasa mutabakatı sağlandı. 384 günlük altı şube kayıtları yaklaşık %83 küçüldü. 1.000 günlük iki uç kayıt sıkıştırılmış halde 6,55–6,71 MB, fiziksel cihaz kotası açık.
+
+- **v0.18.4** Yeni rakip alımları oyuncuyla aynı ilan, değerleme ve sıralamayı; satışlar aynı alıcı, pazarlık ve memnuniyet kurallarını kullanır. Kullanıcı v0.18.3 fiziksel iPhone’da sayaç ve alım düzeltmelerini doğruladı. [Test verileri ve açık farklar](docs/v0184-report.md)
+
+- **v0.18.4 doğrulaması** 156 Node.js, 43 WebKit ve 7 Chromium grafik testi. İki eşit ilan koşusunda 1.000 günde rakipler oyuncu satış adedinin %98,4–98,8'ine, net kârının %86,4–87,0'ına ulaştı. İflas stresli tam pazar koşusunda lider satış payı %9,78. [PR #39](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/39)

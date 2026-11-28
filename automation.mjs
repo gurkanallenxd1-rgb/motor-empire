@@ -15,7 +15,7 @@ export function bestStaff(branch,role) {
   return availableStaff(branch).filter(person=>person.role===role).sort((a,b)=>staffQuality(b)-staffQuality(a))[0];
 }
 
-export function rankMarket(listings,config,forecast,inspector,manager) {
+export function rankMarket(listings,config,forecast,inspector,manager,preference=()=>0) {
   const candidates = [];
   const rejected = [];
   for (const item of listings) {
@@ -47,7 +47,7 @@ export function rankMarket(listings,config,forecast,inspector,manager) {
       const costs = estimate.cost+estimate.delivery.fee;
       const experience = manager ? staffQuality(manager) : .5;
       const exposure = (estimate.risk ?? 0)*total/10000+(estimate.saleDays ?? 0)*.45;
-      const score = profit/1000 + roi*(60+40*experience) + demand + known.condition*.15 - costs/2000 - exposure;
+      const score = profit/1000 + roi*(60+40*experience) + demand + known.condition*.15 - costs/2000 - exposure + preference(model,estimate);
       candidates.push({item,total,profit,roi,score});
     }
   }

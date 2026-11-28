@@ -42,7 +42,8 @@ export function rivalSimulation(days,{insolvent=false}={}) {
       }
       for(const bike of company.stock){
         assert.ok(!ids.has(bike.id)&&!soldIds.has(bike.id));ids.add(bike.id);
-        assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
+        if(bike.vehicle)assert.ok(bike.ask===0 || bike.ask<=Math.max(bike.cost+4000,bike.value+1));
+        else assert.ok(bike.ask===0 || bike.ask/bike.value>=.735 && bike.ask/bike.value<=1.136);
         if(bike.ask)prices.push(bike.ask/bike.value);
       }
     }
@@ -52,7 +53,7 @@ export function rivalSimulation(days,{insolvent=false}={}) {
   const list=world.companies;
   const average=key=>list.reduce((sum,c)=>sum+c[key],0)/Math.max(1,list.length);
   const shares=list.map(c=>c.marketShare).sort((a,b)=>b-a);
-  assert.ok(shares[0]<.20);
+  assert.ok(shares[0]<.20,`En yüksek 30 günlük pay: ${shares[0]}`);
   assert.ok(Buffer.byteLength(encodeSave(world))<2400000);
   assert.ok(list.every(c=>Number.isSafeInteger(c.cash) && Number.isSafeInteger(c.bookValue)));
   return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,
