@@ -1334,6 +1334,20 @@ test('mobile WebKit loads a compacted save and restores the live garage after re
   const ui=await open(t,390,844,seed,packed);
   await ui.tap('.bottom-nav [data-page=garage]');
   assert.match(await ui.page.locator('#garage-stock-summary').innerText(),/Kapasite 10 · Parkta 8/);
+  await ui.jump(DAY_MS);
+  await ui.page.waitForFunction(()=>document.querySelector('#day').textContent.trim()==='02');
+  const result=await ui.page.evaluate(async()=>{
+    const {decodeSave}=await import('/save-codec.mjs?v=0.18.3');
+    const raw=localStorage.getItem('motor-empire.v9');
+    const start=performance.now();
+    const save=decodeSave(raw);
+    return {packed:raw.startsWith('motor:gzip:1:'),bytes:raw.length,day:save.day,
+      history:save.archivedAudit.length,decodeMs:Math.round(performance.now()-start)};
+  });
+  assert.equal(result.packed,true);
+  assert.equal(result.day,2);
+  assert.equal(result.history,60_000);
+  t.diagnostic(JSON.stringify(result));
   await ui.page.reload();
   await ui.ready();
   await ui.tap('.bottom-nav [data-page=garage]');

@@ -2,7 +2,7 @@
 
 ## Sürüm ve çalışan sistemler
 
-Bu dalın sürümü **v0.18.2 Gerçekçi Rekabet ve Şirket Kimliği**. Temel sürüm [v0.18.1, PR #36](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/36), main `0b3fe50`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
+Bu dalın sürümü **v0.18.3 Rekabet Dengesi, Otomasyon ve Kayıt Düzeltmesi**. Temel sürüm [v0.18.2, PR #37](https://github.com/gurkanallenxd1-rgb/motor-empire/pull/37), main `287c698`. Varsayılan 2D korunur. Oyuncu 10 bölmeli şubede WebGL 2 prototipini seçebilir.
 
 | Sistem | Mevcut davranış |
 | --- | --- |
@@ -35,7 +35,7 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 
 ## Son görev ve devam noktası
 
-- **Son görev** v0.18.2’de rakip çoklu ticareti, kadro ve şube yönetimi, rakipler arası devralma, kalıcı şirket kimliği ve Rekabet Merkezi karşılaştırmaları.
+- **Son görev** v0.18.3’te rakip tedarik ve talep dengesi, devralma hızı, satış sonrası alım taraması, 2D/3D ortak park sayacı ve büyük kayıtların kayıpsız sıkıştırılması.
 - **Ticaret ve zaman** yeni galeri bir şube ve altıdan az satış kaydı varken müşteri kaybına karşı korunur. Açık pazarlıklar etkilenmez. Rakip çalışması mevcut kayıt kilidini ve 60 günlük çevrimdışı sınırı kullanır.
 - **Kayıt ve ekonomi** `motor-empire.v9` anahtarında ek `competition` alanı. Eski kayıt ilk eşitlemede rakipleri oluşturur. İlk oluşum oyuncu kasasını, stoklarını, şubelerini, otomasyon veya borç bilgilerini değiştirmez. Rakip tarihçesi 365 gün, yerel performans 30 gün, şirket başına işlem 12, haber 45 ve arşiv 80 ile sınırlı.
 - **Değişiklik sınırları** 98 katalog ve 2D dosyası, garaj motorları, Yusuf'un kuralları ve v0.16 fiyat formülleri.
@@ -45,3 +45,5 @@ Yusuf Belge kurgusal bir satıcıdır. İstanbul'da 120 oyun günlük her blokta
 - **Teknik not** [Rakip ekonomisi ve kimlik migrasyonu](docs/rival-economy.md) · [v0.18.2 ölçümleri, testler ve açık noktalar](docs/v0182-report.md).
 
 - **v0.18.2 doğrulaması** 148 Node.js, 42 mobil WebKit ve 7 Chromium grafik testi geçti. 30/90/365/1.000 günlük dört profil, v0.18.1 ile birlikte karşılaştırıldı. 1.000 gün dört şube koşusunda tam kayıt 9,69 MB olduğundan fiziksel Safari kayıt kotası ayrıca doğrulanmalı.
+
+- **Fiziksel cihaz bildirimi** Kullanıcı v0.18.2’de şirket kimliğini, grafikleri, İstanbul ve Çanakkale otomasyonunu, kayıt kalıcılığını ve performansı doğruladı. 384. gün civarında rakip büyümesi, otomatik alım sıklığı ve park sayacıyla ilgili sorun bildirdi. v0.18.3 için kayıt ve cihaz ölçümleri [denge raporunda](docs/v0183-report.md).

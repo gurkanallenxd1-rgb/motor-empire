@@ -1,4 +1,4 @@
-# MOTOR EMPIRE v0.18.2
+# MOTOR EMPIRE v0.18.3
 
 MOTOR EMPIRE, iPhone Safari ve masaüstü tarayıcılar için Türkçe bir motosiklet işletme oyunudur. HTML, CSS, JavaScript ES modülleri ve Canvas 2D kullanır. Oyun yerelde çalışırken hesap, sunucu API'si veya derleme gerektirmez.
 
@@ -30,7 +30,7 @@ Yerel Three.js ve Basis dosyaları statik olarak sunulur. Testte kullanılan öz
 4. **Finans** bölümünde nakit, masraflar ve satış sonuçlarını incele. Üst menü zili bildirimleri açar.
 5. **İlanlar → Piyasa Analizi** yoluyla fiyat geçmişi, alım fırsatları, il karşılaştırması ve ekonomi haberlerine ulaş.
 
-Oyun tarayıcıda `motor-empire.v9` anahtarını kullanarak kaydeder. Önceki sürüm anahtarları saklanır. Test amacıyla canlı sitenin yerel kayıtlarını silmek yerine ayrı bir tarayıcı profili veya yerel adres kullan.
+Oyun tarayıcıda `motor-empire.v9` anahtarını kullanarak kaydeder. Büyük kayıtlar kayıpsız gzip olarak saklanır. Kota veya okuma hatasında kayıt durur ve mevcut dosya indirilebilir. Önceki sürüm anahtarları saklanır. Test amacıyla canlı sitenin yerel kayıtlarını silmek yerine ayrı bir tarayıcı profili veya yerel adres kullan.
 
 ## Rekabet Merkezi
 
@@ -39,6 +39,8 @@ Oyun tarayıcıda `motor-empire.v9` anahtarını kullanarak kaydeder. Önceki s�
 Rakipler oyun günüyle ilerler. Yeni galerinin müşteri koruması ilk şubede ve altı satış kaydına kadar etkindir. Rakip tedariki oyuncunun mevcut ilanlarına dokunmaz. [Denge sonuçları ve ekran görüntüleri](docs/v018-competition.md)
 
 Rekabetin işlem sırası, şirket kimliği ve geçmiş veri kuralları belgelenmiştir. [Rakip ekonomisi](docs/rival-economy.md) · [v0.18.2 raporu ve mobil ekranlar](docs/v0182-report.md)
+
+[v0.18.3 denge ve kayıt doğrulaması](docs/v0183-report.md)
 
 ## Bildirimler ve itibar
 
@@ -54,6 +56,8 @@ node tests/economy-simulation.mjs
 node tests/rival-simulation.mjs
 node tests/competition-profiles.mjs
 node tests/competition-v0182.mjs
+node tests/competition-v0183.mjs
+node tests/competition-parity-v0183.mjs
 
 test_deps="$(mktemp -d)"
 npm install --prefix "$test_deps" playwright

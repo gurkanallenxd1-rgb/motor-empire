@@ -300,7 +300,7 @@ function applyAction(next, action, id, amount, branchId, worker) {
     const { seller, easterEgg, ...vehicle } = listing;
     markToMarket(vehicle,next.economy,branchProvince(branch));
     const reportIds = new Set(listing.inspections?.map(report=>report.id));
-    for (const entry of next.ledger) {
+    if(reportIds.size) for (const entry of next.ledger) {
       if (reportIds.has(entry.inspectionId)) entry.allocation = 'stock';
     }
     const inspected = listing.inspections?.some(report=>report.package==='full');
