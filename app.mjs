@@ -1,32 +1,33 @@
-import { createGalleryView } from './gallery-view.mjs?v=0.18.2';
-import { createCompetitionView } from './competition-view.mjs?v=0.18.2';
+import { SaveWriteError } from './save-codec.mjs?v=0.18.3';
+import { createGalleryView } from './gallery-view.mjs?v=0.18.3';
+import { createCompetitionView } from './competition-view.mjs?v=0.18.3';
 import { createGraphicsController } from './graphics/controller.mjs?v=0.17.0.1';
-import { createMarketAnalysis } from './market-view.mjs?v=0.18.2';
-import { garageLayout, garageParking } from './garage-layout.mjs?v=0.16.1';
+import { createMarketAnalysis } from './market-view.mjs?v=0.18.3';
+import { garageLayout, garageParking, garageStock } from './garage-layout.mjs?v=0.18.3';
 import { drawGaragePreview } from './garage-scene.mjs?v=0.16.1';
-import { createNotifications } from './notification-view.mjs?v=0.18.2';
+import { createNotifications } from './notification-view.mjs?v=0.18.3';
 import { AUTO_STEPS, gameDuration, nextOfficeAction, shopStatus, stepEnabled, workerAssignment } from './automation.mjs?v=0.16.1';
 import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, branchProvince, firstWorkshopJob, hasManager, staffCount, workers,
   workshopRate } from './business.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.18.2';
-import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.18.2';
+import { financeReport } from './finance.mjs?v=0.18.3';
+import { ANSWERS, QUESTIONS, RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, reputationTier } from './characters.mjs?v=0.18.3';
 import { purchasePreview } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, POLICY_TYPES, SYSTEMS, activePolicy, legacyDamageRecords,
   policyQuote, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, deliveryTime, gameTime, projectedOffset, startClock } from './clock.mjs?v=0.16.1';
-import { createTimeStore, saveLock } from './time-store.mjs?v=0.18.2';
-import { createFinanceView } from './finance-view.mjs?v=0.18.2';
-import { dailyCashMovement } from './finance.mjs?v=0.18.2';
+import { createTimeStore, saveLock } from './time-store.mjs?v=0.18.3';
+import { createFinanceView } from './finance-view.mjs?v=0.18.3';
+import { dailyCashMovement } from './finance.mjs?v=0.18.3';
 import { PROVINCES, provinceName } from './provinces.mjs?v=0.16.1';
 import {
   DAILY_WAGE, INSPECTION_FEE, LOAN_LIMIT, PARTS, RENTAL_DAYS,
   assets, branchCapacity, nextBranchTier, estimatedListingProfit, newGame, nextRiskEvent, operatingCost,
   perform, purchaseAnalysis, purchaseForecast, rentalRate, repairCapacity, repairPartCost, repairQuote, roadValue, STORAGE_KEY,
-} from './game.mjs?v=0.18.2';
-import { createGarageRenderer } from './art.mjs?v=0.16.1';
+} from './game.mjs?v=0.18.3';
+import { createGarageRenderer } from './art.mjs?v=0.18.3';
 import { catalog, categoryLabel, filterListings, gradeLabel, listingGrade, modelOf, segmentLabel, specsFor } from './bikes.mjs?v=0.16.1';
 
-import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.18.2';
+import { MAX_ROUNDS, avatarForName, buyerQuestion, isActive, tradeSummary } from './trade.mjs?v=0.18.3';
 import { loadSprite, renderSprite, spriteFor } from './sprite.mjs?v=0.16.1';
 
 import { ISSUE_KIND_LABELS, SELLER_URGENCY, activeIssues, conditionBreakdown, historicalIssues,
@@ -76,6 +77,7 @@ function stopSaving(error) {
   saveAvailable = false;
   clearInterval(timer);
   updateSave();
+  byId('save-export').hidden=false;
   notice(error?.message ? `Kayıt kullanılamıyor · ${error.message}` : 'Kayıt kullanılamıyor.',true);
 }
 
@@ -862,10 +864,15 @@ function metric(label, value) {
 function renderGarage(branch, action, bike) {
   drawGarage ??= createGarageRenderer(byId('garage-scene'),openBike);
   const capacity = branchCapacity(branch);
+  const stock=garageStock(branch.garage,capacity);
   const cardList = byId('garage');
   cardList.dataset.occupied = Boolean(branch.garage.length);
   const layout = garageLayout(capacity);
   const parking = garageParking(layout,branch.garage);
+  document.querySelector('.garage-overview').textContent =
+    `${layout.name} · ${layout.area.toLocaleString('tr-TR')} m² · ${stock.physical}/${stock.capacity} parkta`;
+  byId('garage-stock-summary').textContent =
+    `Kapasite ${stock.capacity} · Parkta ${stock.physical} · Nakliyede ${stock.shipping} · Rezerve ${stock.reserved} · Boş ${stock.free} · Serviste ${stock.service} · Satışa hazır ${stock.ready}`;
   const assigned = new Map(parking.map(({bike,bay})=>[bike.id,bay.index]));
   if (capacity===2) {
     const byBay = new Map(branch.garage.map(item=>[assigned.get(item.id) ?? item.slot,item]));
@@ -1169,6 +1176,7 @@ async function runAction(action, id, amount, targetBranch = branchId) {
     clockDisplay();
     return true;
   } catch (error) {
+    if(error instanceof SaveWriteError)stopSaving(error);
     notice(error.message,true);
     if (action === 'borrow' || action === 'repay') byId('credit-message').textContent = error.message;
     if (byId('meeting').open) {
@@ -1502,3 +1510,16 @@ const garageGraphics = createGraphicsController({byId,select:openBike,refresh:()
   if (currentPage==='garage') render();
 }});
 startGame();
+
+byId('save-export').addEventListener('click',()=>{
+  try {
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)throw new Error('Bu sürüme ait dışa aktarılabilir kayıt bulunamadı.');
+    const url=URL.createObjectURL(new Blob([raw],{type:'text/plain;charset=utf-8'}));
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='motor-empire-kayit.txt';
+    link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  } catch(error) { notice(error.message,true); }
+});

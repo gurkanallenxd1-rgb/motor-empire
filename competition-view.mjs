@@ -1,9 +1,9 @@
-import { regionalPlayerValue } from './game.mjs?v=0.18.2';
+import { regionalPlayerValue } from './game.mjs?v=0.18.3';
 import { ECONOMY_MODELS } from './economy.mjs?v=0.16.1';
-import { financeReport } from './finance.mjs?v=0.18.2';
+import { financeReport } from './finance.mjs?v=0.18.3';
 import { BRANCH_TIERS,branchProvince } from './business.mjs?v=0.16.1';
 import { provinceName,PROVINCES } from './provinces.mjs?v=0.16.1';
-import { regionalRivalValue,rivalOffer,rivalManagement,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.2';
+import { regionalRivalValue,rivalOffer,rivalManagement,SIZES,STRATEGIES } from './rivals.mjs?v=0.18.3';
 
 const sum=(rows,index)=>rows.reduce((total,row)=>total+row[index],0);
 const cityName=province=>provinceName(province)||'Türkiye';
@@ -28,6 +28,7 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   let selected;
   let confirmation;
   let limit=20;
+  let acquisitionFilter='all';
   const number=new Intl.NumberFormat('tr-TR');
   const percent=new Intl.NumberFormat('tr-TR',{style:'percent',maximumFractionDigits:2});
   function selectOptions(id,items) {
@@ -171,15 +172,22 @@ export function createCompetitionView({byId,element,money,signed,assets,getState
   }
   function renderAcquisitions(state) {
     const available=state.competition.companies.filter(company=>rivalOffer(company).eligible);
-    const deals=[...(state.competition.takeovers??[]),...(state.competition.rivalTakeovers??[])];
+    const allDeals=[...(state.competition.takeovers??[]),...(state.competition.rivalTakeovers??[])];
+    const deals=allDeals.filter(row=>acquisitionFilter==='all' || Boolean(row.buyerId)===(acquisitionFilter==='rival'));
+    const filter=element('select');
+    filter.setAttribute('aria-label','Devralma geçmişi filtresi');
+    filter.append(new Option('Tüm devralmalar','all'),new Option('Rakipler arası','rival'),new Option('Benim devralmalarım','player'));
+    filter.value=acquisitionFilter;
+    filter.addEventListener('change',()=>{acquisitionFilter=filter.value;render();byId('competition-acquisitions').querySelector('select').focus();});
     const archive=deals.sort((a,b)=>b.day-a.day).map(row=>branded(row.identity,element('p',
       `Gün ${row.day} · ${row.name} → ${row.buyerName??'MOTOR EMPIRE'} · ${money(row.total)} · ${row.stock} motosiklet / ${row.staff} çalışan`,'competition-story')));
-    const older=state.competition.retired.filter(row=>row.status==='acquired'&&!deals.some(deal=>deal.id===row.id))
+    const older=state.competition.retired.filter(row=>acquisitionFilter!=='rival' && row.status==='acquired'&&!allDeals.some(deal=>deal.id===row.id))
       .map(row=>branded(row.identity,element('p',`Gün ${row.day} · ${row.name}`,'competition-story')));
     list('competition-acquisitions',[
       element('p','Yönetim teklifi değerlendirir. Onaydan önce kasa, borç ve personel aktarımını inceleyin.','spec'),
       ...(available.length?cards(available):[element('p','Şu anda devralmaya açık rakip şirket yok.','spec')]),
-      ...((archive.length||older.length)?[element('h3','Tamamlanan devralmalar'),...archive,...older]:[]),
+      element('h3','Tamamlanan devralmalar'),filter,
+      ...(archive.length||older.length?[...archive,...older]:[element('p','Bu filtrede tamamlanmış devralma yok.','spec')]),
     ]);
 
   }

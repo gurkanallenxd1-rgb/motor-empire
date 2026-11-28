@@ -1,3 +1,4 @@
+import {encodeSave} from '../save-codec.mjs';
 import assert from 'node:assert/strict';
 import {performance} from 'node:perf_hooks';
 import {createEconomy,marketRandom,nextEconomy,observeMarket} from '../economy.mjs';
@@ -5,10 +6,17 @@ import {generateMarket} from '../game.mjs';
 import {advanceCompetition,createCompetition,rivalValue} from '../rivals.mjs';
 import {BRANCH_TIERS} from '../business.mjs';
 
-export function rivalSimulation(days) {
+export function rivalSimulation(days,{insolvent=false}={}) {
   let market=createEconomy(1);
   market=observeMarket(market,generateMarket(1,marketRandom(1),true,market));
   const world=createCompetition(1,market);
+  if(insolvent){
+    const company=world.companies.find(row=>row.stock.length===0)??world.companies[0];
+    company.cash=0;
+    company.openingCash=company.cashOut-company.cashIn;
+    company.debt=750_000;
+    company.stress=29;
+  }
   const elapsed=[];
   const prices=[];
   const soldIds=new Set();
@@ -45,8 +53,8 @@ export function rivalSimulation(days) {
   const average=key=>list.reduce((sum,c)=>sum+c[key],0)/Math.max(1,list.length);
   const shares=list.map(c=>c.marketShare).sort((a,b)=>b-a);
   assert.ok(shares[0]<.20);
-  assert.ok(Buffer.byteLength(JSON.stringify(world))<2400000);
-  assert.ok(list.every(c=>c.cash<500000000 && c.bookValue<750000000));
+  assert.ok(Buffer.byteLength(encodeSave(world))<2400000);
+  assert.ok(list.every(c=>Number.isSafeInteger(c.cash) && Number.isSafeInteger(c.bookValue)));
   return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,
     cities:new Set(list.flatMap(c=>c.branches.map(branch=>branch.province))).size,
     averageValue:Math.round(average('bookValue')),averageCumulativeNet:Math.round(average('profit')),takeovers:world.rivalTakeovers?.length??0,

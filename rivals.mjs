@@ -1,9 +1,9 @@
-import { rivalIdentity } from './rival-identity.mjs?v=0.18.2';
+import { rivalIdentity } from './rival-identity.mjs?v=0.18.3';
 import { BRANCH_TIERS,STAFF_ROLES } from './business.mjs?v=0.16.1';
 import { ECONOMY_MODELS,economyQuote,provinceEconomy } from './economy.mjs?v=0.16.1';
 import { paintOptions } from './bikes.mjs?v=0.16.1';
 import { PROVINCES,shippingQuote } from './provinces.mjs?v=0.16.1';
-import { stableNumber } from './characters.mjs?v=0.18.2';
+import { stableNumber } from './characters.mjs?v=0.18.3';
 
 export const STRATEGIES=Object.freeze({
   volume:'Düşük fiyat / yüksek hacim',premium:'Premium satış',scooter:'Scooter ve düşük hacim',
@@ -114,8 +114,9 @@ function buy(company,branch,day,market,attempt=0) {
     : 76+Math.floor(random(...key,'state')*24);
   const km=1500+(model.lastYear-year)*3700+Math.floor(random(...key,'km')*12000);
   const reference=money(model.value*terms.value*(1-(model.lastYear-year)*.033)*Math.max(.8,1-km/200000));
-  const wholesale=company.strategy==='repair'?.77:company.strategy==='volume'?.80:.84;
-  const cost=money(reference*(wholesale+random(...key,'price')*.20)*(.68+condition*.0032));
+  const wholesale=company.strategy==='repair'?.74:company.strategy==='volume'?.77:.81;
+  const execution=(65-rivalManagement(company))*.0012;
+  const cost=money(reference*(wholesale+execution+random(...key,'price')*.20)*(.68+condition*.0032));
   const parts=condition<88 ? money(reference*(88-condition)*.0026*terms.parts):0;
   const repair=parts && !labor(branch,'technician') && !labor(branch,'master') ? money(parts*1.20):parts;
   const inspection=labor(branch,'inspector') ? 300:750;
@@ -126,7 +127,7 @@ function buy(company,branch,day,market,attempt=0) {
   if(preparation>company.cash-reserve(company)-pending || preparation>expected*(.94+company.risk*.0011))return false;
   const bike={id:`rival-${company.id}-${company.nextBike++}`,model:model.id,year,km,condition,
     branch:branch.id,origin:purchaseCity,cost:cost+quote.fee,reference:money(reference/terms.value),value:money(reference*(.64+condition*.0036)),
-    repair,inspection,bought:day,state:'transit',due:day+Math.max(1,quote.days),ask:0,rented:0};
+    repair,inspection,bought:day,state:'transit',due:day+quote.days,ask:0,rented:0};
   post(company,'purchase',cost,bike);
   post(company,'shipping',quote.fee,bike);
   company.stock.push(bike);
@@ -162,20 +163,22 @@ function tradeStock(world,company,market,peers,localSupply) {
   company.stock=company.stock.filter(bike=>{
     const branch=company.branches.find(item=>item.id===bike.branch);
     const queue=queues.get(branch.id);
+    const wasReady=bike.state==='ready';
     if(bike.state==='transfer' && day>=bike.due){bike.state='ready';bike.due=day;}
     if (bike.state==='transit' && day>=bike.due) {
       if (queue.inspection<1 || company.cash<bike.inspection) return true;
       queue.inspection--;
       post(company,'inspection',bike.inspection,bike);
-      bike.cost+=bike.inspection;bike.state='inspected';bike.due=day+1;
-    } else if (bike.state==='inspected' && day>=bike.due) {
+      bike.cost+=bike.inspection;bike.state='inspected';bike.due=day;
+    }
+    if (bike.state==='inspected' && day>=bike.due) {
       const hours=bike.repair?Math.ceil((100-bike.condition)/8):0;
       if (queue.repair<hours || company.cash<bike.repair) return true;
       queue.repair-=hours;
       post(company,'repair',bike.repair,bike);
       bike.cost+=bike.repair;
       if (bike.repair) bike.condition=Math.min(100,bike.condition+Math.round((100-bike.condition)*.75));
-      bike.state='ready';bike.due=day+1;
+      bike.state='ready';bike.due=day+Number(Boolean(bike.repair));
     }
     if (bike.state!=='ready' || day<bike.due) return true;
     const terms=quoteFor(company,bike,market,branch.province,day,peers);
@@ -190,10 +193,12 @@ function tradeStock(world,company,market,peers,localSupply) {
     }
     const population=provinceEconomy(branch.province);
     const purchasing=population.purchasingPower*terms.budget;
-    const supply=localSupply.get(branch.province)??0;
-    const buyerPool=(4+Math.sqrt(population.people)*.38)*terms.demand*purchasing;
-    const competition=buyerPool/(buyerPool+supply);
-    const probability=clamp((1.1+(company.stress>=5?.8:0))/terms.days
+    const supply=(localSupply.get(branch.province)??0)+Number(!wasReady);
+    // City stock competes locally, while listings are visible nationally with freight.
+    // The national share keeps a small city's population from gating its entire turnover.
+    const buyerPool=(7+Math.sqrt(population.people)*.46)*terms.demand*purchasing;
+    const competition=buyerPool/(buyerPool+supply*.83);
+    const probability=clamp((1.24+(company.stress>=5?.65:0))/terms.days
       *clamp(1+(bike.value/bike.ask-1)*2,.45,1.65)*competition,.008,.46);
     if (random(bike.id,day,'retail')>=probability) return true;
     if(queue.sales<=0)return true;
@@ -225,7 +230,7 @@ function settle(world,company) {
   const paidInterest=Math.min(company.cash,interest);post(company,'interest',paidInterest);
   const arrears=required-cost-paid-paidInterest;
   company.debt+=arrears;company.daily.profit-=arrears;
-  const payment=Math.min(company.debt,Math.max(0,Math.floor((company.cash-55000)*.10)));
+  const payment=Math.min(company.debt,Math.max(0,Math.floor((company.cash-reserve(company)*2)*.10)));
   if(payment){post(company,'principal',payment);company.debt-=payment;}
   company.stress=company.cash<required*8 ? company.stress+1:Math.max(0,company.stress-2);
   if(company.stress && company.stress%5===0) for(const branch of company.branches) {
@@ -287,7 +292,7 @@ function manage(world,company,market) {
       transferStock(company,branch,market,day);
     }
   }
-  if(company.stress || company.status!=='active' || company.debt || day%30!==company.id%30) return;
+  if(company.stress || company.status!=='active' || company.debt>rivalValue(company)*.2 || day%14!==company.id%14) return;
   if(random(company.id,day,'expansion')>(company.growth+(company.strategy==='growth'?28:0)+rivalManagement(company)*.2)/155) return;
   for(const branch of company.branches) {
     const tier=BRANCH_TIERS[branch.tier];
@@ -339,7 +344,7 @@ function replenish(company,day,market) {
     const capacity=BRANCH_TIERS[branch.tier].capacity;
     const stock=branchStock(company,branch);
     const pending=stock.filter(bike=>bike.state!=='ready').length;
-    const pipeline=4+labor(branch,'inspector')*7+labor(branch,'manager')*5;
+    const pipeline=6+labor(branch,'inspector')*10+labor(branch,'manager')*7;
     const need=Math.min(capacity-stock.length,pipeline-pending);
     for(let attempt=0,filled=0;attempt<need*2 && filled<need;attempt++) {
       if(buy(company,branch,day,market,attempt))filled++;
@@ -350,14 +355,18 @@ function replenish(company,day,market) {
 function combineRivals(world) {
   const sellers=world.companies.filter(company=>company.status==='listed' && company.branches.length);
   for (const buyer of world.companies) {
-    if(buyer.status!=='active' || buyer.stress || buyer.cash<1200000 || world.day%37!==buyer.id%37
-      || world.day-(buyer.lastAcquisition??0)<90)continue;
+    if(buyer.status!=='active' || buyer.stress || world.day%7!==buyer.id%7
+      || buyer.lastAcquisition!==undefined && world.day-buyer.lastAcquisition<30)continue;
     const targets=sellers.flatMap(seller=>{
-      if(seller.status!=='listed' || seller.id===buyer.id || buyer.branches.length+seller.branches.length>12)return [];
+      if(seller.status!=='listed' || seller.id===buyer.id)return [];
       const baseline=rivalOffer(seller);
-      const price=money(baseline.threshold*(.89+buyer.risk*.002+rivalManagement(buyer)*.0006));
+      const synergy=seller.segment===buyer.segment ? baseline.stock*.08 : 0;
+      const valuation=Math.max(0,baseline.net)+Math.max(0,baseline.profit)*3+synergy;
+      const price=Math.min(baseline.threshold,Math.floor(valuation*(1+buyer.risk*.002+rivalManagement(buyer)*.002)));
       const quote=rivalOffer(seller,price);
-      if(quote.total>buyer.cash-reserve(buyer)*3 || seller.debt+buyer.debt>Math.max(0,buyer.bookValue)*.45)return [];
+      if(baseline.net<=0 || !quote.accepted || quote.total>buyer.cash-reserve(buyer)*2
+        || buyer.cash-quote.total+seller.cash<reserve(buyer)+reserve(seller)
+        || seller.debt+buyer.debt>Math.max(0,rivalValue(buyer)+baseline.net)*.45)return [];
       return [{seller,quote,score:baseline.net+Math.max(0,baseline.profit)*4-quote.total
         +(seller.segment===buyer.segment?baseline.stock*.12:0)}];
     }).sort((a,b)=>b.score-a.score || a.seller.id-b.seller.id);
@@ -503,7 +512,7 @@ function archiveAcquisition(world,company,quote,offices,buyer) {
     record.buyerId=buyer.id;
     record.buyerName=buyer.name;
     (world.rivalTakeovers??=[]).push(record);
-    event(world,company,'acquired',`${buyer.name}, ${company.name} şirketini devraldı.`);
+    event(world,company,'acquired',`${buyer.name}, ${company.name} şirketini ${quote.total.toLocaleString('tr-TR')} TL toplam bedelle devraldı.`);
   } else {
     (world.takeovers??=[]).push(record);
     event(world,company,'acquired',`${company.name} oyuncu tarafından devralındı.`);

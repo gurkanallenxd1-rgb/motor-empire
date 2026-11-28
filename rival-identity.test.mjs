@@ -93,10 +93,10 @@ test('rival takeovers charge one fee-inclusive payment and transfer actual stock
     repair:0,inspection:750,bought:36,state:'transit',due:40,ask:0,rented:0}];
   world.companies=[buyer,seller];
   for(const company of world.companies)company.bookValue=rivalValue(company);
-  world.day=110; // id 37 closes its purchase window on day 111.
+  world.day=113; // id 37 has its weekly review on day 114.
   seller.stock[0].due=120;
   buyer.lastAcquisition=0;
-  advanceCompetition(world,111,createEconomy(111));
+  advanceCompetition(world,114,createEconomy(114));
   const deal=world.rivalTakeovers?.[0];
   assert.equal(deal?.id,seller.id);
   assert.equal(deal.buyerId,buyer.id);
@@ -109,7 +109,7 @@ test('rival takeovers charge one fee-inclusive payment and transfer actual stock
   assert.equal(buyer.cash,buyer.openingCash+buyer.cashIn-buyer.cashOut);
   assert.equal(buyer.events.filter(row=>row[1]==='acquisition'&&row[3]===deal.total).length,1);
   assert.equal(buyer.events.filter(row=>row[1]==='inheritedCash'&&row[3]===deal.receivedCash).length,1);
-  assert.equal(advanceCompetition(world,111,createEconomy(111)),false);
+  assert.equal(advanceCompetition(world,114,createEconomy(114)),false);
   assert.equal(world.rivalTakeovers.length,1);
 });
 

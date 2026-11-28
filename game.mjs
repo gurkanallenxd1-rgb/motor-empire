@@ -1,5 +1,6 @@
-import { migrateRivalIdentities } from './rival-identity.mjs?v=0.18.2';
-import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,rivalRoles } from './rivals.mjs?v=0.18.2';
+import { decodeSave,encodeSave,SaveWriteError } from './save-codec.mjs?v=0.18.3';
+import { migrateRivalIdentities } from './rival-identity.mjs?v=0.18.3';
+import { advanceCompetition,competitiveChoice,createCompetition,inheritedStock,removeAcquired,regionalRivalValue,rivalOffer,rivalRoles } from './rivals.mjs?v=0.18.3';
 import { createEconomy, economyQuote, markToMarket, marketNews, marketRandom, nextEconomy, observeMarket } from './economy.mjs?v=0.16.1';
 import { appendBikeCost, notificationAction, notify, saleSnapshot } from './notifications.mjs?v=0.18';
 import { AUTO_STEPS, bestStaff, rankMarket, staffQuality, stepEnabled } from './automation.mjs?v=0.16.1';
@@ -8,15 +9,15 @@ import { BRANCH_TIERS, STAFF_ROLES, TRAINING_COST, TRAINING_TIME, availableStaff
 import { modelOf } from './bikes.mjs?v=0.16.1';
 import { isYusufListing, yusufListing, YUSUF_MODEL, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { RESOLUTIONS, STRATEGIES, complaintCost, hasDocuments, isRisky, rememberSale, reviewComplaint,
-  setReputation } from './characters.mjs?v=0.18.2';
+  setReputation } from './characters.mjs?v=0.18.3';
 import { inspectionBaseline, purchaseCosts, purchaseValuation } from './valuation.mjs?v=0.16.1';
 import { METHODS, PACKAGES, accidentAt, activePolicy, buyerComplaint, examine, legacyDamageRecords,
   policyEnd, policyQuote, seedRisk, serviceQuote, verifiedFindings, visibleListing } from './risk.mjs?v=0.16.1';
 import { DAY_MS, HOUR_MS, OFFLINE_LIMIT, deliveryTime, elapsedWall, gameTime, startClock } from './clock.mjs?v=0.16.1';
-import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18.2';
+import { FINANCE_CATEGORIES, entryDetails } from './finance.mjs?v=0.18.3';
 import { ISTANBUL, PROVINCES, marketPressure, provinceName, provinceOf, shippingQuote } from './provinces.mjs?v=0.16.1';
 import { catalog, normalizePaint, paintOptions } from './bikes.mjs?v=0.16.1';
-import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18.2';
+import { MAX_ROUNDS, answerBuyer, arrive, buyerQuestion, observeBuyer, createBuyer, createSeller, createTrade, finishTrade, isActive, negotiate } from './trade.mjs?v=0.18.3';
 
 import { PARTS, SELLER_URGENCY, askingPrice, cleanValue, completeRepair, historicalIssues,
   knownPart, repairForecast, repairQuote, roadValue } from './damage.mjs?v=0.16.1';
@@ -246,7 +247,9 @@ const validMoney = value => Number.isFinite(value) && value >= 0 && Number.isSaf
 const validAmount = value => validMoney(value) && value > 0 && decimal(value) === value;
 
 export function perform(state, action, id, amount, branchId = 1) {
-  return applyAction(JSON.parse(JSON.stringify(state)),action,id,amount,branchId);
+  const result=applyAction(JSON.parse(JSON.stringify(state)),action,id,amount,branchId);
+  if(action==='sell' && !result.state.clock?.paused)automate(result.state,{daily:false,refillBranch:branchId});
+  return result;
 }
 
 function applyAction(next, action, id, amount, branchId, worker) {
@@ -1063,11 +1066,11 @@ function applyAction(next, action, id, amount, branchId, worker) {
   return { state: next, message };
 }
 
-function automate(state,{daily=true}={}) {
+function automate(state,{daily=true,refillBranch}={}) {
   for (const branch of state.branches) {
     const config = branch.automation;
     const manager = bestStaff(branch,'manager');
-    if (!config || daily && branch.lastAutomationDay===state.day) continue;
+    if (!config || daily && branch.lastAutomationDay===state.day || refillBranch!==undefined && branch.id!==refillBranch) continue;
     if (!Object.keys(AUTO_STEPS).some(step=>stepEnabled(config,step))) continue;
     const time = gameTime(state.day,state.clock?.offset);
     const report = branch.autoReport ??= {history:[],rejections:[],rejectionCounts:{}};
@@ -1138,8 +1141,13 @@ function automate(state,{daily=true}={}) {
       }
     }
     if (daily) branch.lastAutomationDay = state.day;
-    if (daily && stepEnabled(config,'buy')) {
-      let budget = config.budget;
+    if ((daily || refillBranch===branch.id) && stepEnabled(config,'buy')) {
+      // A legacy same-day scan has no durable spend counter. Start on the following day.
+      if(!daily && branch.lastAutomationDay===state.day && branch.autoBuyBudget?.day!==state.day)continue;
+      if(!daily && branch.garage.length>=branchCapacity(branch))continue;
+      const buying=branch.autoBuyBudget?.day===state.day
+        ? branch.autoBuyBudget : (branch.autoBuyBudget={day:state.day,committed:0});
+      let budget = Math.max(0,config.budget-buying.committed);
       const {candidates,rejected} = rankMarket(state.listings,config,item=>purchaseForecast(item,item.price,branchProvince(branch),state.economy),
         inspector && stepEnabled(config,'inspect'),manager);
       let bought = 0;
@@ -1150,7 +1158,8 @@ function automate(state,{daily=true}={}) {
         else if (total>state.cash-reserve) addRejection(item,'Nakit rezervi');
         else {
           run('buy','buy',item,manager);
-          budget -= total;
+          budget = decimal(budget-total);
+          buying.committed = decimal(buying.committed+total);
           bought++;
           const bike = branch.garage.find(entry=>entry.id===item.id);
           if (bike.stage==='unchecked' && stepEnabled(config,'inspect') && inspector) run('inspect','internal-inspect',bike,inspector);
@@ -1522,7 +1531,7 @@ export function loadGame(storage) {
     }
   }
   if (raw === null && archived === null) return newGame();
-  let state = JSON.parse(raw ?? archived);
+  let state = decodeSave(raw ?? archived);
   if (source === LEGACY_STORAGE_KEY && state?.version === 1 && Array.isArray(state.garage)) {
     const branch = createBranch(1);
     branch.garage = state.garage.map(bike=>({...bike,condition:100}));
@@ -1587,5 +1596,6 @@ export function loadGame(storage) {
 }
 
 export function saveGame(storage, state) {
-  storage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try { storage.setItem(STORAGE_KEY,encodeSave(state)); }
+  catch (error) { throw new SaveWriteError(error); }
 }

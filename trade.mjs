@@ -1,8 +1,8 @@
-import { evaluateSale } from './reviews.mjs?v=0.18.2';
+import { evaluateSale } from './reviews.mjs?v=0.18.3';
 import { isYusufListing, yusufMeeting, yusufReply, YUSUF_ID, YUSUF_PRICE } from './easter-eggs.mjs?v=0.16.1';
 import { ANSWERS, QUESTIONS, characterFor, chance, clamp, hasDocuments, isRisky, recallCustomer,
-  setReputation, stableNumber } from './characters.mjs?v=0.18.2';
-export { stableNumber } from './characters.mjs?v=0.18.2';
+  setReputation, stableNumber } from './characters.mjs?v=0.18.3';
+export { stableNumber } from './characters.mjs?v=0.18.3';
 import { modelOf } from './bikes.mjs?v=0.16.1';
 
 export const MAX_ROUNDS = 3;

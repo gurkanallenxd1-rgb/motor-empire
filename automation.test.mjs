@@ -122,3 +122,25 @@ test('cash reserve prevents scheduled repairs and active player meetings stay un
   assert.equal(state.branches[0].garage[1].meetings[0].round,0);
   assert.equal(state.ledger.filter(row=>row.category==='repair').length,0);
 });
+
+test('a manual sale reopens same-day manager sourcing with its remaining branch budget',()=>{
+  let state=configure(hire(initial(),'manager'),{buy:true});
+  state={...state,listings:[listing('sold-bike',48000)]};
+  state=apply(state,'buy','sold-bike');
+  state=apply(state,'inspect','sold-bike');
+  state=apply(state,'list','sold-bike');
+  const bike=getBike(state);
+  const offer=createBuyer(bike,state.day,0,50,bike.ask);
+  bike.meetings=[offer];
+  state.listings=[listing('replacement',48000)];
+  state.branches[0].lastAutomationDay=state.day;
+  state.branches[0].autoBuyBudget={day:state.day,committed:10000};
+  const bought=apply(reload(state),'sell',bike.id,offer.id);
+  assert.equal(bought.sales.length,1);
+  assert.equal(getBike(bought).id,'replacement');
+  assert.ok(bought.branches[0].autoBuyBudget.committed>10000);
+  state.branches[0].autoBuyBudget.committed=config.budget;
+  const blocked=apply(reload(state),'sell',bike.id,offer.id);
+  assert.equal(blocked.sales.length,1);
+  assert.equal(blocked.branches[0].garage.length,0);
+});

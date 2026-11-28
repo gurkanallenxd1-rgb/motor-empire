@@ -316,7 +316,6 @@ export function createGarageRenderer(scene,openBike) {
     const label = `${layout.name} · ${layout.area.toLocaleString('tr-TR')} m² · ${parking.length}/${layout.bays.length} parkta`;
     if (overview!==label) {
       overview = label;
-      document.querySelector('.garage-overview').textContent = label;
       canvas.setAttribute('aria-label',label+' · Ok tuşlarıyla gezin, artı ve eksiyle yakınlaştır');
     }
     resize();
