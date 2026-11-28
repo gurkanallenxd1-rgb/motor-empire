@@ -1,4 +1,4 @@
-import { stableNumber } from './characters.mjs?v=0.18.1';
+import { stableNumber } from './characters.mjs?v=0.18.2';
 import { ISTANBUL } from './provinces.mjs?v=0.16.1';
 
 export const YUSUF_ID = 'yusuf-belge';

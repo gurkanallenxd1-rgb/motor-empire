@@ -617,3 +617,36 @@ body[data-view="gallery-profile"] main > :is(.intro,.stats,.branch-bar) { displa
 .gallery-distribution-row { display:grid; grid-template-columns:36px minmax(0,1fr) 29px; align-items:center; gap:8px }
 .gallery-distribution-row progress { width:100%; accent-color:var(--accent) }
 #gallery-reputation-history svg { width:100%; display:block; background:#222724; border-radius:6px }
+
+.rival-brand, .rival-profile-title {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  min-width: 0;
+}
+.rival-brand > div { min-width: 0; }
+.rival-mark {
+  --rival-primary: #f59949;
+  --rival-secondary: #e97326;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: .45rem;
+  color: #131313;
+  background: linear-gradient(145deg,var(--rival-primary) 58%,var(--rival-secondary) 58%);
+  font-size: .62rem;
+  font-weight: 900;
+}
+.rival-mark[data-shape="diamond"] { clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%); }
+.rival-mark[data-shape="shield"] { clip-path: polygon(5% 0,95% 0,95% 68%,50% 100%,5% 68%); }
+.rival-mark[data-shape="hex"] { clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); }
+.rival-mark[data-shape="circle"] { border-radius: 50%; }
+.rival-mark[data-shape="flag"] { clip-path: polygon(0 0,100% 10%,88% 85%,0 100%); }
+#rival-detail .analysis-chart-panel > header {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,.64fr);
+}
+#rival-detail .analysis-chart-panel > header h3 { grid-column: 1 / -1; }
+#rival-detail .analysis-chart-panel select { width: 100%; min-width: 0; }

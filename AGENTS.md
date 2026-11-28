@@ -57,6 +57,9 @@ Bir görev açıkça bu kuralları hedeflemiyorsa şube kapasitesini ve maliyeti
 - Yeni yorumlarda fiyat, kondisyon, belge, çalışan ve şikâyet kanıtlarını kullan. Eski yorum metni ve puanını toplu olarak yeniden hesaplama. Canlı bildirim tepsisini kapatmak saklanan geçmişi temizlemez.
 - `node tests/competition-profiles.mjs` ile üç oyuncu profili için 30/90/365 gün denetle. iPhone bulguları ve test komutları [düzeltme raporunda](docs/v0181-hotfix.md).
 
+- Şirket kimliğini bir kez taşı. Aktif şirket ID’lerini, arşiv ve haberlerdeki tarihsel adları koru. Rakipler arası devralmayı oyuncu devralmasından ayrı kaydet. Nakit ve stok mutabakatını [rakip mimarisine](docs/rival-economy.md) göre denetle.
+- Aynı oyuncu profillerini iki revizyonda ölçmek için `node tests/competition-v0182.mjs` ve `MOTOR_SIM_ROOT=/yol/temel-dal node tests/competition-v0182.mjs` kullan.
+
 ## Git ve teslim
 
 Güncel `main` üzerinden ayrı bir `feature/` veya `fix/` dalı aç. Odaklı commit oluştur, testi ve sınırlarını PR'da raporla ve ilgili proje belgelerini aynı PR'a ekle. `main` dalına doğrudan yazmak yerine PR kullan. Şifre, erişim belirteci, API anahtarı, kişisel hesap bilgisi veya tarayıcı kaydı commit etme. Proje içi kaynak ve geçmiş için GitHub deposunu kullan.

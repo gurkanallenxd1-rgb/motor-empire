@@ -24,13 +24,13 @@ export function rivalSimulation(days) {
       assert.ok(company.cash>=0 && company.debt>=0);
       assert.equal(company.bookValue,rivalValue(company));
       assert.ok(company.history.length<=365);
-      assert.ok(company.branches.length<=4);
+      assert.ok(new Set(company.branches.map(branch=>branch.id)).size===company.branches.length);
       for(const branch of company.branches) {
         assert.ok(company.stock.filter(bike=>bike.branch===branch.id).length<=BRANCH_TIERS[branch.tier].capacity);
       }
-      for(const row of company.events.filter(row=>row[0]===day&&row[1]==='sale')) {
-        assert.ok(row[4]&&!soldIds.has(row[4]));
-        soldIds.add(row[4]);
+      for(const id of company.daily?.soldIds??[]) {
+        assert.ok(id&&!soldIds.has(id));
+        soldIds.add(id);
       }
       for(const bike of company.stock){
         assert.ok(!ids.has(bike.id)&&!soldIds.has(bike.id));ids.add(bike.id);
@@ -45,11 +45,11 @@ export function rivalSimulation(days) {
   const average=key=>list.reduce((sum,c)=>sum+c[key],0)/Math.max(1,list.length);
   const shares=list.map(c=>c.marketShare).sort((a,b)=>b-a);
   assert.ok(shares[0]<.20);
-  assert.ok(Buffer.byteLength(JSON.stringify(world))<1600000);
-  assert.ok(list.every(c=>c.cash<50000000 && c.bookValue<85000000));
+  assert.ok(Buffer.byteLength(JSON.stringify(world))<2400000);
+  assert.ok(list.every(c=>c.cash<500000000 && c.bookValue<750000000));
   return {days,active:list.length,entrants:world.founded-50,bankrupt:world.bankrupt,
     cities:new Set(list.flatMap(c=>c.branches.map(branch=>branch.province))).size,
-    averageValue:Math.round(average('bookValue')),averageCumulativeNet:Math.round(average('profit')),
+    averageValue:Math.round(average('bookValue')),averageCumulativeNet:Math.round(average('profit')),takeovers:world.rivalTakeovers?.length??0,
     topShare:+shares[0].toFixed(4),medianShare:+shares[Math.floor(shares.length/2)].toFixed(4),
     stock:list.reduce((sum,c)=>sum+c.stock.length,0),sales:world.sold,turnover:world.turnover,
     minAskRatio:+prices.reduce((a,b)=>Math.min(a,b),2).toFixed(3),

@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111415">
   <title>MOTOR EMPIRE — Garaj Yönetimi</title>
-  <link rel="stylesheet" href="./style.css?v=0.18.1">
-  <script type="module" src="./app.mjs?v=0.18.1"></script>
+  <link rel="stylesheet" href="./style.css?v=0.18.2">
+  <script type="module" src="./app.mjs?v=0.18.2"></script>
 </head>
 <body>
   <header class="top">
     <div class="shell top-inner">
       <a href="./" class="brand" aria-label="Motor Empire, ana sayfa"><span aria-hidden="true" class="mark">M</span><span>MOTOR <b>EMPIRE</b></span></a>
-      <span class="version">SÜRÜM 0.18.1</span>
+      <span class="version">SÜRÜM 0.18.2</span>
       <span id="save" class="save">Kayıt hazırlanıyor</span>
       <button id="notification-bell" type="button" aria-label="Bildirim merkezi" aria-haspopup="dialog">
         <span aria-hidden="true">🔔</span><span id="notification-count" hidden>0</span>
@@ -338,12 +338,12 @@
     <button id="garage-upgrade-confirm" class="primary" type="button">Yükselt</button>
   </dialog>
   <dialog id="rival-detail" aria-labelledby="rival-detail-name">
-    <header class="rival-dialog-head"><div><p class="eyebrow">ŞİRKET PROFİLİ</p><h2 id="rival-detail-name"></h2></div>
+    <header class="rival-dialog-head"><div class="rival-profile-title"><span id="rival-profile-mark"></span><div><p class="eyebrow">ŞİRKET PROFİLİ</p><h2 id="rival-detail-name"></h2></div></div>
       <form method="dialog"><button type="submit" aria-label="Şirket ayrıntısını kapat">×</button></form></header>
     <div id="rival-detail-data"></div>
     <section class="analysis-chart-panel">
-      <header><h3>Şirket değeri karşılaştırması</h3><label class="analysis-period-label">Dönem<select id="rival-period">
-        <option value="7">7 gün</option><option value="30">30 gün</option><option value="90">90 gün</option>
+      <header><h3>Şirket karşılaştırması</h3><label class="analysis-period-label">Gösterge<select id="rival-chart-metric"></select></label><label class="analysis-period-label">Dönem<select id="rival-period">
+        <option value="7">7 gün</option><option value="30">30 gün</option><option value="90">90 gün</option><option value="365">365 gün</option>
       </select></label></header>
       <div id="rival-history"></div>
     </section>
