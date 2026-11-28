@@ -1,6 +1,6 @@
 import { rivalIdentity } from './rival-identity.mjs?v=0.18.2';
 import { BRANCH_TIERS,STAFF_ROLES } from './business.mjs?v=0.16.1';
-import { ECONOMY_MODELS,economyQuote } from './economy.mjs?v=0.16.1';
+import { ECONOMY_MODELS,economyQuote,provinceEconomy } from './economy.mjs?v=0.16.1';
 import { paintOptions } from './bikes.mjs?v=0.16.1';
 import { PROVINCES,shippingQuote } from './provinces.mjs?v=0.16.1';
 import { stableNumber } from './characters.mjs?v=0.18.2';
@@ -152,7 +152,7 @@ function localTotals(company,province) {
   return (company.localDay[province]??=[company.daily.day,Number(province),0,0,0]);
 }
 
-function tradeStock(world,company,market,peers) {
+function tradeStock(world,company,market,peers,localSupply) {
   const day=world.day;
   const queues=new Map(company.branches.map(branch=>[branch.id,{
     inspection:2+labor(branch,'inspector')*5,
@@ -188,8 +188,13 @@ function tradeStock(world,company,market,peers) {
       bike.km+=85;bike.condition=Math.max(60,bike.condition-1);
       return true;
     }
+    const population=provinceEconomy(branch.province);
+    const purchasing=population.purchasingPower*terms.budget;
+    const supply=localSupply.get(branch.province)??0;
+    const buyerPool=(4+Math.sqrt(population.people)*.38)*terms.demand*purchasing;
+    const competition=buyerPool/(buyerPool+supply);
     const probability=clamp((1.1+(company.stress>=5?.8:0))/terms.days
-      *clamp(1+(bike.value/bike.ask-1)*2,.45,1.65),.04,.46);
+      *clamp(1+(bike.value/bike.ask-1)*2,.45,1.65)*competition,.008,.46);
     if (random(bike.id,day,'retail')>=probability) return true;
     if(queue.sales<=0)return true;
     queue.sales--;
@@ -377,16 +382,23 @@ function combineRivals(world) {
 export function advanceCompetition(world,day,market,playerSales=[],playerBranches=null) {
   if(day<=world.day)return false;
   world.day=day;
-  const sums=new Map();
-  for(const c of world.companies)for(const bike of c.stock)if(bike.ask>0 && bike.value>0){
-    const pair=sums.get(bike.model)??[0,0];pair[0]+=bike.ask/bike.value;pair[1]++;
-    sums.set(bike.model,pair);
+  const sums=new Map(),localSupply=new Map();
+  for(const company of world.companies){
+    const provinces=new Map(company.branches.map(branch=>[branch.id,branch.province]));
+    for(const bike of company.stock){
+      if(bike.state!=='ready')continue;
+      const province=provinces.get(bike.branch);
+      localSupply.set(province,(localSupply.get(province)??0)+1);
+      if(!bike.ask || !bike.value)continue;
+      const pair=sums.get(bike.model)??[0,0];pair[0]+=bike.ask/bike.value;pair[1]++;
+      sums.set(bike.model,pair);
+    }
   }
   const peers=new Map([...sums].map(([id,[sum,count]])=>[id,sum/count]));
   for(const company of world.companies){
     company.daily={day,revenue:0,profit:0,sold:0};
     company.localDay={};
-    tradeStock(world,company,market,peers);
+    tradeStock(world,company,market,peers,localSupply);
     settle(world,company);
     if(company.status!=='bankrupt') {
       manage(world,company,market);
@@ -415,7 +427,11 @@ export function advanceCompetition(world,day,market,playerSales=[],playerBranche
     event(world,c,'entry',`${c.name} Türkiye motosiklet pazarına girdi.`);
   }
   const count=c=>c.history.slice(-30).reduce((sum,row)=>sum+row[3],0);
-  const retired=world.retired.reduce((sum,row)=>sum+(row.day>=day-29?(row.recentSales??0):0),0);
+  const retired=world.retired.reduce((sum,row)=>{
+    if(row.day<day-29)return sum;
+    return sum+(row.salesByDay ? row.salesByDay.filter(entry=>entry[0]>=day-29).reduce((n,entry)=>n+entry[1],0)
+      : row.recentSales??0);
+  },0);
   const player=playerSales.filter(row=>row.day>=day-29 && !row.returnedDay).length;
   const total=world.companies.reduce((sum,c)=>sum+count(c),player+retired);
   for(const c of world.companies){
@@ -431,6 +447,11 @@ export function advanceCompetition(world,day,market,playerSales=[],playerBranche
   world.playerShare=total ? player/total:0;
   if(playerBranches!==null)bounded(world.playerHistory??=[],[day,world.playerShare,playerBranches],365);
   if(day%7===0){
+    const leader=world.companies.reduce((best,company)=>!best || company.bookValue>best.bookValue ? company:best,null);
+    if(leader && leader.id!==world.leader){
+      if(world.leader!==undefined)event(world,leader,'leader',`${leader.name} şirket değeri sıralamasının lideri oldu.`);
+      world.leader=leader.id;
+    }
     const entries=[...peers.values()];
     if(entries.length){
       const index=entries.reduce((a,b)=>a+b,0)/entries.length;
@@ -466,11 +487,18 @@ export function rivalOffer(company,amount) {
 
 function archiveAcquisition(world,company,quote,offices,buyer) {
   bounded(world.retired,{id:company.id,name:company.name,identity:company.identity,day:world.day,status:'acquired',sales:company.totalSold,
-    recentSales:company.history.slice(-30).reduce((total,row)=>total+row[3],0),profit:company.profit},80);
+    salesByDay:company.history.filter(row=>row[0]>world.day-30 && row[3]).map(row=>[row[0],row[3]])
+      .concat(buyer && company.daily.sold?[[world.day,company.daily.sold]]:[]),
+    profit:company.profit+(buyer?company.daily.profit:0)},80);
+  const history=company.history.slice();
+  if(buyer && history.at(-1)?.[0]!==world.day) {
+    bounded(history,[world.day,company.daily.revenue,company.daily.profit,company.daily.sold,
+      rivalValue(company),company.cash,null,company.branches.length,company.daily.bought??0,company.stock.length],365);
+  }
   const record={id:company.id,name:company.name,identity:company.identity,day:world.day,opening:quote.threshold,
     accepted:quote.price,fees:quote.fees,total:quote.total,receivedCash:company.cash,debt:company.debt,
     offices:offices.map(office=>office.id),stock:company.stock.length,
-    staff:company.branches.reduce((sum,branch)=>sum+branch.staff,0),history:company.history};
+    staff:company.branches.reduce((sum,branch)=>sum+branch.staff,0),history};
   if(buyer) {
     record.buyerId=buyer.id;
     record.buyerName=buyer.name;

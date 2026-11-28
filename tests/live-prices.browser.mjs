@@ -1293,3 +1293,32 @@ test('390px reputation filters keep legacy reviews and rival detail scroll stays
     assert.notEqual(await ui.page.evaluate(()=>getComputedStyle(document.documentElement).overflow),'hidden');
   }
 });
+
+test('320px rival identity migration survives reload without replacing historic labels',async t=>{
+  const seed=initial();
+  delete seed.competition.identityVersion;
+  const legacy=seed.competition.companies[0];
+  legacy.name='Kıvıltaş Eski Moto';
+  delete legacy.identity;
+  seed.competition.news=[{day:1,id:legacy.id,type:'entry',text:'Kıvıltaş Eski Moto kuruldu.'}];
+  const ui=await open(t,320,568,seed);
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  await ui.tap('#competition-tab-rivals');
+  const first=ui.page.locator('#rival-list .rival-mark').first();
+  assert.ok(await first.isVisible());
+  const style=await first.getAttribute('style');
+  const label=await first.innerText();
+  const saved=(await ui.state()).competition;
+  assert.equal(saved.companies[0].id,legacy.id);
+  assert.equal(saved.companies[0].formerName,legacy.name);
+  await ui.page.reload();
+  await ui.ready();
+  await ui.tap('.bottom-nav [data-page=business]');
+  await ui.tap('#competition-open');
+  await ui.tap('#competition-tab-rivals');
+  assert.equal(await first.getAttribute('style'),style);
+  assert.equal(await first.innerText(),label);
+  await ui.tap('#competition-tab-news');
+  assert.match(await ui.page.locator('#competition-news').innerText(),/Kıvıltaş Eski Moto kuruldu/);
+});

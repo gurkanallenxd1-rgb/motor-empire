@@ -16,6 +16,7 @@
 | v0.17.0.1 | Kamera ve mobil giriş düzeltmesi, PR #34. Kullanıcının fiziksel iPhone testi kamera ve metin seçimini doğruladı. |
 | v0.18 | 50 rakip galeri, günlük rekabet, şirket devralma ve Rekabet Merkezi |
 | v0.18.1 | İtibar Merkezi, kompakt satış bildirimi, şirket sayaç ve devralma düzeltmeleri |
+| v0.18.2 | Rakip işletme kapasitesi, şirketler arası devralma, kalıcı şirket kimliği ve performans karşılaştırmaları |
 
 Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bulunur.
 
@@ -31,4 +32,4 @@ Sürüm ve kaynak PR ayrıntıları [CHANGELOG.md](CHANGELOG.md) dosyasında bul
 8. Android ve iOS uygulamaları.
 9. Tam kapsamlı 3D grafik geliştirmeleri.
 
-Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri ve görsel hasar sonraki grafik kapsamındadır. [v0.18.1 düzeltme raporu](docs/v0181-hotfix.md)
+Lisanslı gerçek 3D motosikletler, ek garaj seviyeleri ve görsel hasar sonraki grafik kapsamındadır. [v0.18.2 rekabet denge raporu](docs/v0182-report.md)

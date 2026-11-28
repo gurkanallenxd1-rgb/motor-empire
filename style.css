@@ -644,4 +644,9 @@ body[data-view="gallery-profile"] main > :is(.intro,.stats,.branch-bar) { displa
 .rival-mark[data-shape="hex"] { clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); }
 .rival-mark[data-shape="circle"] { border-radius: 50%; }
 .rival-mark[data-shape="flag"] { clip-path: polygon(0 0,100% 10%,88% 85%,0 100%); }
-#rival-detail .analysis-chart-panel > header { flex-wrap: wrap; }
+#rival-detail .analysis-chart-panel > header {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,.64fr);
+}
+#rival-detail .analysis-chart-panel > header h3 { grid-column: 1 / -1; }
+#rival-detail .analysis-chart-panel select { width: 100%; min-width: 0; }

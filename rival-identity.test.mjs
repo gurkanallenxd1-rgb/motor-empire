@@ -9,7 +9,15 @@ import {BRANCH_TIERS,STAFF_ROLES} from './business.mjs';
 test('1,000 deterministic names are distinct after Turkish normalization and the first roster has distinct brands and logos',()=>{
   const strategies=Object.keys(STRATEGIES);
   const roster=Array.from({length:1000},(_,i)=>rivalIdentity(i+1,strategies[i%strategies.length]));
-  assert.equal(new Set(roster.map(row=>nameKey(row.name))).size,1000);
+  const names=new Set(roster.map(row=>nameKey(row.name)));
+  assert.equal(names.size,1000);
+  const signatures=new Set();
+  for(const name of names) for(let position=0;position<name.length;position++){
+    const fragment=name.slice(0,position)+name.slice(position+1);
+    const substitution=position+' '+fragment;
+    assert.ok(!names.has(fragment) && !signatures.has(substitution),name);
+    signatures.add(substitution);
+  }
   assert.equal(new Set(roster.slice(0,64).map(row=>nameKey(row.name.split(' ')[0]))).size,64);
   assert.equal(new Set(roster.slice(0,64).map(row=>JSON.stringify(row.identity))).size,64);
   assert.equal(nameKey('İĞNE MÖTÖR'),nameKey('igne motor'));
@@ -103,4 +111,24 @@ test('rival takeovers charge one fee-inclusive payment and transfer actual stock
   assert.equal(buyer.events.filter(row=>row[1]==='inheritedCash'&&row[3]===deal.receivedCash).length,1);
   assert.equal(advanceCompetition(world,111,createEconomy(111)),false);
   assert.equal(world.rivalTakeovers.length,1);
+});
+
+test('staff expenses use all six player wage rates and an empty distressed secondary branch can close',()=>{
+  const world=createCompetition(1);
+  const company=world.companies[0];
+  world.companies=[company];
+  company.cash=5000;
+  company.openingCash=5000;
+  company.debt=220000;
+  company.stress=12;
+  company.branches[0].roles=Object.keys(STAFF_ROLES);
+  company.branches[0].staff=6;
+  company.branches.push({id:2,province:17,tier:0,roles:[],staff:0});
+  company.nextBranch=3;
+  advanceCompetition(world,2,createEconomy(2));
+  const region=company.regional.find(row=>row[1]===company.province);
+  assert.equal(region[3],-250-Object.values(STAFF_ROLES).reduce((sum,role)=>sum+role.wage,0));
+  assert.equal(company.branches.length,1);
+  assert.ok(world.news.some(item=>item.type==='closure'));
+  assert.equal(company.cash,company.openingCash+company.cashIn-company.cashOut);
 });

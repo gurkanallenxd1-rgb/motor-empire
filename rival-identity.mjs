@@ -1,5 +1,5 @@
 const brands='Kıvraç Sedefkaya Voltara Mavikül Rotalis Demiriz Tanyeli Motifex Kayraç Ferrovia İzveren Caspira Eksenor Dorupark Virael Torkova Alevhan Arclume Gökkert Aksela Süratya Rocaterra Kuzgunel Vardon Yelpaze Pistora Alacadağ Aeromar Gümüşiz Straton Erguvan Flintway Dalgınay Ravello Zagora Çınaraltı Korven Momentum Vektora Zeytinova Velune Yörüngem Koralto Rüzgâryol Deltora Orbitan Sarpyaka Kestrel Andora Novarun Turmalin Rotaçizgi Prismora Kulehan Asterro Altınyel Nebulon Tanyaka Mossline Yalınkök Braxton Serinyol Kırağı Uzgur'.split(' ');
-const labels=['Motor','Moto','Motors','Motosiklet','Garage','Motoworks','Motor Grubu','Two Wheels','Ride Lab','Motor Group','Sürüş Merkezi','Mobilite','Motorculuk','Speed Shop','Motor Atölyesi','Yol Teknolojileri','Moto Collective','Racing','Motor Studio','Bike House'];
+const labels=['Motor','İki Teker','Motion Works','Motosiklet','Garage','Motoworks','Motor Grubu','Two Wheels','Ride Lab','Motor Group','Sürüş Merkezi','Mobilite','Motorculuk','Speed Shop','Motor Atölyesi','Yol Teknolojileri','Moto Collective','Racing','Motor Studio','Bike House'];
 const colors=['#f59949','#4db3d5','#b993ed','#69ba8c','#da7587','#91a4ed','#c3b75b','#53c5bb'];
 const shapes=['shield','diamond','hex','circle','flag'];
 const strategyLabels={volume:0,premium:9,scooter:11,sport:17,repair:14,rental:12,safe:3,growth:6,margin:18,regional:1};
@@ -16,7 +16,7 @@ export function rivalIdentity(id,strategy) {
   const label=labels[(base+cycle*7)%labels.length];
   const name=[core,label,cycle>=labels.length?String(Math.floor(cycle/labels.length)+1):''].filter(Boolean).join(' ');
   return {name,identity:{initials:(core.slice(0,2)+label[0]).toLocaleUpperCase('tr'),
-    primary:colors[(index+cycle)%colors.length],secondary:colors[(Math.floor(index/8)+3)%colors.length],
+    primary:colors[(index+cycle)%colors.length],secondary:`hsl(${(index*137.507764)%360} 65% 68%)`,
     shape:shapes[(index+(strategyLabels[strategy]??0))%shapes.length]}};
 }
 
